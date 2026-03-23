@@ -1,0 +1,949 @@
+PRD – Hệ thống quản lý chuỗi Spa bằng web
+1. Thông tin tài liệu
+Mục
+Nội dung
+Tên sản phẩm
+Hệ thống quản lý chuỗi Spa bằng web
+Loại sản phẩm
+Web application quản lý vận hành chuỗi spa
+Mục tiêu
+Số hóa và tập trung hóa vận hành toàn bộ chuỗi spa trên một nền tảng
+Đối tượng sử dụng
+Chủ chuỗi, quản lý vận hành, quản lý chi nhánh, lễ tân, kỹ thuật viên, thu ngân, kho, marketing, kế toán, khách hàng
+Phạm vi triển khai
+Nhiều chi nhánh, nhiều vai trò người dùng, dữ liệu tập trung
+Phiên bản PRD
+v1.0
+Trạng thái
+Draft / Ready for analysis
+2. Tóm tắt sản phẩm
+Hệ thống quản lý chuỗi Spa bằng web là nền tảng giúp doanh nghiệp spa quản lý tập trung các nghiệp vụ cốt lõi như:
+quản lý chi nhánh
+quản lý khách hàng
+quản lý dịch vụ và liệu trình
+đặt lịch và điều phối phòng/giường/kỹ thuật viên
+bán hàng và thanh toán
+quản lý gói dịch vụ, hội viên, khuyến mãi
+quản lý kho và tiêu hao vật tư
+quản lý nhân sự, ca làm, hoa hồng
+báo cáo vận hành và doanh thu theo thời gian thực
+Sản phẩm hướng đến việc thay thế quy trình thủ công bằng Excel, sổ tay, nhắn tin rời rạc hoặc phần mềm đơn lẻ theo từng chi nhánh; đồng thời chuẩn hóa quy trình phục vụ trong toàn chuỗi.
+3. Bối cảnh và bài toán cần giải quyết
+Chuỗi spa thường gặp các vấn đề sau:
+Dữ liệu phân tán theo chi nhánh
+Mỗi chi nhánh quản lý khách, lịch hẹn, doanh thu, tồn kho theo cách riêng, khó tổng hợp.
+Đặt lịch thủ công dễ trùng lịch
+Trùng kỹ thuật viên, trùng phòng, trùng thiết bị, hoặc quên buffer giữa các ca.
+Khó theo dõi liệu trình và gói dịch vụ
+Không kiểm soát được số buổi còn lại, hạn dùng, lịch sử sử dụng, chuyển chi nhánh.
+Thiếu CRM tập trung
+Không có chân dung 360 độ về khách hàng: tần suất quay lại, dịch vụ ưa thích, hành vi mua, phản hồi.
+Quản lý kho không gắn với dịch vụ thực tế
+Tiêu hao mỹ phẩm/vật tư không được trừ kho chính xác, dẫn đến thất thoát.
+Tính hoa hồng phức tạp
+Hoa hồng theo dịch vụ, bán sản phẩm, upsell, gói liệu trình, KPI cá nhân/chi nhánh rất dễ sai.
+Chủ chuỗi thiếu dashboard thời gian thực
+Không nhìn thấy doanh thu, lịch đầy, hiệu suất nhân viên, tỷ lệ no-show, mức sử dụng phòng.
+Trải nghiệm khách hàng thiếu nhất quán
+Mỗi chi nhánh vận hành khác nhau, thông báo nhắc lịch kém, phản hồi xử lý chậm.
+4. Tầm nhìn sản phẩm
+Xây dựng một nền tảng web giúp chuỗi spa vận hành theo mô hình tập trung – minh bạch – chuẩn hóa – dễ mở rộng, trong đó:
+trụ sở có thể quản lý toàn chuỗi trên một màn hình
+chi nhánh vận hành nhanh, ít sai sót
+khách hàng được phục vụ nhất quán ở mọi điểm chạm
+dữ liệu đủ sạch để ra quyết định kinh doanh
+5. Mục tiêu kinh doanh và KPI
+5.1 Mục tiêu kinh doanh
+Chuẩn hóa quy trình vận hành của toàn chuỗi.
+Tăng hiệu quả sử dụng kỹ thuật viên, phòng và thiết bị.
+Tăng tỷ lệ quay lại của khách hàng và doanh thu trên mỗi khách.
+Giảm sai sót trong đặt lịch, thanh toán, kho và tính hoa hồng.
+Cung cấp báo cáo thời gian thực cho chủ chuỗi và ban điều hành.
+5.2 KPI đề xuất
+KPI
+Mục tiêu đề xuất
+Tỷ lệ lịch hẹn được ghi nhận trên hệ thống
+>= 95%
+Thời gian tạo một lịch hẹn tại quầy
+<= 2 phút
+Tỷ lệ trùng lịch tài nguyên
+gần 0
+Tỷ lệ no-show được theo dõi có lý do
+100%
+Thời gian chốt ca/chốt ngày tại chi nhánh
+<= 15 phút
+Sai lệch tồn kho khi kiểm kê
+< 3%
+Tỷ lệ khách quay lại sau 90 ngày
+tăng theo mục tiêu từng chuỗi
+Tỷ lệ sử dụng phòng/giường giờ cao điểm
+đo và tối ưu theo chi nhánh
+Thời gian xuất báo cáo doanh thu toàn chuỗi
+realtime hoặc gần realtime
+Tỷ lệ phản hồi khách hàng được xử lý đúng SLA
+>= 90%
+6. Đối tượng người dùng và nhu cầu
+Vai trò
+Mục tiêu chính
+Nhu cầu
+Chủ chuỗi / Super Admin
+Quản trị toàn hệ thống
+Xem dashboard toàn chuỗi, cấu hình chính sách, phân quyền
+Quản lý vận hành
+Kiểm soát hiệu quả chi nhánh
+Theo dõi KPI, doanh thu, no-show, công suất, chất lượng dịch vụ
+Quản lý chi nhánh
+Điều hành chi nhánh
+Quản lý lịch, nhân sự, doanh thu, tồn kho, phản hồi khách
+Lễ tân
+Tiếp nhận và đặt lịch
+Tìm khách nhanh, tạo lịch nhanh, check-in, xử lý đổi lịch
+Kỹ thuật viên
+Thực hiện dịch vụ
+Xem lịch cá nhân, cập nhật trạng thái phục vụ, ghi chú liệu trình
+Thu ngân
+Thanh toán
+Lên hóa đơn, áp khuyến mãi, dùng gói, hoàn tiền theo quyền
+Nhân viên kho
+Quản lý vật tư
+Nhập-xuất-tồn, cảnh báo thiếu hàng, hạn dùng, điều chuyển
+Marketing/CRM
+Giữ chân khách
+Phân nhóm khách, chạy chiến dịch, theo dõi hiệu quả khuyến mãi
+Kế toán
+Đối soát
+Báo cáo doanh thu, công nợ, dòng tiền, đối soát chi nhánh
+Khách hàng
+Đặt lịch và theo dõi liệu trình
+Xem lịch, gói còn lại, lịch sử dịch vụ, nhận nhắc lịch
+7. Phạm vi sản phẩm
+7.1 In scope – trong phạm vi
+Bắt buộc cho MVP
+Quản lý người dùng và phân quyền
+Quản lý chi nhánh
+Quản lý khách hàng
+Quản lý dịch vụ, liệu trình, bảng giá
+Quản lý lịch hẹn
+Điều phối kỹ thuật viên, phòng/giường
+Check-in / check-out
+Thanh toán, hóa đơn, hoàn/hủy giao dịch cơ bản
+Quản lý gói dịch vụ / liệu trình
+Quản lý kho cơ bản
+Quản lý ca làm và hoa hồng cơ bản
+Báo cáo doanh thu, lịch hẹn, hiệu suất
+Nhật ký thao tác (audit log)
+Nên có ở Phase 2
+Cổng đặt lịch trực tuyến cho khách hàng
+Membership / loyalty / tích điểm
+Marketing automation
+Khảo sát hài lòng sau dịch vụ
+Quản lý thiết bị nâng cao
+Quản lý khiếu nại, ticket hỗ trợ
+Quản lý mua hàng và nhà cung cấp nâng cao
+Có thể có ở Phase 3
+Ứng dụng mobile cho khách hoặc nhân viên
+Gợi ý khuyến mãi thông minh
+Dự báo tồn kho
+Chấm công tích hợp thiết bị
+Dashboard BI nâng cao
+7.2 Out of scope – ngoài phạm vi v1
+Hệ thống ERP/kế toán tổng thể đầy đủ
+HRM/payroll chuyên sâu
+Telehealth / hồ sơ y khoa chuyên khoa
+E-commerce đầy đủ kiểu sàn bán lẻ
+AI chẩn đoán da hoặc tư vấn y khoa
+8. Giá trị cốt lõi của sản phẩm
+Quản lý tập trung toàn chuỗi
+Một nguồn dữ liệu thống nhất cho mọi chi nhánh.
+Vận hành chính xác theo tài nguyên thực
+Lịch hẹn gắn với kỹ thuật viên, phòng, giường, máy và vật tư.
+CRM + giao dịch + liệu trình trên cùng một nền tảng
+Nhìn toàn bộ lịch sử khách hàng ở một nơi.
+Ra quyết định bằng dữ liệu
+Dashboard theo chi nhánh, dịch vụ, nhân viên, khung giờ, tệp khách.
+9. Quy trình nghiệp vụ cốt lõi
+9.1 Quy trình đặt lịch
+Lễ tân hoặc khách hàng chọn chi nhánh.
+Chọn dịch vụ/gói liệu trình cần đặt.
+Hệ thống tính tổng thời lượng, yêu cầu tài nguyên và gợi ý khung giờ khả dụng.
+Chọn kỹ thuật viên theo kỹ năng, giới tính hoặc yêu cầu riêng.
+Hệ thống kiểm tra trùng lịch tài nguyên.
+Xác nhận lịch, gửi thông báo nhắc lịch.
+Nếu có cọc, hệ thống ghi nhận trạng thái thanh toán cọc.
+9.2 Quy trình khách walk-in
+Lễ tân tra cứu khách cũ hoặc tạo khách mới.
+Chọn dịch vụ mong muốn.
+Hệ thống kiểm tra tài nguyên khả dụng ngay lập tức.
+Tạo phiếu tiếp nhận và gắn phòng/giường/kỹ thuật viên.
+Sau khi làm xong, chuyển sang thanh toán.
+9.3 Quy trình check-in và thực hiện dịch vụ
+Khách đến chi nhánh và check-in.
+Hệ thống đổi trạng thái lịch hẹn sang “Đã đến”.
+Kỹ thuật viên nhận ca trên màn hình cá nhân.
+Bắt đầu dịch vụ, hệ thống ghi nhận giờ bắt đầu.
+Trong quá trình thực hiện có thể cập nhật ghi chú, hình ảnh, phản ứng da, khuyến nghị.
+Kết thúc dịch vụ, hệ thống ghi nhận giờ kết thúc và cập nhật tiêu hao vật tư nếu cấu hình.
+9.4 Quy trình thanh toán
+Thu ngân lấy thông tin dịch vụ đã thực hiện.
+Hệ thống kiểm tra khách có gói liệu trình, voucher, điểm, khuyến mãi khả dụng không.
+Thu ngân áp dụng chính sách giảm giá theo quyền.
+Chọn hình thức thanh toán: tiền mặt, chuyển khoản, thẻ, ví điện tử, thanh toán hỗn hợp.
+In/xuất hóa đơn, cập nhật doanh thu và công nợ nếu có.
+Nếu thanh toán bằng gói, hệ thống trừ số buổi còn lại.
+9.5 Quy trình kho và tiêu hao
+Kho nhập hàng từ nhà cung cấp hoặc điều chuyển từ chi nhánh khác.
+Tồn kho được ghi nhận theo lô/hạn dùng nếu có.
+Khi dịch vụ hoàn tất, hệ thống tự động hoặc bán tự động trừ vật tư theo định mức.
+Khi kiểm kê có chênh lệch, cần tạo phiếu điều chỉnh và lưu lý do.
+Hệ thống cảnh báo mặt hàng sắp hết hoặc sắp hết hạn.
+9.6 Quy trình chốt ngày
+Tổng hợp giao dịch tiền mặt, chuyển khoản, hoàn tiền, hủy hóa đơn.
+Đối chiếu lịch đã hoàn thành với hóa đơn đã thanh toán.
+Kiểm tra các giao dịch nháp/chờ xử lý.
+Xuất báo cáo chốt ca/chốt ngày.
+Quản lý chi nhánh xác nhận số liệu cuối ngày.
+10. Yêu cầu chức năng chi tiết
+10.1 Quản lý tài khoản, xác thực và phân quyền
+Mục tiêu
+Đảm bảo người dùng chỉ nhìn thấy và thao tác đúng phạm vi được cấp.
+Yêu cầu bắt buộc
+Hệ thống cho phép đăng nhập bằng tài khoản nội bộ.
+Có cơ chế quên mật khẩu, đổi mật khẩu, khóa/mở tài khoản.
+Hỗ trợ phân quyền theo vai trò và phạm vi chi nhánh.
+Một người dùng có thể thuộc nhiều vai trò nếu được cấp.
+Mỗi hành động nhạy cảm như hoàn tiền, sửa giá, xóa lịch, điều chỉnh kho phải được lưu nhật ký.
+Hệ thống cho phép giới hạn dữ liệu theo chi nhánh: người dùng chi nhánh A không xem dữ liệu chi nhánh B nếu không có quyền.
+Có cấu hình timeout phiên làm việc.
+Có thể bật xác thực hai lớp ở giai đoạn nâng cao.
+Quy tắc nghiệp vụ
+Super Admin có quyền trên toàn chuỗi.
+Quản lý chi nhánh chỉ được thao tác trên chi nhánh phụ trách.
+Thu ngân không được sửa dữ liệu lịch sử dịch vụ.
+Kỹ thuật viên không được xem báo cáo tài chính toàn chi nhánh.
+Hành động hủy hóa đơn hoặc hoàn tiền vượt ngưỡng phải cần phê duyệt.
+10.2 Quản lý chi nhánh và dữ liệu danh mục
+Mục tiêu
+Chuẩn hóa cấu hình vận hành giữa các chi nhánh.
+Yêu cầu bắt buộc
+Tạo/sửa/ngừng hoạt động chi nhánh.
+Cấu hình giờ làm việc, ngày nghỉ, khung giờ phục vụ.
+Quản lý phòng, giường, máy móc, thiết bị tại từng chi nhánh.
+Cấu hình bảng giá dịch vụ theo từng chi nhánh.
+Cấu hình dịch vụ nào được mở bán tại chi nhánh nào.
+Quản lý danh mục thương hiệu, nhà cung cấp, đơn vị tính, nhóm sản phẩm.
+Cho phép import dữ liệu danh mục từ file.
+Lưu lịch sử thay đổi cấu hình.
+Quy tắc nghiệp vụ
+Một dịch vụ có thể có giá khác nhau theo chi nhánh.
+Một thiết bị có thể được đánh dấu bảo trì và không được book trong thời gian bảo trì.
+Một chi nhánh có thể giới hạn dịch vụ theo trình độ kỹ thuật viên hiện có.
+10.3 Quản lý dịch vụ, liệu trình, combo, sản phẩm
+Mục tiêu
+Quản lý toàn bộ sản phẩm bán ra và dịch vụ phục vụ tại spa.
+Yêu cầu bắt buộc
+Tạo danh mục dịch vụ theo nhóm: facial, body, massage, trị liệu, chăm sóc da, sản phẩm bán lẻ.
+Mỗi dịch vụ có các thuộc tính chính:
+tên
+mã dịch vụ
+thời lượng
+giá niêm yết
+giá theo chi nhánh
+yêu cầu loại phòng/thiết bị
+cấp độ kỹ thuật viên
+định mức vật tư tiêu hao
+Cho phép tạo combo/gói liệu trình gồm nhiều buổi hoặc nhiều dịch vụ.
+Cho phép tạo add-on bán kèm.
+Cho phép bật/tắt dịch vụ theo chi nhánh.
+Quản lý hình ảnh, mô tả, hướng dẫn sau dịch vụ.
+Cho phép cấu hình chống chỉ định, lưu ý an toàn, biểu mẫu đồng ý dịch vụ nếu cần.
+Hỗ trợ sản phẩm bán lẻ như mỹ phẩm, serum, bộ chăm sóc tại nhà.
+Quy tắc nghiệp vụ
+Dịch vụ không hoạt động thì không được đặt lịch mới.
+Gói liệu trình có thể có hạn sử dụng và số buổi cụ thể.
+Một số dịch vụ chỉ được gán cho kỹ thuật viên có chứng nhận tương ứng.
+10.4 Quản lý khách hàng (CRM)
+Mục tiêu
+Xây hồ sơ 360 độ cho từng khách hàng.
+Yêu cầu bắt buộc
+Tạo và cập nhật hồ sơ khách hàng.
+Tìm kiếm khách theo tên, số điện thoại, email, mã khách hàng.
+Lưu các trường thông tin chính:
+họ tên
+số điện thoại
+email
+ngày sinh
+giới tính
+địa chỉ
+nguồn khách hàng
+ghi chú
+tình trạng dị ứng/nhạy cảm
+sở thích dịch vụ
+Theo dõi lịch sử đặt lịch, lịch sử sử dụng dịch vụ, lịch sử mua hàng.
+Theo dõi gói liệu trình đã mua, số buổi còn lại, hạn sử dụng.
+Theo dõi doanh thu theo khách, tần suất quay lại, lần đến gần nhất.
+Gắn tag khách hàng như VIP, khách mới, khách có khiếu nại, khách sinh nhật tháng này.
+Ghi nhận đồng ý nhận thông báo marketing.
+Hợp nhất hồ sơ trùng lặp.
+Ghi nhận phản hồi, khiếu nại, mức độ hài lòng.
+Quy tắc nghiệp vụ
+Số điện thoại nên là khóa nhận diện chính để chống trùng.
+Merge khách hàng phải giữ toàn bộ lịch sử giao dịch.
+Dữ liệu nhạy cảm như dị ứng, hình ảnh, ghi chú điều trị phải được phân quyền chặt.
+10.5 Quản lý lịch hẹn
+Mục tiêu
+Tạo và điều phối lịch hẹn chính xác, nhanh, không trùng tài nguyên.
+Yêu cầu bắt buộc
+Hiển thị lịch theo ngày/tuần/tháng.
+Xem lịch theo chi nhánh, kỹ thuật viên, phòng, giường, thiết bị.
+Tạo lịch hẹn cho một hoặc nhiều dịch vụ trong cùng một lần đặt.
+Hệ thống tự tính thời lượng tổng và buffer giữa các ca.
+Tự động gợi ý khung giờ còn trống.
+Cho phép chỉ định kỹ thuật viên cụ thể hoặc để hệ thống gợi ý.
+Hỗ trợ đặt cọc.
+Hỗ trợ đổi lịch, hủy lịch, đánh dấu no-show.
+Hỗ trợ thêm ghi chú như ưu tiên kỹ thuật viên nữ, khách VIP, khách dị ứng.
+Hỗ trợ khách mới và khách cũ.
+Hỗ trợ nguồn đặt lịch: tại quầy, điện thoại, Facebook, website, đối tác, walk-in.
+Hỗ trợ trạng thái lịch:
+Mới tạo
+Đã xác nhận
+Đã check-in
+Đang phục vụ
+Hoàn tất
+Đã thanh toán
+Hủy
+No-show
+Hỗ trợ danh sách chờ nếu khung giờ đầy.
+Gửi nhắc lịch tự động.
+Hiển thị cảnh báo trùng lịch hoặc xung đột tài nguyên.
+Quy tắc nghiệp vụ
+Không cho phép một kỹ thuật viên bị gán hai lịch trùng thời gian.
+Không cho phép một phòng/giường/thiết bị bị dùng trùng nếu không hỗ trợ song song.
+Buffer vệ sinh/phục hồi phòng phải được tính vào lịch.
+Chỉ trừ buổi gói khi dịch vụ hoàn tất, không trừ khi chỉ mới đặt lịch.
+No-show có thể bị ghi nhận vào hồ sơ khách để phân nhóm.
+Tiêu chí chấp nhận tiêu biểu
+Khi lễ tân chọn khung giờ đã có kỹ thuật viên bận, hệ thống phải chặn và gợi ý giờ gần nhất còn trống.
+Khi đổi lịch, lịch sử thay đổi phải được lưu cùng người thao tác và lý do.
+10.6 Check-in, thực hiện dịch vụ và ghi chú liệu trình
+Mục tiêu
+Đảm bảo quá trình phục vụ được số hóa và truy vết được.
+Yêu cầu bắt buộc
+Lễ tân check-in khách khi đến.
+Kỹ thuật viên thấy danh sách khách sắp phục vụ và đang phục vụ.
+Kỹ thuật viên cập nhật trạng thái bắt đầu/kết thúc dịch vụ.
+Ghi chú trong buổi dịch vụ:
+tình trạng da/cơ thể
+phản ứng
+khuyến nghị
+ghi chú đặc biệt
+Cho phép lưu hình ảnh trước/sau nếu có sự đồng ý của khách.
+Ghi nhận người thực hiện chính và người hỗ trợ.
+Ghi nhận upsell phát sinh trong lúc phục vụ.
+Gửi hướng dẫn chăm sóc sau dịch vụ.
+Quy tắc nghiệp vụ
+Ảnh trước/sau phải yêu cầu xác nhận quyền sử dụng dữ liệu.
+Ghi chú điều trị chỉ hiển thị cho vai trò được phép.
+Dịch vụ hoàn tất mới được chuyển sang bước thanh toán hoặc trừ buổi.
+10.7 Thanh toán, hóa đơn và POS
+Mục tiêu
+Chuẩn hóa toàn bộ quy trình thu tiền tại spa.
+Yêu cầu bắt buộc
+Tạo hóa đơn từ lịch hẹn đã hoàn tất hoặc từ bán lẻ tại quầy.
+Một hóa đơn có thể gồm:
+dịch vụ lẻ
+buổi gói liệu trình
+sản phẩm bán lẻ
+add-on
+Áp dụng khuyến mãi, voucher, giảm giá theo chính sách.
+Hỗ trợ thanh toán nhiều phương thức:
+tiền mặt
+chuyển khoản
+thẻ
+ví điện tử
+hỗn hợp
+Hỗ trợ thanh toán một phần hoặc đặt cọc.
+Hỗ trợ in hoặc gửi hóa đơn điện tử/tệp hóa đơn.
+Hỗ trợ hoàn tiền, hủy hóa đơn, điều chỉnh hóa đơn theo quyền.
+Ghi nhận ca thu ngân và chốt quỹ cuối ca.
+Hỗ trợ bán gói liệu trình/membership trực tiếp tại quầy.
+Hỗ trợ ghi nhận tip nếu mô hình vận hành cần.
+Quy tắc nghiệp vụ
+Hủy hóa đơn sau khi chốt ngày phải có quyền đặc biệt.
+Hoàn tiền phải lưu lý do, người duyệt, thời điểm duyệt.
+Giao dịch đặt cọc phải liên kết với lịch hẹn tương ứng.
+Trường hợp thanh toán bằng gói liệu trình, hệ thống chỉ trừ số buổi chứ không ghi doanh thu lặp sai logic kế toán nội bộ.
+10.8 Gói liệu trình, hội viên, điểm thưởng, voucher
+Mục tiêu
+Tăng doanh thu trả trước và tăng tỷ lệ quay lại.
+Yêu cầu bắt buộc
+Tạo gói liệu trình theo:
+số buổi
+số tiền
+combo dịch vụ
+thời hạn sử dụng
+Theo dõi số buổi còn lại theo từng khách.
+Cho phép dùng gói ở một hoặc nhiều chi nhánh tùy cấu hình.
+Hỗ trợ đóng băng/gia hạn gói theo quyền.
+Hỗ trợ membership theo hạng như Silver/Gold/VIP.
+Hỗ trợ tích điểm và quy đổi điểm.
+Hỗ trợ voucher giảm giá, voucher quà tặng, referral code.
+Hỗ trợ quy tắc cộng dồn/không cộng dồn khuyến mãi.
+Theo dõi lịch sử phát hành và sử dụng voucher.
+Cảnh báo gói sắp hết hạn.
+Quy tắc nghiệp vụ
+Một voucher có thể giới hạn theo chi nhánh, dịch vụ, thời gian, số lần dùng.
+Một số ưu đãi không được dùng cùng nhau.
+Điểm thưởng chỉ cộng khi giao dịch đã thanh toán thành công.
+Gói hết hạn có thể không được sử dụng trừ khi quản lý gia hạn.
+10.9 Quản lý kho, vật tư, tiêu hao và mua hàng
+Mục tiêu
+Kiểm soát hàng hóa, mỹ phẩm, vật tư tiêu hao gắn với vận hành thực tế.
+Yêu cầu bắt buộc
+Quản lý danh mục hàng hóa, vật tư, mỹ phẩm.
+Quản lý kho theo chi nhánh.
+Quản lý nhập kho, xuất kho, điều chuyển kho.
+Quản lý kiểm kê và điều chỉnh tồn.
+Ghi nhận lô hàng, hạn dùng nếu cần.
+Thiết lập định mức tiêu hao theo dịch vụ.
+Tự động hoặc bán tự động trừ kho khi dịch vụ hoàn tất.
+Hỗ trợ cảnh báo sắp hết hàng, hàng dưới tồn tối thiểu, hàng sắp hết hạn.
+Hỗ trợ tạo phiếu mua hàng và nhận hàng từ nhà cung cấp.
+Theo dõi giá vốn cơ bản và lịch sử biến động tồn kho.
+Hỗ trợ bán lẻ sản phẩm từ kho.
+Hỗ trợ chuyển hàng giữa các chi nhánh.
+Quy tắc nghiệp vụ
+Không cho phép xuất âm kho nếu chính sách không cho phép.
+Điều chỉnh tồn phải có lý do và lưu người thao tác.
+Trừ kho tự động phải dựa trên dịch vụ thực tế hoàn tất, không dựa trên lịch đã đặt.
+Hàng hết hạn không được phép xuất bán hay dùng cho dịch vụ.
+Tiêu chí chấp nhận tiêu biểu
+Khi một dịch vụ facial hoàn tất, hệ thống phải trừ đúng định mức serum, mask, toner nếu đã được cấu hình.
+Khi kiểm kê phát hiện thiếu hàng, hệ thống tạo phiếu điều chỉnh với lý do và nhật ký thao tác.
+10.10 Quản lý nhân sự vận hành, ca làm và hoa hồng
+Mục tiêu
+Tối ưu năng suất nhân viên và tự động hóa quy tắc hoa hồng.
+Yêu cầu bắt buộc
+Quản lý hồ sơ nhân sự cơ bản:
+họ tên
+mã nhân viên
+vai trò
+chi nhánh
+kỹ năng/chứng chỉ
+trạng thái làm việc
+Quản lý lịch làm việc, ca làm, ngày nghỉ.
+Gán kỹ thuật viên vào dịch vụ theo kỹ năng phù hợp.
+Theo dõi số lượng khách phục vụ, giờ làm, hiệu suất.
+Tính hoa hồng theo dịch vụ, sản phẩm, upsell, gói.
+Hỗ trợ rule hoa hồng khác nhau theo chi nhánh hoặc chiến dịch.
+Hỗ trợ chốt hoa hồng theo kỳ.
+Hỗ trợ quản lý tip nếu có.
+Hỗ trợ leader/manager xem hiệu suất theo nhân viên.
+Quy tắc nghiệp vụ
+Nhân viên không đủ kỹ năng không được gán vào dịch vụ yêu cầu chứng chỉ cao hơn.
+Chỉ tính hoa hồng khi dịch vụ hoàn tất hoặc hóa đơn đã thanh toán, tùy chính sách.
+Hoa hồng bị điều chỉnh nếu hóa đơn bị hoàn hoặc hủy.
+Một dịch vụ có thể chia hoa hồng cho nhiều người theo tỷ lệ.
+10.11 Báo cáo, dashboard và phân tích
+Mục tiêu
+Cung cấp số liệu vận hành và tài chính phục vụ điều hành chuỗi.
+Yêu cầu bắt buộc
+Dashboard tổng quan theo vai trò.
+Báo cáo doanh thu theo:
+ngày/tuần/tháng
+chi nhánh
+dịch vụ
+kỹ thuật viên
+nguồn khách hàng
+Báo cáo lịch hẹn:
+tổng số lịch
+tỷ lệ đến
+no-show
+hủy lịch
+khung giờ cao điểm
+Báo cáo khách hàng:
+khách mới / khách quay lại
+top khách hàng
+tần suất quay lại
+doanh thu theo nhóm khách
+Báo cáo gói liệu trình:
+số gói bán ra
+số buổi đã dùng
+gói sắp hết hạn
+giá trị gói còn treo
+Báo cáo kho:
+nhập/xuất/tồn
+vật tư tiêu hao theo dịch vụ
+chênh lệch kiểm kê
+hàng sắp hết hạn
+Báo cáo nhân sự:
+số ca làm
+số khách phục vụ
+doanh thu liên quan
+hoa hồng
+Cho phép lọc theo thời gian, chi nhánh, nhân sự, nhóm dịch vụ.
+Cho phép export Excel/PDF.
+Quy tắc nghiệp vụ
+Dữ liệu báo cáo tài chính phải nhất quán với giao dịch thực tế đã chốt.
+Mỗi vai trò chỉ xem loại báo cáo được cấp quyền.
+Dữ liệu dashboard nên hiển thị gần realtime.
+10.12 Thông báo và nhắc việc
+Mục tiêu
+Giảm no-show, cải thiện chăm sóc khách hàng và điều phối nội bộ.
+Yêu cầu bắt buộc
+Gửi thông báo xác nhận đặt lịch.
+Gửi nhắc lịch trước thời gian hẹn.
+Thông báo khi gói liệu trình sắp hết hạn.
+Thông báo sinh nhật hoặc ưu đãi cá nhân hóa.
+Thông báo tồn kho thấp cho quản lý/kho.
+Thông báo cần phê duyệt hoàn tiền, hủy hóa đơn, điều chỉnh kho.
+Hỗ trợ mẫu nội dung thông báo có biến động dữ liệu.
+Hỗ trợ nhiều kênh ở giai đoạn sau: email, SMS, OTT/chat app.
+Quy tắc nghiệp vụ
+Khách chỉ nhận marketing nếu đã đồng ý.
+Thông báo giao dịch phải có log gửi thành công/thất bại.
+10.13 Chăm sóc khách hàng và phản hồi sau dịch vụ
+Mục tiêu
+Tăng chất lượng dịch vụ và giữ chân khách hàng.
+Yêu cầu bắt buộc
+Gửi khảo sát đánh giá sau buổi dịch vụ.
+Ghi nhận phản hồi và phân loại mức độ nghiêm trọng.
+Tạo ticket xử lý khiếu nại.
+Gắn phản hồi vào hồ sơ khách hàng và lịch sử dịch vụ.
+Có SLA xử lý và trạng thái ticket.
+Cho phép quản lý chi nhánh/escalation nếu phản hồi nghiêm trọng.
+Quy tắc nghiệp vụ
+Phản hồi đánh giá thấp cần được chuyển cho quản lý trong thời gian ngắn.
+Ticket phải có người phụ trách và lịch sử xử lý.
+10.14 Quản trị hệ thống và cấu hình
+Mục tiêu
+Đảm bảo hệ thống có thể mở rộng, kiểm soát và vận hành ổn định.
+Yêu cầu bắt buộc
+Quản lý vai trò và permission.
+Quản lý các tham số hệ thống:
+thời gian buffer
+chính sách cọc
+chính sách hoàn/hủy
+rule tích điểm
+ngưỡng tồn tối thiểu
+Nhật ký hệ thống và audit log.
+Import/export dữ liệu.
+Cấu hình mẫu in hóa đơn, mẫu tin nhắn.
+Cấu hình chuỗi trạng thái và phê duyệt.
+Theo dõi lỗi hệ thống cơ bản.
+11. Quy tắc nghiệp vụ quan trọng
+Đây là phần rất quan trọng vì nhiều đồ án chỉ liệt kê tính năng nhưng thiếu business rules.
+11.1 Quy tắc lịch hẹn
+Một kỹ thuật viên không thể được book chồng lịch.
+Một phòng/giường/máy không thể bị trùng nếu chỉ phục vụ 1 khách/lần.
+Hệ thống phải tính buffer time giữa hai ca.
+Lịch chỉ được tạo trong giờ hoạt động của chi nhánh.
+Dịch vụ yêu cầu máy hoặc phòng riêng phải kiểm tra thêm tài nguyên tương ứng.
+No-show, cancel late, reschedule nhiều lần phải được ghi nhận để phục vụ CRM.
+11.2 Quy tắc gói liệu trình
+Gói chỉ bị trừ khi dịch vụ hoàn tất.
+Gói có thể giới hạn chi nhánh hoặc cho dùng toàn chuỗi.
+Gói có ngày hết hạn.
+Gói có thể cho phép chia sẻ hoặc không chia sẻ tùy chính sách.
+Gia hạn gói cần quyền quản lý.
+11.3 Quy tắc thanh toán
+Hóa đơn chỉ được xem là hoàn tất khi số tiền thanh toán đạt đủ hoặc được ghi nhận công nợ hợp lệ.
+Hủy hóa đơn sau khi chốt ngày cần phê duyệt cấp cao hơn.
+Hoàn tiền phải tạo log tài chính và log nghiệp vụ.
+Khuyến mãi không được chồng sai rule.
+11.4 Quy tắc kho
+Không cho xuất âm kho nếu cài đặt chặn âm kho.
+Hết hạn dùng thì không được sử dụng.
+Điều chỉnh tồn kho cần lưu lý do.
+Định mức tiêu hao phải được version hóa khi thay đổi.
+11.5 Quy tắc dữ liệu khách hàng
+Không được xóa cứng khách hàng đã có giao dịch; chỉ được inactive/anonymize nếu cần.
+Gộp hồ sơ khách không được mất lịch sử giao dịch.
+Dữ liệu nhạy cảm phải được phân quyền và log truy cập.
+11.6 Quy tắc hoa hồng
+Chỉ tính khi điều kiện trả thưởng thỏa mãn.
+Khi hóa đơn hoàn hoặc bị void, hoa hồng liên quan phải được điều chỉnh.
+Có thể chia hoa hồng theo tỷ lệ người thực hiện và người bán.
+12. Ma trận phân quyền gợi ý
+Chức năng
+Super Admin
+Quản lý chi nhánh
+Lễ tân
+KTV
+Thu ngân
+Kho
+Marketing
+Quản lý chi nhánh
+Toàn quyền
+Xem chi nhánh mình
+Không
+Không
+Không
+Không
+Không
+Quản lý khách hàng
+Toàn quyền
+Toàn quyền chi nhánh
+Tạo/Sửa
+Xem hạn chế
+Xem
+Không
+Xem/Phân nhóm
+Đặt lịch
+Toàn quyền
+Toàn quyền chi nhánh
+Toàn quyền
+Xem lịch cá nhân
+Xem
+Không
+Xem
+Check-in / phục vụ
+Toàn quyền
+Toàn quyền chi nhánh
+Check-in
+Thực hiện
+Xem
+Không
+Không
+Thanh toán
+Toàn quyền
+Xem/duyệt
+Không
+Không
+Toàn quyền
+Không
+Không
+Hoàn tiền / hủy hóa đơn
+Toàn quyền
+Duyệt theo hạn mức
+Không
+Không
+Tạo yêu cầu
+Không
+Không
+Kho
+Toàn quyền
+Xem/duyệt
+Không
+Không
+Không
+Toàn quyền
+Không
+Báo cáo tài chính
+Toàn quyền
+Có
+Không
+Không
+Có phần đối soát
+Có phần kho
+Có phần CRM
+Campaign/CRM
+Toàn quyền
+Xem
+Không
+Không
+Không
+Không
+Toàn quyền
+13. Dữ liệu cốt lõi của hệ thống
+Đây là danh sách các thực thể chính để sau này chuyển sang ERD/database.
+13.1 Các thực thể nghiệp vụ chính
+Branch
+branch_id
+name
+address
+working_hours
+status
+Room / Bed / Equipment
+resource_id
+branch_id
+type
+name
+capacity
+maintenance_status
+Service
+service_id
+code
+name
+duration
+base_price
+service_category
+required_skill
+resource_requirement
+consumable_recipe
+Package
+package_id
+name
+total_sessions
+validity_days
+allowed_branches
+shareable_flag
+Customer
+customer_id
+full_name
+phone
+email
+dob
+gender
+tags
+allergy_note
+marketing_consent
+Appointment
+appointment_id
+customer_id
+branch_id
+service_list
+assigned_staff
+assigned_room
+start_time
+end_time
+status
+source
+deposit_amount
+Treatment Note
+note_id
+appointment_id
+staff_id
+before_status
+after_status
+recommendation
+image_urls
+Invoice
+invoice_id
+appointment_id
+customer_id
+branch_id
+line_items
+discount
+tax
+total_amount
+paid_amount
+payment_status
+Payment
+payment_id
+invoice_id
+method
+amount
+paid_at
+reference_no
+Inventory Item
+item_id
+name
+sku
+unit
+expiry_tracking
+minimum_stock
+Stock Transaction
+txn_id
+item_id
+branch_id
+type
+quantity
+related_service
+reason
+Staff
+staff_id
+name
+role
+branch_id
+skill_level
+commission_scheme
+Commission Record
+commission_id
+staff_id
+invoice_id
+service_id
+amount
+status
+Feedback / Ticket
+ticket_id
+customer_id
+appointment_id
+rating
+issue_type
+status
+owner
+Audit Log
+log_id
+user_id
+action
+entity
+before_data
+after_data
+created_at
+14. Yêu cầu phi chức năng (Non-functional Requirements)
+14.1 Hiệu năng
+Thời gian phản hồi cho thao tác phổ biến nên dưới 2 giây trong điều kiện bình thường.
+Trang lịch hẹn phải tải được lượng dữ liệu của ít nhất một chi nhánh trong ngày mà không gây treo trình duyệt.
+Hỗ trợ nhiều người dùng đồng thời ở nhiều chi nhánh.
+14.2 Bảo mật
+Mọi kết nối phải dùng HTTPS.
+Mật khẩu được mã hóa an toàn.
+Có RBAC rõ ràng.
+Có audit log cho thao tác nhạy cảm.
+Dữ liệu nhạy cảm của khách phải được bảo vệ.
+Có cơ chế phân quyền theo chi nhánh.
+14.3 Tính sẵn sàng và sao lưu
+Hệ thống cần có sao lưu dữ liệu định kỳ.
+Có khả năng phục hồi dữ liệu khi xảy ra sự cố.
+Có cơ chế giám sát lỗi và cảnh báo.
+14.4 Khả năng mở rộng
+Cho phép thêm chi nhánh mới mà không ảnh hưởng logic cũ.
+Cho phép thêm dịch vụ, chính sách giá, rule khuyến mãi mà không phải sửa cấu trúc lớn.
+Có thể mở rộng thêm customer portal, mobile app sau này.
+14.5 Tính dễ dùng
+Giao diện tối ưu cho desktop tại quầy lễ tân/thu ngân.
+Hỗ trợ tablet cho kỹ thuật viên hoặc quản lý.
+Luồng đặt lịch phải ít bước.
+Tìm kiếm khách và dịch vụ phải nhanh.
+14.6 Tính toàn vẹn dữ liệu
+Không được tạo lịch hẹn thiếu dữ liệu bắt buộc.
+Không được để hóa đơn âm hoặc thanh toán vượt quá logic hệ thống.
+Mọi thay đổi quan trọng phải được version hóa hoặc log.
+15. Báo cáo và sự kiện phân tích cần thu thập
+Để sau này làm dashboard hoặc tracking hành vi hệ thống, nên ghi nhận các event sau:
+customer_created
+appointment_created
+appointment_rescheduled
+appointment_cancelled
+no_show_marked
+check_in_done
+service_started
+service_completed
+invoice_created
+payment_completed
+refund_approved
+package_sold
+package_redeemed
+stock_imported
+stock_adjusted
+low_stock_alert_triggered
+feedback_submitted
+Các event này giúp đo KPI, audit, và làm báo cáo vận hành.
+16. Tích hợp hệ thống đề xuất
+Phần này không bắt buộc cho MVP nhưng nên có định hướng.
+16.1 Tích hợp nên hỗ trợ
+Cổng thanh toán
+SMS/Email/OTT messaging
+Hóa đơn điện tử
+Hệ thống kế toán
+Website đặt lịch
+Công cụ BI hoặc export dữ liệu
+Thiết bị in hóa đơn/máy quét mã nếu cần
+16.2 Nguyên tắc tích hợp
+Tích hợp theo API nếu bên thứ ba hỗ trợ.
+Có cơ chế retry/log khi tích hợp thất bại.
+Không để lỗi tích hợp làm gián đoạn vận hành core tại quầy.
+17. MVP đề xuất
+17.1 MVP Release 1
+Mục tiêu: dùng được ngay cho một chuỗi nhỏ và 1–3 chi nhánh.
+Bao gồm:
+Đăng nhập, phân quyền
+Quản lý chi nhánh
+Quản lý khách hàng
+Quản lý dịch vụ
+Quản lý lịch hẹn
+Check-in / hoàn tất dịch vụ
+Thanh toán cơ bản
+Gói liệu trình cơ bản
+Kho cơ bản
+Báo cáo cơ bản
+Audit log
+17.2 Release 2
+Membership / loyalty
+Cổng đặt lịch online cho khách
+Khuyến mãi / voucher
+Nhắc lịch tự động
+Feedback sau dịch vụ
+Hoa hồng nâng cao
+Điều chuyển kho, cảnh báo tồn kho
+17.3 Release 3
+CRM automation
+Dashboard nâng cao
+Forecast nhu cầu
+Tích hợp sâu kế toán / BI
+Mobile app / PWA
+18. Rủi ro và giả định
+18.1 Rủi ro
+Quy trình mỗi chi nhánh đang khác nhau, khó chuẩn hóa.
+Dữ liệu cũ từ Excel hoặc phần mềm khác có thể bẩn, trùng, thiếu.
+Rule hoa hồng và khuyến mãi quá phức tạp dễ làm tăng thời gian phân tích.
+Người dùng tuyến đầu có thể ngại thay đổi từ quy trình cũ sang hệ thống mới.
+Nếu không quản lý chặt phân quyền, có thể phát sinh rủi ro dữ liệu khách hàng và tài chính.
+18.2 Giả định
+Chuỗi spa đồng ý chuẩn hóa trạng thái lịch và quy trình thanh toán.
+Mỗi chi nhánh có internet ổn định để dùng web app.
+Chính sách giá, gói, hoa hồng có thể cấu hình được theo rule.
+Dự án ưu tiên vận hành nội bộ trước, customer portal có thể làm sau.
+19. Tiêu chí nghiệm thu cấp sản phẩm
+Hệ thống được xem là đạt nghiệm thu giai đoạn đầu khi thỏa các điều kiện sau:
+Người dùng đăng nhập đúng vai trò và chỉ nhìn thấy dữ liệu được phép.
+Lễ tân có thể tạo lịch trong dưới 2 phút với khách cũ.
+Hệ thống chặn được trùng lịch kỹ thuật viên/phòng/giường.
+Kỹ thuật viên xem được lịch cá nhân và cập nhật trạng thái phục vụ.
+Thu ngân tạo được hóa đơn, thanh toán và áp dụng gói/khuyến mãi hợp lệ.
+Gói liệu trình được trừ buổi chính xác sau khi hoàn tất dịch vụ.
+Tồn kho được tăng/giảm đúng ở các nghiệp vụ nhập/xuất/tiêu hao.
+Quản lý xem được báo cáo doanh thu theo chi nhánh.
+Hệ thống lưu được audit log cho thao tác nhạy cảm.
+Dữ liệu khách hàng, lịch hẹn, hóa đơn không bị mất hoặc sai quan hệ.
+20. Bộ user story mẫu
+Dưới đây là một số user story mẫu để bạn tách tiếp thành backlog:
+Nhóm lễ tân
+Là lễ tân, tôi muốn tìm khách hàng bằng số điện thoại để tạo lịch nhanh cho khách cũ.
+Là lễ tân, tôi muốn hệ thống gợi ý khung giờ trống để tránh book trùng.
+Là lễ tân, tôi muốn đổi lịch hẹn mà vẫn lưu lịch sử thay đổi.
+Nhóm kỹ thuật viên
+Là kỹ thuật viên, tôi muốn xem danh sách khách hôm nay để chuẩn bị trước.
+Là kỹ thuật viên, tôi muốn ghi chú tình trạng khách sau mỗi buổi để lần sau phục vụ tốt hơn.
+Nhóm thu ngân
+Là thu ngân, tôi muốn áp dụng voucher/gói liệu trình tự động để giảm sai sót.
+Là thu ngân, tôi muốn chia thanh toán thành nhiều phương thức khi khách yêu cầu.
+Nhóm quản lý chi nhánh
+Là quản lý, tôi muốn xem tỷ lệ no-show và công suất kỹ thuật viên theo ngày để điều phối nhân sự.
+Là quản lý, tôi muốn duyệt hoàn tiền và điều chỉnh tồn kho có ghi nhận lý do.
+Nhóm chủ chuỗi
+Là chủ chuỗi, tôi muốn xem doanh thu toàn chuỗi theo chi nhánh và dịch vụ theo thời gian thực.
+Là chủ chuỗi, tôi muốn biết chi nhánh nào hiệu suất thấp để có quyết định điều hành.
+Nhóm khách hàng
+Là khách hàng, tôi muốn xem số buổi liệu trình còn lại để chủ động đặt lịch.
+Là khách hàng, tôi muốn nhận nhắc lịch trước giờ hẹn để không bị quên.
+21. Gợi ý cấu trúc menu hệ thống
+21.1 Back-office nội bộ
+Dashboard
+Lịch hẹn
+Khách hàng
+Dịch vụ & bảng giá
+Gói liệu trình / Membership
+Bán hàng / Hóa đơn
+Kho
+Nhân sự / Ca làm / Hoa hồng
+Chi nhánh / Tài nguyên
+Khuyến mãi / Voucher
+Chăm sóc khách hàng
+Báo cáo
+Cấu hình hệ thống
+21.2 Portal khách hàng (Phase 2)
+Trang chủ
+Dịch vụ
+Đặt lịch
+Lịch hẹn của tôi
+Gói liệu trình của tôi
+Điểm / Ưu đãi của tôi
+Hồ sơ cá nhân
+Lịch sử giao dịch
+Gửi phản hồi
+22. Kết luận
+PRD này định nghĩa sản phẩm theo hướng thực chiến cho một chuỗi Spa vận hành nhiều chi nhánh trên nền web. Điểm quan trọng nhất của dự án không chỉ là “có module đặt lịch và thanh toán”, mà là phải xử lý đúng các bài toán đặc thù của ngành spa:
+quản lý liệu trình nhiều buổi
+điều phối kỹ thuật viên + phòng + giường + thiết bị
+liên kết CRM – booking – POS – kho – hoa hồng
+quản trị đa chi nhánh
+báo cáo thời gian thực
+bảo vệ dữ liệu khách hàng
+PRD này đủ tốt để chuyển tiếp sang các bước sau:
+phân rã thành epic / user story / backlog
+dựng use case
+thiết kế ERD / database
+dựng SRS
+lập kế hoạch sprint cho team Python web
