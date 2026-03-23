@@ -5,10 +5,25 @@ from flask_jwt_extended import get_jwt
 def get_allowed_branch_ids():
     claims = get_jwt() or {}
     branch_ids = claims.get("branch_ids") or []
+
     try:
-        return [int(b) for b in branch_ids]
+        claim_branch_ids = [int(b) for b in branch_ids]
     except Exception:
-        return []
+        claim_branch_ids = []
+
+    roles = claims.get("roles") or []
+    if isinstance(roles, str):
+        roles = [roles]
+
+    if "super_admin" in roles:
+        try:
+            from backend.models.branch import Branch
+
+            return [branch_id for (branch_id,) in Branch.query.with_entities(Branch.id).order_by(Branch.id.asc()).all()]
+        except Exception:
+            return claim_branch_ids
+
+    return claim_branch_ids
 
 
 def get_current_branch_id():

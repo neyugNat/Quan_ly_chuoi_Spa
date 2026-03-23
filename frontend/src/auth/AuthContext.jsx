@@ -45,6 +45,23 @@ export function AuthProvider({ children }) {
       .finally(() => setBooted(true))
   }, [])
 
+  async function refreshUser() {
+    const token = getToken()
+    if (!token) {
+      setUser(null)
+      return
+    }
+
+    try {
+      const u = await apiFetch('/api/auth/me')
+      ensureBranchIdForUser(u)
+      setUser(u)
+    } catch {
+      removeToken()
+      setUser(null)
+    }
+  }
+
   async function login(username, password) {
     const result = await apiFetch('/api/auth/login', {
       method: 'POST',
@@ -68,6 +85,7 @@ export function AuthProvider({ children }) {
       isAuthenticated: !!user,
       login,
       logout,
+      refreshUser,
       setToken,
     }),
     [booted, user],

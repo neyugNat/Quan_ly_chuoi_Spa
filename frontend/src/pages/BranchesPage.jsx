@@ -1,7 +1,9 @@
 import { Fragment, useCallback, useEffect, useState } from 'react'
+import { useAuth } from '../auth/AuthContext.jsx'
 import { apiFetch } from '../lib/api'
 
 export function BranchesPage() {
+  const { refreshUser } = useAuth()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -51,6 +53,7 @@ export function BranchesPage() {
       setAddress('')
       setStatus('active')
       setWorkingHoursJson('')
+      await refreshUser()
       await load()
     } catch (err) {
       setError(err?.data?.error || 'create_failed')
@@ -85,9 +88,34 @@ export function BranchesPage() {
         }),
       })
       setEditingId(null)
+      await refreshUser()
       await load()
     } catch (err) {
       setError(err?.data?.error || 'update_failed')
+    }
+  }
+
+  async function deleteBranch(id) {
+    if (!id) return
+    if (!window.confirm('Xoa chi nhanh nay?')) return
+    const password = window.prompt('Nhap mat khau super admin de xac nhan')
+    if (!password || !password.trim()) return
+
+    setError('')
+    try {
+      await apiFetch(`/api/branches/${id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ password }),
+      })
+      await refreshUser()
+      await load()
+    } catch (err) {
+      const errorCode = err?.data?.error || 'delete_failed'
+      if (errorCode === 'branch_in_use' && err?.data?.details) {
+        setError(`${errorCode}: ${JSON.stringify(err.data.details)}`)
+        return
+      }
+      setError(errorCode)
     }
   }
 
@@ -171,6 +199,16 @@ export function BranchesPage() {
                       }}
                     >
                       Sửa
+                    </button>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteBranch(it.id)
+                      }}
+                    >
+                      Xoa
                     </button>
                   </td>
                 </tr>

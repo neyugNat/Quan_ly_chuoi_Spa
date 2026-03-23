@@ -57,6 +57,11 @@ class User(BaseModel):
         return [r.name for r in (self.roles or [])]
 
     def branch_ids(self):
+        if "super_admin" in self.role_names():
+            from backend.models.branch import Branch
+
+            return [branch_id for (branch_id,) in Branch.query.with_entities(Branch.id).order_by(Branch.id.asc()).all()]
+
         return [b.id for b in (self.branches or [])]
 
     def to_dict(self):

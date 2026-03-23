@@ -1,5 +1,5 @@
 from flask import jsonify, request
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from backend.api import api_bp
 from backend.decorators.rbac import require_roles
@@ -91,3 +91,64 @@ def update_branch(branch_id: int):
 
     db.session.commit()
     return jsonify(branch.to_dict())
+
+
+@api_bp.delete("/branches/<int:branch_id>")
+@jwt_required()
+@require_roles("super_admin")
+def delete_branch(branch_id: int):
+    from backend.models.appointment import Appointment
+    from backend.models.commission_record import CommissionRecord
+    from backend.models.customer import Customer
+    from backend.models.customer_package import CustomerPackage
+    from backend.models.inventory_item import InventoryItem
+    from backend.models.invoice import Invoice
+    from backend.models.package import Package
+    from backend.models.payment import Payment
+    from backend.models.resource import Resource
+    from backend.models.service import Service
+    from backend.models.shift import Shift
+    from backend.models.staff import Staff
+    from backend.models.stock_transaction import StockTransaction
+    from backend.models.user import User, UserBranch
+
+    branch = Branch.query.get(branch_id)
+    if not branch:
+        return jsonify({"error": "not_found"}), 404
+
+    payload = request.get_json(silent=True) or {}
+    password = payload.get("password") or ""
+    if not password:
+        return jsonify({"error": "missing_fields"}), 400
+
+    user_id = get_jwt_identity()
+    user = User.query.get(int(user_id))
+    if not user or not user.verify_password(password):
+        return jsonify({"error": "invalid_password"}), 400
+
+    if Branch.query.count() <= 1:
+        return jsonify({"error": "cannot_delete_last_branch"}), 400
+
+    usage_counts = {
+        "appointments": Appointment.query.filter_by(branch_id=branch_id).count(),
+        "customers": Customer.query.filter_by(branch_id=branch_id).count(),
+        "staffs": Staff.query.filter_by(branch_id=branch_id).count(),
+        "services": Service.query.filter_by(branch_id=branch_id).count(),
+        "packages": Package.query.filter_by(branch_id=branch_id).count(),
+        "invoices": Invoice.query.filter_by(branch_id=branch_id).count(),
+        "payments": Payment.query.filter_by(branch_id=branch_id).count(),
+        "shifts": Shift.query.filter_by(branch_id=branch_id).count(),
+        "customer_packages": CustomerPackage.query.filter_by(branch_id=branch_id).count(),
+        "commission_records": CommissionRecord.query.filter_by(branch_id=branch_id).count(),
+        "inventory_items": InventoryItem.query.filter_by(branch_id=branch_id).count(),
+        "resources": Resource.query.filter_by(branch_id=branch_id).count(),
+        "stock_transactions": StockTransaction.query.filter_by(branch_id=branch_id).count(),
+    }
+    in_use_details = {key: value for key, value in usage_counts.items() if value > 0}
+    if in_use_details:
+        return jsonify({"error": "branch_in_use", "details": in_use_details}), 400
+
+    UserBranch.query.filter_by(branch_id=branch_id).delete()
+    db.session.delete(branch)
+    db.session.commit()
+    return jsonify({"status": "ok"})

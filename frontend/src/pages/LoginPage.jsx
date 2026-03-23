@@ -6,8 +6,8 @@ export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('admin123')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -30,9 +30,6 @@ export function LoginPage() {
     <div className="login">
       <div className="panel login-card">
         <h2 style={{ margin: 0 }}>Đăng nhập</h2>
-        <p style={{ color: 'var(--muted)', marginTop: 6 }}>
-          Tài khoản demo: admin / admin123
-        </p>
         <form onSubmit={onSubmit}>
           <div className="field">
             <label htmlFor="username">Username</label>
