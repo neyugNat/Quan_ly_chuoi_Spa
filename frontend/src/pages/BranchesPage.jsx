@@ -18,6 +18,7 @@ export function BranchesPage() {
   const [editAddress, setEditAddress] = useState('')
   const [editStatus, setEditStatus] = useState('active')
   const [editWorkingHoursJson, setEditWorkingHoursJson] = useState('')
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -97,8 +98,7 @@ export function BranchesPage() {
 
   async function deleteBranch(id) {
     if (!id) return
-    if (!window.confirm('Xoa chi nhanh nay?')) return
-    const password = window.prompt('Nhap mat khau super admin de xac nhan')
+    const password = window.prompt('Nhập mật khẩu quản trị viên để xác nhận xóa chi nhánh này')
     if (!password || !password.trim()) return
 
     setError('')
@@ -201,14 +201,14 @@ export function BranchesPage() {
                       Sửa
                     </button>
                     <button
-                      className="btn btn-sm btn-danger"
+                      className="btn btn-sm btn-danger ml-2"
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        deleteBranch(it.id)
+                        setDeleteConfirmId(it.id)
                       }}
                     >
-                      Xoa
+                      Xóa
                     </button>
                   </td>
                 </tr>
@@ -263,6 +263,41 @@ export function BranchesPage() {
           </tbody>
         </table>
       </div>
+      {/* Custom Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setDeleteConfirmId(null)}
+          />
+          <div className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm transform transition-all animate-in fade-in zoom-in duration-200">
+            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">
+              Xác nhận xóa?
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-6">
+              Bạn có chắc chắn muốn xóa chi nhánh này không? Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors font-medium"
+                onClick={() => setDeleteConfirmId(null)}
+              >
+                Hủy
+              </button>
+              <button
+                className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium shadow-lg shadow-red-500/20 transition-all hover:scale-105 active:scale-95"
+                onClick={() => {
+                  const id = deleteConfirmId
+                  setDeleteConfirmId(null)
+                  deleteBranch(id)
+                }}
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

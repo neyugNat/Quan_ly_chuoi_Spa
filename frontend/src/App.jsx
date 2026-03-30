@@ -2,8 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from './auth/ProtectedRoute.jsx'
 import { useAuth } from './auth/AuthContext.jsx'
 import { getFirstAllowedPath } from './auth/navConfig.js'
-import { AppLayout } from './layout/AppLayout.jsx'
-import { DashboardPage } from './pages/DashboardPage.jsx'
+import { Layout as AppLayout } from './components/Layout'
+import { Dashboard as DashboardPage } from './components/dashboard/Dashboard'
 import { LoginPage } from './pages/LoginPage.jsx'
 import { UnauthorizedPage } from './pages/UnauthorizedPage.jsx'
 import { CustomersPage } from './pages/CustomersPage.jsx'
@@ -19,6 +19,7 @@ import { TechnicianPage } from './pages/TechnicianPage.jsx'
 import { BranchesPage } from './pages/BranchesPage.jsx'
 import { ResourcesPage } from './pages/ResourcesPage.jsx'
 import { UsersPage } from './pages/UsersPage.jsx'
+import { Settings as SettingsPage } from './components/settings/Settings'
 
 function HomeRedirect() {
   const { booted, user } = useAuth()
@@ -65,6 +66,8 @@ export default function App() {
           <Route element={<ProtectedRoute allowedRoles={['technician']} />}>
             <Route path="/technician" element={<TechnicianPage />} />
           </Route>
+
+          <Route path="/settings" element={<SettingsPage />} />
 
           <Route path="/" element={<HomeRedirect />} />
         </Route>

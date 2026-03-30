@@ -1,6 +1,6 @@
 import { getToken, removeToken } from './authStorage'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 export async function apiFetch(path, options = {}) {
   const headers = new Headers(options.headers || {})

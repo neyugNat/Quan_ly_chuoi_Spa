@@ -1,4 +1,32 @@
+@import "./styles/index.css";
+
 :root {
+  /* LIGHT MODE VARIABLES */
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --panel-2: #f1f5f9;
+  --text: #1e293b;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --accent: #2ec4b6;
+  --danger: #ef4444;
+  --shadow: rgba(0, 0, 0, 0.05) 0 4px 12px;
+  --sidebar-bg: #ffffff;
+  --btn-bg: rgba(46, 196, 182, 0.12);
+  --btn-hover: rgba(46, 196, 182, 0.18);
+  --btn-ghost-hover: rgba(0, 0, 0, 0.04);
+  --danger-bg: rgba(239, 68, 68, 0.1);
+  --danger-hover: rgba(239, 68, 68, 0.18);
+  --badge-success-bg: rgba(46, 196, 182, 0.15);
+  --badge-warning-bg: rgba(255, 193, 7, 0.15);
+  --badge-danger-bg: rgba(239, 68, 68, 0.15);
+
+  font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  color: var(--text);
+}
+
+.dark {
+  /* DARK MODE VARIABLES */
   --bg: #0b1220;
   --panel: #111a2f;
   --panel-2: #0f1730;
@@ -8,10 +36,16 @@
   --accent: #2ec4b6;
   --danger: #ff5d6c;
   --shadow: rgba(0, 0, 0, 0.25) 0 10px 30px;
-
-  font-family: system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --sidebar-bg: linear-gradient(180deg, rgba(17, 26, 47, 0.85), rgba(15, 23, 48, 0.85));
+  --btn-bg: rgba(46, 196, 182, 0.12);
+  --btn-hover: rgba(46, 196, 182, 0.18);
+  --btn-ghost-hover: rgba(230, 233, 242, 0.08);
+  --danger-bg: rgba(255, 93, 108, 0.12);
+  --danger-hover: rgba(255, 93, 108, 0.2);
+  --badge-success-bg: rgba(46, 196, 182, 0.15);
+  --badge-warning-bg: rgba(255, 193, 7, 0.15);
+  --badge-danger-bg: rgba(255, 93, 108, 0.15);
   color: var(--text);
-  background: radial-gradient(1200px 700px at 10% 10%, #132043 0%, var(--bg) 55%);
 }
 
 * {
@@ -20,6 +54,7 @@
 
 body {
   margin: 0;
+  background-color: transparent; /* Handled by tailwind usually */
 }
 
 a {
@@ -47,7 +82,7 @@ textarea {
 /* ===== Sidebar ===== */
 .sidebar {
   border-right: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(17, 26, 47, 0.85), rgba(15, 23, 48, 0.85));
+  background: var(--sidebar-bg);
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -84,7 +119,7 @@ textarea {
 .nav a.active {
   color: var(--text);
   border-color: var(--border);
-  background: rgba(46, 196, 182, 0.08);
+  background: var(--btn-bg);
 }
 
 /* ===== Main Content ===== */
@@ -94,7 +129,7 @@ textarea {
 
 /* ===== Panel & Layout Components ===== */
 .panel {
-  background: rgba(17, 26, 47, 0.8);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 16px;
@@ -136,7 +171,7 @@ textarea {
   border-radius: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  background: rgba(15, 23, 48, 0.75);
+  background: var(--panel-2);
   color: var(--text);
 }
 
@@ -145,7 +180,7 @@ textarea {
   border-radius: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  background: rgba(15, 23, 48, 0.75);
+  background: var(--panel-2);
   color: var(--text);
 }
 
@@ -160,13 +195,13 @@ textarea {
   border-radius: 10px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  background: rgba(46, 196, 182, 0.12);
+  background: var(--btn-bg);
   color: var(--text);
   cursor: pointer;
 }
 
 .btn:hover {
-  background: rgba(46, 196, 182, 0.18);
+  background: var(--btn-hover);
 }
 
 .btn-sm {
@@ -182,17 +217,17 @@ textarea {
 }
 
 .btn-ghost:hover {
-  background: rgba(230, 233, 242, 0.08);
+  background: var(--btn-ghost-hover);
 }
 
 .btn-danger {
-  background: rgba(255, 93, 108, 0.12);
+  background: var(--danger-bg);
   border-color: var(--danger);
   color: var(--danger);
 }
 
 .btn-danger:hover {
-  background: rgba(255, 93, 108, 0.2);
+  background: var(--danger-hover);
 }
 
 .error {
@@ -203,7 +238,7 @@ textarea {
 
 /* ===== Utility Classes ===== */
 .card {
-  background: rgba(17, 26, 47, 0.8);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 16px;
@@ -212,7 +247,7 @@ textarea {
 
 .stat-tile {
   padding: 12px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--btn-ghost-hover);
 }
 
 .stat-tile-title {
@@ -275,17 +310,17 @@ textarea {
 }
 
 .badge.success {
-  background: rgba(46, 196, 182, 0.15);
+  background: var(--badge-success-bg);
   color: var(--accent);
 }
 
 .badge.warning {
-  background: rgba(255, 193, 7, 0.15);
+  background: var(--badge-warning-bg);
   color: #ffc107;
 }
 
 .badge.danger {
-  background: rgba(255, 93, 108, 0.15);
+  background: var(--badge-danger-bg);
   color: var(--danger);
 }
 
@@ -319,7 +354,7 @@ textarea {
 }
 
 .table tbody tr:hover {
-  background: rgba(230, 233, 242, 0.04);
+  background: var(--btn-ghost-hover);
 }
 
 .drawer-overlay {
@@ -336,7 +371,7 @@ textarea {
   right: 0;
   height: 100vh;
   width: min(520px, 92vw);
-  background: rgba(17, 26, 47, 0.96);
+  background: var(--panel);
   border-left: 1px solid var(--border);
   box-shadow: rgba(0, 0, 0, 0.35) -20px 0 60px;
   z-index: 600;
@@ -366,7 +401,7 @@ textarea {
 .mobile-header {
   display: none;
   padding: 12px 16px;
-  background: rgba(17, 26, 47, 0.9);
+  background: var(--panel);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -387,7 +422,7 @@ textarea {
 }
 
 .mobile-header button:hover {
-  background: rgba(230, 233, 242, 0.08);
+  background: var(--btn-ghost-hover);
 }
 
 /* ===== Sidebar Overlay ===== */
@@ -429,7 +464,7 @@ textarea {
     margin-bottom: 12px;
     position: sticky;
     top: 0;
-    background: linear-gradient(180deg, rgba(17, 26, 47, 0.98), rgba(17, 26, 47, 0.9));
+    background: var(--panel);
     padding: 8px 0;
     z-index: 1;
   }
@@ -444,7 +479,7 @@ textarea {
   }
 
   .sidebar-close:hover {
-    background: rgba(230, 233, 242, 0.08);
+    background: var(--btn-ghost-hover);
   }
 
   .mobile-header {
