@@ -24,7 +24,7 @@ const catStyles: Record<string, { bg: string; color: string; dot: string }> = {
   "Nail & Tóc": { bg: "bg-pink-50", color: "text-pink-700", dot: "#be185d" },
   "Xông hơi": { bg: "bg-teal-50", color: "text-teal-700", dot: "#0f766e" },
   "Body Treatment": { bg: "bg-amber-50", color: "text-amber-700", dot: "#b45309" },
-  "Gói đặc biệt": { bg: "bg-indigo-50", color: "text-indigo-700", dot: "#4338ca" },
+  "Gói đặc biệt": { bg: "bg-red-50 dark:bg-red-500/20", color: "text-red-700 dark:text-red-200", dot: "#dc2626" },
 };
 
 export function Services() {
@@ -95,7 +95,10 @@ export function Services() {
         {filtered.map((svc) => {
           const cat = catStyles[svc.category] || { bg: "bg-gray-50", color: "text-gray-600", dot: "#6b7280" };
           return (
-            <div key={svc.id} className={`bg-white rounded-2xl p-5 shadow-sm border border-[#e8eef8] hover:shadow-md hover:border-[#bfdbfe] transition-all ${svc.status === "inactive" ? "opacity-60" : ""}`}>
+            <div
+              key={svc.id}
+              className={`rounded-2xl p-5 shadow-sm border transition-all hover:shadow-md hover:border-[#bfdbfe] ${svc.status === "inactive" ? "bg-slate-50/70 dark:bg-slate-700/25 border-slate-300/70 dark:border-slate-500/40 saturate-50" : "bg-white border-[#e8eef8]"}`}
+            >
               <div className="flex items-start justify-between mb-3">
                 <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${cat.bg} ${cat.color}`}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: cat.dot }} />

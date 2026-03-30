@@ -15,9 +15,9 @@ const staffList = [
 ];
 
 const roleStyles: Record<string, { bg: string; color: string }> = {
-  "Senior Therapist": { bg: "bg-blue-50", color: "text-blue-700" },
+  "Senior Therapist": { bg: "bg-blue-50 dark:bg-blue-400/25", color: "text-blue-700 dark:text-blue-100" },
   "Therapist": { bg: "bg-indigo-50", color: "text-indigo-700" },
-  "Junior Therapist": { bg: "bg-sky-50", color: "text-sky-700" },
+  "Junior Therapist": { bg: "bg-sky-50 dark:bg-cyan-400/20", color: "text-sky-700 dark:text-cyan-100" },
   "Skin Specialist": { bg: "bg-violet-50", color: "text-violet-700" },
   "Nail Technician": { bg: "bg-pink-50", color: "text-pink-700" },
 };

@@ -6,6 +6,7 @@ import {
   Bell, Search, LogOut, Settings, Menu, ChevronDown,
   ShieldCheck, Package, ScrollText,
 } from "lucide-react";
+import lotusLogo from "../assets/lotus-logo.svg";
 import { useTheme, wallpapers } from "../context/ThemeContext";
 import { useAuth } from "../auth/AuthContext";
 import { canSeeRoles } from "../auth/navConfig";
@@ -63,12 +64,12 @@ export function Layout() {
 
   // Dark mode: use very dark background instead of light theme gradient
   const pageBg = isDark
-    ? "linear-gradient(135deg, #0a0a14 0%, #0f0f23 50%, #0a0f1e 100%)"
+    ? "linear-gradient(135deg, #101a31 0%, #14203a 52%, #172744 100%)"
     : theme.bg;
 
   // Dark mode: darken sidebar a bit via filter
   const sidebarStyle = isDark
-    ? { background: theme.sidebar, filter: "brightness(0.75)" }
+    ? { background: theme.sidebar, filter: "brightness(0.88)" }
     : { background: theme.sidebar };
 
   return (
@@ -99,7 +100,7 @@ export function Layout() {
         {/* Logo */}
         <div className={`relative flex items-center gap-2.5 py-4 border-b border-white/10 ${collapsed ? "px-3 justify-center" : "px-4"}`}>
           <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center flex-shrink-0 overflow-hidden ring-1 ring-white/20 shadow-lg">
-            <Sparkles size={24} className="text-white" />
+            <img src={lotusLogo} alt="Lotus Spa" className="w-9 h-9 object-contain" />
           </div>
           {!collapsed && (
             <div>
@@ -211,7 +212,7 @@ export function Layout() {
             </button>
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200/60 dark:border-gray-600/60 cursor-pointer">
               <div className="w-8 h-8 rounded-full ring-2 ring-offset-1 overflow-hidden shadow-sm" style={{ outlineColor: theme.accent }}>
-                <div className="w-full h-full bg-gradient-to-br from-violet-100 to-blue-100 flex items-center justify-center text-blue-800 font-bold">{user?.username?.[0]?.toUpperCase()}</div>
+                <img src={lotusLogo} alt="Lotus Spa" className="w-full h-full object-contain bg-gradient-to-br from-violet-100 to-blue-100" />
               </div>
               <div className="hidden md:block">
                 <div className="text-xs font-semibold text-gray-800 dark:text-gray-100 leading-tight">{user?.username}</div>

@@ -26,12 +26,12 @@ interface Account {
 }
 
 const roleConfig: Record<Role, { label: string; color: string; bg: string; border: string; icon: any; level: number }> = {
-  super_admin:  { label: "Super Admin",   color: "text-red-700",    bg: "bg-red-50",     border: "border-red-200",    icon: ShieldAlert, level: 1 },
-  admin:        { label: "Admin",         color: "text-violet-700", bg: "bg-violet-50",  border: "border-violet-200", icon: ShieldCheck, level: 2 },
-  manager:      { label: "Quản lý",       color: "text-blue-700",   bg: "bg-blue-50",    border: "border-blue-200",   icon: Shield,      level: 3 },
-  receptionist: { label: "Lễ tân",        color: "text-emerald-700",bg: "bg-emerald-50", border: "border-emerald-200",icon: Shield,      level: 4 },
-  therapist:    { label: "Kỹ thuật viên", color: "text-amber-700",  bg: "bg-amber-50",   border: "border-amber-200",  icon: Shield,      level: 5 },
-  accountant:   { label: "Kế toán",       color: "text-cyan-700",   bg: "bg-cyan-50",    border: "border-cyan-200",   icon: Shield,      level: 6 },
+  super_admin:  { label: "Super Admin",   color: "text-red-700 dark:text-red-100",       bg: "bg-red-50 dark:bg-red-400/25",       border: "border-red-200 dark:border-red-300/60",       icon: ShieldAlert, level: 1 },
+  admin:        { label: "Admin",         color: "text-violet-700 dark:text-violet-100", bg: "bg-violet-50 dark:bg-violet-400/25", border: "border-violet-200 dark:border-violet-300/60", icon: ShieldCheck, level: 2 },
+  manager:      { label: "Quản lý",       color: "text-blue-700 dark:text-blue-100",      bg: "bg-blue-50 dark:bg-blue-400/25",      border: "border-blue-200 dark:border-blue-300/60",      icon: Shield,      level: 3 },
+  receptionist: { label: "Lễ tân",        color: "text-emerald-700 dark:text-emerald-100",bg: "bg-emerald-50 dark:bg-emerald-400/25", border: "border-emerald-200 dark:border-emerald-300/60",icon: Shield,      level: 4 },
+  therapist:    { label: "Kỹ thuật viên", color: "text-amber-700 dark:text-amber-100",    bg: "bg-amber-50 dark:bg-amber-400/25",    border: "border-amber-200 dark:border-amber-300/60",    icon: Shield,      level: 5 },
+  accountant:   { label: "Kế toán",       color: "text-cyan-700 dark:text-cyan-100",      bg: "bg-cyan-50 dark:bg-cyan-400/25",      border: "border-cyan-200 dark:border-cyan-300/60",      icon: Shield,      level: 6 },
 };
 
 const statusConfig: Record<Status, { label: string; color: string; bg: string; dot: string }> = {
@@ -81,8 +81,8 @@ const statusFilters = ["Tất cả", "Hoạt động", "Không HĐ", "Bị khóa
 
 function PermBadge({ ok }: { ok: boolean }) {
   return ok
-    ? <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100"><Check size={11} className="text-emerald-600" /></span>
-    : <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100"><XCircle size={11} className="text-gray-400" /></span>;
+    ? <span className="perm-badge-ok flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100"><Check size={11} className="text-emerald-600" /></span>
+    : <span className="perm-badge-no flex items-center justify-center w-6 h-6 rounded-full bg-gray-100"><XCircle size={11} className="text-gray-400" /></span>;
 }
 
 type ModalMode = "add" | "edit" | "view" | "delete" | "reset" | "perms" | null;
@@ -253,7 +253,7 @@ export function Accounts() {
                         </td>
                         <td className="px-4 py-3.5 hidden sm:table-cell">
                           {acc.twoFA
-                            ? <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg font-semibold">✓ Bật</span>
+                            ? <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-400/30 dark:text-emerald-100 dark:border dark:border-emerald-300/50 px-2 py-1 rounded-lg font-semibold">✓ Bật</span>
                             : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-lg">Tắt</span>}
                         </td>
                         <td className="px-4 py-3.5">
@@ -307,14 +307,14 @@ export function Accounts() {
       {activeTab === "perms" && (
         <div className="bg-white/80 backdrop-blur rounded-2xl shadow-sm border border-white/60 overflow-hidden">
           <div className="p-4 border-b border-gray-100">
-            <h3 className="text-gray-800 text-sm font-semibold">Ma trận phân quyền hệ thống</h3>
-            <p className="text-gray-400 text-xs mt-0.5">Quyền truy cập theo vai trò</p>
+            <h3 className="text-gray-800 dark:text-gray-100 text-sm font-semibold">Ma trận phân quyền hệ thống</h3>
+            <p className="text-gray-400 dark:text-gray-300 text-xs mt-0.5">Quyền truy cập theo vai trò</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/80">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">Chức năng</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-200 uppercase tracking-wider w-40">Chức năng</th>
                   {Object.entries(roleConfig).map(([k, v]) => (
                     <th key={k} className="px-3 py-3 text-center">
                       <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg border ${v.bg} ${v.color} ${v.border}`}>
@@ -327,7 +327,7 @@ export function Accounts() {
               <tbody className="divide-y divide-gray-50">
                 {Object.entries(permLabels).map(([perm, label]) => (
                   <tr key={perm} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-700">{label}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-100">{label}</td>
                     {Object.keys(roleConfig).map(role => (
                       <td key={role} className="px-3 py-3 text-center">
                         <div className="flex justify-center">

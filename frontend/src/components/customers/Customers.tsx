@@ -15,10 +15,34 @@ const customers = [
 ];
 
 const tierConfig: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
-  vip: { label: "VIP", color: "text-violet-700", bg: "bg-violet-50", border: "border-violet-200", icon: Crown },
-  gold: { label: "Vàng", color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", icon: Star },
-  silver: { label: "Bạc", color: "text-slate-600", bg: "bg-slate-100", border: "border-slate-200", icon: Gift },
-  member: { label: "Thành viên", color: "text-blue-700", bg: "bg-blue-50", border: "border-blue-200", icon: Gift },
+  vip: {
+    label: "VIP",
+    color: "text-red-700 dark:text-red-50",
+    bg: "bg-red-50 dark:bg-red-400/30",
+    border: "border-red-200 dark:border-red-300/70",
+    icon: Crown,
+  },
+  gold: {
+    label: "Vàng",
+    color: "text-[#a16207] dark:text-[#fcd34d]",
+    bg: "bg-[#fff8db] dark:bg-[#a16207]/25",
+    border: "border-[#f6d365] dark:border-[#f6d365]/50",
+    icon: Star,
+  },
+  silver: {
+    label: "Bạc",
+    color: "text-[#334155] dark:text-[#f8fafc]",
+    bg: "bg-gradient-to-r from-[#eef2f7] to-[#ffffff] dark:from-[#cbd5e1]/28 dark:to-[#f1f5f9]/18",
+    border: "border-[#cbd5e1] dark:border-[#cbd5e1]/60",
+    icon: Gift,
+  },
+  member: {
+    label: "Thành viên",
+    color: "text-[#7c4b2a] dark:text-[#d3b59b]",
+    bg: "bg-[#f6eee8] dark:bg-[#3b2a1d]/72",
+    border: "border-[#d2b49c] dark:border-[#6f5038]",
+    icon: Gift,
+  },
 };
 
 const avatarGradients = [
@@ -57,7 +81,7 @@ export function Customers() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Tổng khách hàng", value: customers.length, color: "text-[#3b82f6]", bg: "bg-blue-50", border: "border-blue-100" },
-          { label: "Khách VIP", value: customers.filter(c => c.tier === "vip").length, color: "text-violet-700", bg: "bg-violet-50", border: "border-violet-100" },
+          { label: "Khách VIP", value: customers.filter(c => c.tier === "vip").length, color: "text-red-700", bg: "bg-red-50", border: "border-red-100" },
           { label: "Khách Vàng", value: customers.filter(c => c.tier === "gold").length, color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-100" },
           { label: "Khách mới tháng", value: 12, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-100" },
         ].map((item) => (
