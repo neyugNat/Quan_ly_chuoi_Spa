@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}QuanLySpa{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('web.static', filename='web/web.css') }}">
+  </head>
+  <body>
+    {% if web_user %}
+      <div class="app-shell">
+        <aside class="sidebar">
+          <div class="brand">QuanLySpa</div>
+          <div class="user-line">{{ web_user.username }}</div>
+
+          {% if web_branch_options %}
+            <form method="post" action="{{ url_for('web.switch_branch') }}" class="branch-form">
+              <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
+              <label for="branch-switch">Chi nhanh</label>
+              <select id="branch-switch" name="branch_id" onchange="this.form.submit()">
+                {% for branch in web_branch_options %}
+                  <option value="{{ branch.id }}" {% if branch.id == web_current_branch_id %}selected{% endif %}>
+                    {{ branch.name }} (#{{ branch.id }})
+                  </option>
+                {% endfor %}
+              </select>
+            </form>
+          {% endif %}
+
+          <nav class="nav" aria-label="main">
+            {% for item in web_nav_items %}
+              <a href="{{ item.path }}" class="{% if request.path.startswith(item.path) %}active{% endif %}">
+                {{ item.label }}
+              </a>
+            {% endfor %}
+          </nav>
+
+          <form method="post" action="{{ url_for('web.logout') }}">
+            <button type="submit" class="btn">Dang xuat</button>
+          </form>
+        </aside>
+
+        <main class="main">
+          {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+              <div class="flash-wrap">
+                {% for category, message in messages %}
+                  <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    {% else %}
+      {% block auth_content %}{% endblock %}
+    {% endif %}
+  </body>
+</html>

@@ -1,47 +1,115 @@
-import { useState } from "react";
-import { Search, Plus, Star, Phone, MapPin, Award, XCircle, Edit2, ChevronLeft, ChevronRight } from "lucide-react";
+﻿import { useEffect, useMemo, useState } from 'react';
+import { apiFetch } from '../../lib/api';
+import { Search, Plus, Star, Phone, MapPin, Award, XCircle, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const staffList = [
-  { id: 1, name: "Trần Thị Mai", role: "Senior Therapist", branch: "Quận 1", phone: "0901111111", specialties: ["Massage", "Body Treatment"], rating: 4.9, appointments: 342, joined: "01/2022", status: "active" },
-  { id: 2, name: "Phạm Thị Lan", role: "Skin Specialist", branch: "Quận 3", phone: "0902222222", specialties: ["Chăm sóc da", "Facial"], rating: 4.8, appointments: 287, joined: "03/2022", status: "active" },
-  { id: 3, name: "Nguyễn Thị Hạnh", role: "Therapist", branch: "Quận 7", phone: "0903333333", specialties: ["Massage", "Xông hơi"], rating: 4.7, appointments: 215, joined: "06/2022", status: "active" },
-  { id: 4, name: "Lê Thị Nga", role: "Nail Technician", branch: "Quận 1", phone: "0904444444", specialties: ["Nail", "Tóc"], rating: 4.8, appointments: 398, joined: "08/2021", status: "active" },
-  { id: 5, name: "Võ Thị Linh", role: "Junior Therapist", branch: "Thủ Đức", phone: "0905555555", specialties: ["Massage"], rating: 4.5, appointments: 124, joined: "01/2024", status: "active" },
-  { id: 6, name: "Đỗ Thị Thanh", role: "Senior Therapist", branch: "Bình Thạnh", phone: "0906666666", specialties: ["Body Treatment", "Massage"], rating: 4.9, appointments: 276, joined: "05/2022", status: "active" },
-  { id: 7, name: "Hoàng Thị Yến", role: "Skin Specialist", branch: "Quận 1", phone: "0907777777", specialties: ["Chăm sóc da"], rating: 4.6, appointments: 189, joined: "09/2023", status: "active" },
-  { id: 8, name: "Bùi Thị Kim", role: "Therapist", branch: "Quận 3", phone: "0908888888", specialties: ["Massage", "Xông hơi"], rating: 4.7, appointments: 156, joined: "11/2023", status: "off" },
-  { id: 9, name: "Lý Thị Hoa", role: "Nail Technician", branch: "Quận 7", phone: "0909999999", specialties: ["Nail"], rating: 4.5, appointments: 201, joined: "02/2023", status: "active" },
-  { id: 10, name: "Trương Thị Dung", role: "Junior Therapist", branch: "Thủ Đức", phone: "0900000000", specialties: ["Massage"], rating: 4.4, appointments: 89, joined: "06/2024", status: "active" },
-];
+function formatMonthYear(value: any) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '-';
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${mm}/${yyyy}`;
+}
 
 const roleStyles: Record<string, { bg: string; color: string }> = {
-  "Senior Therapist": { bg: "bg-blue-50 dark:bg-blue-400/25", color: "text-blue-700 dark:text-blue-100" },
-  "Therapist": { bg: "bg-indigo-50", color: "text-indigo-700" },
-  "Junior Therapist": { bg: "bg-sky-50 dark:bg-cyan-400/20", color: "text-sky-700 dark:text-cyan-100" },
-  "Skin Specialist": { bg: "bg-violet-50", color: "text-violet-700" },
-  "Nail Technician": { bg: "bg-pink-50", color: "text-pink-700" },
+  'Senior Therapist': { bg: 'bg-blue-50 dark:bg-blue-400/25', color: 'text-blue-700 dark:text-blue-100' },
+  Therapist: { bg: 'bg-indigo-50', color: 'text-indigo-700' },
+  'Junior Therapist': { bg: 'bg-sky-50 dark:bg-cyan-400/20', color: 'text-sky-700 dark:text-cyan-100' },
+  'Skin Specialist': { bg: 'bg-violet-50', color: 'text-violet-700' },
+  'Nail Technician': { bg: 'bg-pink-50', color: 'text-pink-700' },
 };
 
 const avatarGradients = [
-  "from-[#3b82f6] to-[#60a5fa]",
-  "from-[#38bdf8] to-[#7dd3fc]",
-  "from-[#60a5fa] to-[#93c5fd]",
-  "from-[#0ea5e9] to-[#38bdf8]",
-  "from-[#3b82f6] to-[#93c5fd]",
-  "from-[#0e7490] to-[#06b6d4]",
+  'from-[#3b82f6] to-[#60a5fa]',
+  'from-[#38bdf8] to-[#7dd3fc]',
+  'from-[#60a5fa] to-[#93c5fd]',
+  'from-[#0ea5e9] to-[#38bdf8]',
+  'from-[#3b82f6] to-[#93c5fd]',
+  'from-[#0e7490] to-[#06b6d4]',
 ];
 
-const branches = ["Tất cả chi nhánh", "Quận 1", "Quận 3", "Quận 7", "Thủ Đức", "Bình Thạnh"];
-
 export function Staff() {
-  const [search, setSearch] = useState("");
-  const [branch, setBranch] = useState("Tất cả chi nhánh");
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [branch, setBranch] = useState('Tất cả chi nhánh');
   const [showModal, setShowModal] = useState(false);
-  const [view, setView] = useState<"grid" | "table">("grid");
+  const [view, setView] = useState<'grid' | 'table'>('grid');
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        const [staffRes, appointmentRes] = await Promise.all([
+          apiFetch('/api/staffs'),
+          apiFetch('/api/appointments'),
+        ]);
+
+        let branchRows: any[] = [];
+        try {
+          const branchesRes = await apiFetch('/api/branches');
+          branchRows = branchesRes?.items || [];
+        } catch {
+          branchRows = [];
+        }
+
+        const branchById = new Map<number, string>();
+        branchRows.forEach((b: any) => branchById.set(Number(b?.id), b?.name || `CN #${b?.id}`));
+
+        const appointmentRows = appointmentRes?.items || [];
+        const apptByStaff = new Map<number, number>();
+        appointmentRows.forEach((apt: any) => {
+          const staffId = Number(apt?.staff_id || 0);
+          if (!staffId) return;
+          apptByStaff.set(staffId, (apptByStaff.get(staffId) || 0) + 1);
+        });
+
+        const mapped = (staffRes?.items || []).map((row: any) => {
+          const id = Number(row?.id || 0);
+          const appointments = apptByStaff.get(id) || 0;
+          const rating = appointments >= 100 ? 4.9 : appointments >= 60 ? 4.8 : appointments >= 30 ? 4.7 : 4.5;
+
+          const role = row?.title || row?.role || 'Therapist';
+          const specialties = String(row?.skill_level || role)
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+            .slice(0, 3);
+
+          return {
+            id,
+            name: row?.full_name || `Nhân viên #${id}`,
+            role,
+            branch: branchById.get(Number(row?.branch_id)) || `CN #${row?.branch_id || ''}`,
+            phone: row?.phone || '-',
+            specialties: specialties.length ? specialties : ['Spa'],
+            rating,
+            appointments,
+            joined: formatMonthYear(row?.created_at),
+            status: String(row?.status || 'active') === 'active' ? 'active' : 'off',
+          };
+        });
+
+        if (mounted) setStaffList(mapped);
+      } catch {
+        if (mounted) setStaffList([]);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const branches = useMemo(() => {
+    const vals = Array.from(new Set(staffList.map((s) => s.branch).filter(Boolean)));
+    return ['Tất cả chi nhánh', ...vals];
+  }, [staffList]);
 
   const filtered = staffList.filter((s) => {
-    const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.role.toLowerCase().includes(search.toLowerCase());
-    const matchBranch = branch === "Tất cả chi nhánh" || s.branch === branch;
+    const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || String(s.role).toLowerCase().includes(search.toLowerCase());
+    const matchBranch = branch === 'Tất cả chi nhánh' || s.branch === branch;
     return matchSearch && matchBranch;
   });
 
@@ -51,8 +119,8 @@ export function Staff() {
         <p className="text-[#64748b] text-sm">Quản lý đội ngũ nhân viên toàn hệ thống</p>
         <div className="flex items-center gap-2">
           <div className="flex bg-white border border-[#bfdbfe] rounded-xl overflow-hidden">
-            <button onClick={() => setView("grid")} className={`px-3 py-2 text-xs font-medium transition-colors ${view === "grid" ? "bg-[#3b82f6] text-white" : "text-[#64748b] hover:bg-[#eff6ff]"}`}>Lưới</button>
-            <button onClick={() => setView("table")} className={`px-3 py-2 text-xs font-medium transition-colors ${view === "table" ? "bg-[#3b82f6] text-white" : "text-[#64748b] hover:bg-[#eff6ff]"}`}>Bảng</button>
+            <button onClick={() => setView('grid')} className={`px-3 py-2 text-xs font-medium transition-colors ${view === 'grid' ? 'bg-[#3b82f6] text-white' : 'text-[#64748b] hover:bg-[#eff6ff]'}`}>Lưới</button>
+            <button onClick={() => setView('table')} className={`px-3 py-2 text-xs font-medium transition-colors ${view === 'table' ? 'bg-[#3b82f6] text-white' : 'text-[#64748b] hover:bg-[#eff6ff]'}`}>Bảng</button>
           </div>
           <button
             onClick={() => setShowModal(true)}
@@ -63,13 +131,12 @@ export function Staff() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Tổng nhân viên", value: staffList.length, color: "text-[#1d4ed8]", bg: "bg-blue-50", border: "border-blue-100" },
-          { label: "Đang làm việc", value: staffList.filter(s => s.status === "active").length, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-100" },
-          { label: "Nghỉ phép", value: staffList.filter(s => s.status === "off").length, color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-100" },
-          { label: "Đánh giá TB", value: (staffList.reduce((a, s) => a + s.rating, 0) / staffList.length).toFixed(1) + " ★", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100" },
+          { label: 'Tổng nhân viên', value: staffList.length, color: 'text-[#1d4ed8]', bg: 'bg-blue-50', border: 'border-blue-100' },
+          { label: 'Đang làm việc', value: staffList.filter(s => s.status === 'active').length, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+          { label: 'Nghỉ phép', value: staffList.filter(s => s.status === 'off').length, color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-100' },
+          { label: 'Đánh giá TB', value: (staffList.length ? (staffList.reduce((a, s) => a + s.rating, 0) / staffList.length).toFixed(1) : '0.0') + ' ★', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
         ].map((item) => (
           <div key={item.label} className={`${item.bg} border ${item.border} rounded-xl p-4`}>
             <div className={`text-2xl font-bold ${item.color}`}>{item.value}</div>
@@ -78,7 +145,6 @@ export function Staff() {
         ))}
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#dbeafe] flex flex-col sm:flex-row gap-3">
         <div className="flex items-center gap-2 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl px-3.5 py-2.5 flex-1">
           <Search size={15} className="text-[#93c5fd] flex-shrink-0" />
@@ -99,10 +165,10 @@ export function Staff() {
         </select>
       </div>
 
-      {view === "grid" ? (
+      {view === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((staff, idx) => {
-            const role = roleStyles[staff.role] || { bg: "bg-gray-50", color: "text-gray-600" };
+            const role = roleStyles[staff.role] || { bg: 'bg-gray-50', color: 'text-gray-600' };
             return (
               <div key={staff.id} className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8eef8] hover:shadow-md hover:border-[#bfdbfe] transition-all">
                 <div className="flex items-start justify-between mb-4">
@@ -115,8 +181,8 @@ export function Staff() {
                       <span className={`text-xs px-2 py-0.5 rounded-lg font-medium ${role.bg} ${role.color}`}>{staff.role}</span>
                     </div>
                   </div>
-                  <span className={`text-xs px-2.5 py-1 rounded-lg font-semibold border ${staff.status === "active" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
-                    {staff.status === "active" ? "● Đang làm" : "○ Nghỉ"}
+                  <span className={`text-xs px-2.5 py-1 rounded-lg font-semibold border ${staff.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                    {staff.status === 'active' ? '● Đang làm' : '○ Nghỉ'}
                   </span>
                 </div>
 
@@ -127,7 +193,7 @@ export function Staff() {
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 mb-4">
-                  {staff.specialties.map((sp) => (
+                  {staff.specialties.map((sp: string) => (
                     <span key={sp} className="text-xs bg-[#dbeafe] text-[#3b82f6] px-2 py-0.5 rounded-md font-medium">{sp}</span>
                   ))}
                 </div>
@@ -153,14 +219,14 @@ export function Staff() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#e8eef8] bg-[#f8faff]">
-                  {["Nhân viên", "Vai trò", "Chi nhánh", "Đánh giá", "Buổi phục vụ", "Trạng thái", ""].map((h, i) => (
-                    <th key={i} className={`text-left px-4 py-3.5 text-xs font-semibold text-[#64748b] uppercase tracking-wider ${i === 1 ? "hidden md:table-cell" : i === 2 ? "hidden lg:table-cell" : i === 3 ? "hidden md:table-cell" : i === 4 ? "hidden lg:table-cell" : ""}`}>{h}</th>
+                  {['Nhân viên', 'Vai trò', 'Chi nhánh', 'Đánh giá', 'Buổi phục vụ', 'Trạng thái', ''].map((h, i) => (
+                    <th key={i} className={`text-left px-4 py-3.5 text-xs font-semibold text-[#64748b] uppercase tracking-wider ${i === 1 ? 'hidden md:table-cell' : i === 2 ? 'hidden lg:table-cell' : i === 3 ? 'hidden md:table-cell' : i === 4 ? 'hidden lg:table-cell' : ''}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f0f4fb]">
                 {filtered.map((staff, idx) => {
-                  const role = roleStyles[staff.role] || { bg: "bg-gray-50", color: "text-gray-600" };
+                  const role = roleStyles[staff.role] || { bg: 'bg-gray-50', color: 'text-gray-600' };
                   return (
                     <tr key={staff.id} className="hover:bg-[#f8faff] transition-colors">
                       <td className="px-4 py-3.5">
@@ -186,8 +252,8 @@ export function Staff() {
                       </td>
                       <td className="px-4 py-3.5 hidden lg:table-cell"><span className="text-sm text-[#475569]">{staff.appointments}</span></td>
                       <td className="px-4 py-3.5">
-                        <span className={`text-xs px-2.5 py-1 rounded-lg font-semibold ${staff.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                          {staff.status === "active" ? "Đang làm" : "Nghỉ phép"}
+                        <span className={`text-xs px-2.5 py-1 rounded-lg font-semibold ${staff.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                          {staff.status === 'active' ? 'Đang làm' : 'Nghỉ phép'}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
@@ -221,26 +287,12 @@ export function Staff() {
               <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg hover:bg-[#eff6ff] flex items-center justify-center text-[#94a3b8]"><XCircle size={18} /></button>
             </div>
             <div className="space-y-3">
-              {["Họ và tên", "Số điện thoại", "Email"].map(f => (
+              {['Họ và tên', 'Số điện thoại', 'Email'].map(f => (
                 <div key={f}>
                   <label className="block text-xs font-semibold text-[#475569] mb-1.5 uppercase tracking-wide">{f}</label>
                   <input className="w-full border border-[#bfdbfe] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#3b82f6] focus:ring-2 focus:ring-blue-100 bg-[#eff6ff]" placeholder={`Nhập ${f.toLowerCase()}`} />
                 </div>
               ))}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-[#475569] mb-1.5 uppercase tracking-wide">Vai trò</label>
-                  <select className="w-full border border-[#bfdbfe] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#3b82f6] bg-[#eff6ff]">
-                    {Object.keys(roleStyles).map(r => <option key={r}>{r}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#475569] mb-1.5 uppercase tracking-wide">Chi nhánh</label>
-                  <select className="w-full border border-[#bfdbfe] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#3b82f6] bg-[#eff6ff]">
-                    {branches.slice(1).map(b => <option key={b}>{b}</option>)}
-                  </select>
-                </div>
-              </div>
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-[#bfdbfe] rounded-xl text-sm text-[#475569] hover:bg-[#eff6ff] font-medium">Hủy</button>

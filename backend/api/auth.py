@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from decimal import Decimal
+import json
 import secrets
 
 from flask import jsonify, request
@@ -224,6 +225,8 @@ def ensure_demo_seed():
     from backend.models.branch import Branch
     from backend.models.customer import Customer
     from backend.models.inventory_item import InventoryItem
+    from backend.models.invoice import Invoice
+    from backend.models.payment import Payment
     from backend.models.service import Service
     from backend.models.staff import Staff
     from backend.models.stock_transaction import StockTransaction
@@ -234,7 +237,6 @@ def ensure_demo_seed():
         ("Chi nhanh 1", "Demo"),
         ("Chi nhanh 2", "Demo 2"),
     ]
-    branches = []
     for name, address in branch_definitions:
         branch = Branch.query.filter_by(name=name).first()
         if branch is None:
@@ -245,7 +247,13 @@ def ensure_demo_seed():
             branch.status = "active"
         if not branch.address:
             branch.address = address
-        branches.append(branch)
+
+    branches = Branch.query.order_by(Branch.id.asc()).all()
+    for branch in branches:
+        if not branch.status:
+            branch.status = "active"
+        if not branch.address:
+            branch.address = f"Dia chi chi nhanh {branch.id}"
 
     branch_by_name = {branch.name: branch for branch in branches}
 
@@ -525,5 +533,169 @@ def ensure_demo_seed():
                 appointment.start_time = start_time
                 appointment.end_time = end_time
                 appointment.status = status
+
+    db.session.flush()
+
+    # Seed doanh thu 12 thang cho tung chi nhanh dang co:
+    # tao appointment + invoice + payment theo tung thang de report/revenue co du lieu that.
+    month_pattern_vnd = [
+        Decimal("150000000"),
+        Decimal("158000000"),
+        Decimal("169000000"),
+        Decimal("182000000"),
+        Decimal("194000000"),
+        Decimal("208000000"),
+        Decimal("221000000"),
+        Decimal("214000000"),
+        Decimal("206000000"),
+        Decimal("228000000"),
+        Decimal("242000000"),
+        Decimal("267000000"),
+    ]
+    payment_methods = ["cash", "card", "bank_transfer", "momo"]
+
+    now = datetime.utcnow()
+    seed_year = now.year
+
+    for branch in branches:
+        branch_customers = customers_by_branch.get(branch.id) or []
+        branch_services = services_by_branch.get(branch.id) or []
+        branch_staff = staff_by_branch.get(branch.id) or []
+        if not branch_customers or not branch_services or not branch_staff:
+            continue
+
+        technician_staff = [staff for staff in branch_staff if staff.role == "technician"] or branch_staff
+        branch_scale = Decimal("0.80") + (Decimal(branch.id % 5) * Decimal("0.12"))
+
+        for month_index in range(12):
+            year = seed_year
+            month = month_index + 1
+
+            service = branch_services[(month_index + branch.id) % len(branch_services)]
+            customer = branch_customers[(month_index + branch.id) % len(branch_customers)]
+            staff = technician_staff[(month_index + branch.id) % len(technician_staff)]
+
+            amount = (month_pattern_vnd[month_index] * branch_scale).quantize(Decimal("0.01"))
+            start_time = datetime(year, month, 15, 10, 0, 0)
+            end_time = start_time + timedelta(minutes=int(service.duration_minutes or 60))
+            paid_at = datetime(year, month, 18, 14, 30, 0)
+
+            appt_marker = f"seed-revenue-appt-b{branch.id:02d}-{year}{month:02d}"
+            appointment = Appointment.query.filter_by(branch_id=branch.id, note=appt_marker).first()
+            if appointment is None:
+                appointment = Appointment(
+                    branch_id=branch.id,
+                    customer_id=customer.id,
+                    service_id=service.id,
+                    staff_id=staff.id,
+                    start_time=start_time,
+                    end_time=end_time,
+                    status="paid",
+                    service_started_at=start_time,
+                    service_completed_at=end_time,
+                    sessions_used=1,
+                    note=appt_marker,
+                )
+                db.session.add(appointment)
+                db.session.flush()
+            else:
+                appointment.customer_id = customer.id
+                appointment.service_id = service.id
+                appointment.staff_id = staff.id
+                appointment.start_time = start_time
+                appointment.end_time = end_time
+                appointment.status = "paid"
+                appointment.service_started_at = start_time
+                appointment.service_completed_at = end_time
+                appointment.sessions_used = 1
+                appointment.note = appt_marker
+
+            appointment.created_at = start_time
+            appointment.updated_at = start_time
+
+            line_items_json = json.dumps(
+                [
+                    {
+                        "type": "service",
+                        "service_id": service.id,
+                        "qty": 1,
+                        "unit_price": float(amount),
+                        "amount": float(amount),
+                        "seed_marker": f"seed-revenue-{year}{month:02d}",
+                    }
+                ],
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+
+            invoice = Invoice.query.filter_by(
+                branch_id=branch.id,
+                appointment_id=appointment.id,
+            ).first()
+            if invoice is None:
+                invoice = Invoice(
+                    branch_id=branch.id,
+                    customer_id=customer.id,
+                    appointment_id=appointment.id,
+                    subtotal_amount=amount,
+                    discount_amount=Decimal("0"),
+                    tax_amount=Decimal("0"),
+                    total_amount=amount,
+                    paid_amount=amount,
+                    balance_amount=Decimal("0"),
+                    status="paid",
+                    line_items_json=line_items_json,
+                )
+                db.session.add(invoice)
+                db.session.flush()
+            else:
+                invoice.customer_id = customer.id
+                invoice.subtotal_amount = amount
+                invoice.discount_amount = Decimal("0")
+                invoice.tax_amount = Decimal("0")
+                invoice.total_amount = amount
+                invoice.paid_amount = amount
+                invoice.balance_amount = Decimal("0")
+                invoice.status = "paid"
+                invoice.line_items_json = line_items_json
+
+            invoice.created_at = paid_at
+            invoice.updated_at = paid_at
+
+            payment_ref = f"SEED-REV-B{branch.id:02d}-{year}{month:02d}"
+            payment = Payment.query.filter_by(branch_id=branch.id, reference_code=payment_ref).first()
+            if payment is None:
+                payment = Payment(
+                    branch_id=branch.id,
+                    invoice_id=invoice.id,
+                    customer_id=customer.id,
+                    amount=amount,
+                    method=payment_methods[(month_index + branch.id) % len(payment_methods)],
+                    status="posted",
+                    paid_at=paid_at,
+                    reference_code=payment_ref,
+                    metadata_json=json.dumps(
+                        {"seed_demo": "monthly_revenue", "year": year, "month": month},
+                        ensure_ascii=True,
+                        separators=(",", ":"),
+                    ),
+                )
+                db.session.add(payment)
+            else:
+                payment.invoice_id = invoice.id
+                payment.customer_id = customer.id
+                payment.amount = amount
+                payment.method = payment_methods[(month_index + branch.id) % len(payment_methods)]
+                payment.status = "posted"
+                payment.paid_at = paid_at
+                payment.reference_code = payment_ref
+                payment.metadata_json = json.dumps(
+                    {"seed_demo": "monthly_revenue", "year": year, "month": month},
+                    ensure_ascii=True,
+                    separators=(",", ":"),
+                )
+
+            payment.created_at = paid_at
+            payment.updated_at = paid_at
 
     db.session.commit()

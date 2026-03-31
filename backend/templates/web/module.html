@@ -1,0 +1,55 @@
+{% extends "web/base.html" %}
+
+{% block title %}{{ page_title }} | QuanLySpa{% endblock %}
+
+{% block content %}
+  <div class="page-head">
+    <div>
+      <h1>{{ page_title }}</h1>
+      <p class="muted">{{ page_subtitle }}</p>
+    </div>
+  </div>
+
+  {% if cards %}
+    <div class="cards-grid">
+      {% for card in cards %}
+        <div class="card stat">
+          <div class="stat-title">{{ card.label }}</div>
+          <div class="stat-value">{{ card.value }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% for table in tables %}
+    <section class="section">
+      <div class="card">
+        <h2>{{ table.title }}</h2>
+        {% if table.rows %}
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  {% for col in table.columns %}
+                    <th>{{ col.label }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in table.rows %}
+                  <tr>
+                    {% for col in table.columns %}
+                      <td>{{ row.get(col.key, "") }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="muted">{{ table.empty_text }}</p>
+        {% endif %}
+      </div>
+    </section>
+  {% endfor %}
+{% endblock %}

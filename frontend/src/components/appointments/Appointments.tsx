@@ -1,67 +1,165 @@
-import { useState } from "react";
+﻿import { useEffect, useMemo, useState } from 'react';
+import { apiFetch } from '../../lib/api';
 import {
-  Search, Plus, CalendarDays, Clock, MapPin, User,
+  Search, Plus, MapPin, User,
   CheckCircle2, XCircle, AlertCircle, ChevronLeft,
   ChevronRight, Phone, Filter,
-} from "lucide-react";
+} from 'lucide-react';
 
-const appointments = [
-  { id: 1, customer: "Nguyễn Thị Hoa", phone: "0901234567", service: "Massage toàn thân 90 phút", time: "09:00", date: "24/03/2026", branch: "Quận 1", staff: "Trần Thị Mai", price: "850,000đ", status: "confirmed" },
-  { id: 2, customer: "Lê Thị Thu", phone: "0912345678", service: "Chăm sóc da cơ bản", time: "10:30", date: "24/03/2026", branch: "Quận 3", staff: "Phạm Thị Lan", price: "450,000đ", status: "confirmed" },
-  { id: 3, customer: "Phạm Văn Nam", phone: "0923456789", service: "Xông hơi thảo dược", time: "11:00", date: "24/03/2026", branch: "Quận 7", staff: "Nguyễn Thị Hạnh", price: "350,000đ", status: "pending" },
-  { id: 4, customer: "Trần Thị Bình", phone: "0934567890", service: "Manicure + Pedicure", time: "13:30", date: "24/03/2026", branch: "Quận 1", staff: "Lê Thị Nga", price: "380,000đ", status: "confirmed" },
-  { id: 5, customer: "Hoàng Văn Minh", phone: "0945678901", service: "Massage đá nóng", time: "14:00", date: "24/03/2026", branch: "Bình Thạnh", staff: "Trần Thị Mai", price: "950,000đ", status: "cancelled" },
-  { id: 6, customer: "Võ Thị Hương", phone: "0956789012", service: "Facial Treatment cao cấp", time: "15:00", date: "24/03/2026", branch: "Thủ Đức", staff: "Phạm Thị Lan", price: "1,200,000đ", status: "completed" },
-  { id: 7, customer: "Đặng Văn Tú", phone: "0967890123", service: "Massage thư giãn 60 phút", time: "16:30", date: "24/03/2026", branch: "Quận 3", staff: "Nguyễn Thị Hạnh", price: "600,000đ", status: "confirmed" },
-  { id: 8, customer: "Bùi Thị Lan", phone: "0978901234", service: "Chăm sóc da chuyên sâu", time: "09:30", date: "25/03/2026", branch: "Quận 1", staff: "Lê Thị Nga", price: "980,000đ", status: "pending" },
-  { id: 9, customer: "Ngô Văn Hải", phone: "0989012345", service: "Body Scrub & Wrap", time: "10:00", date: "25/03/2026", branch: "Quận 7", staff: "Trần Thị Mai", price: "750,000đ", status: "confirmed" },
-  { id: 10, customer: "Lý Thị Mỹ", phone: "0990123456", service: "Xông hơi + Massage 120 phút", time: "14:30", date: "25/03/2026", branch: "Quận 1", staff: "Phạm Thị Lan", price: "1,100,000đ", status: "confirmed" },
-];
+function formatMoneyVND(value: any) {
+  const n = Number(value || 0);
+  try {
+    return `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n)}đ`;
+  } catch {
+    return `${n}đ`;
+  }
+}
 
-const statusConfig: Record<string, { label: string; icon: any; color: string; bg: string; border: string; dot: string }> = {
-  confirmed: { label: "Xác nhận", icon: CheckCircle2, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", dot: "bg-emerald-500" },
-  pending: { label: "Chờ xử lý", icon: AlertCircle, color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", dot: "bg-amber-500" },
-  cancelled: { label: "Đã hủy", icon: XCircle, color: "text-red-600", bg: "bg-red-50", border: "border-red-200", dot: "bg-red-500" },
+function formatDateDDMMYYYY(value: any) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '-';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatTimeHHMM(value: any) {
+  if (!value) return '--:--';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '--:--';
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+function toUiStatus(status: string) {
+  if (status === 'booked' || status === 'confirmed') return 'confirmed';
+  if (status === 'arrived' || status === 'in_service') return 'pending';
+  if (status === 'cancelled' || status === 'no_show') return 'cancelled';
+  if (status === 'completed' || status === 'paid') return 'completed';
+  return 'pending';
+}
+
+const statusConfig: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
+  confirmed: { label: 'Xác nhận', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  pending: { label: 'Chờ xử lý', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500' },
+  cancelled: { label: 'Đã hủy', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', dot: 'bg-red-500' },
   completed: {
-    label: "Hoàn thành",
-    icon: CheckCircle2,
-    color: "text-cyan-800 dark:text-cyan-100",
-    bg: "bg-cyan-100 dark:bg-cyan-500/25",
-    border: "border-cyan-300 dark:border-cyan-300/60",
-    dot: "bg-cyan-600 dark:bg-cyan-300",
+    label: 'Hoàn thành',
+    color: 'text-cyan-800 dark:text-cyan-100',
+    bg: 'bg-cyan-100 dark:bg-cyan-500/25',
+    border: 'border-cyan-300 dark:border-cyan-300/60',
+    dot: 'bg-cyan-600 dark:bg-cyan-300',
   },
 };
 
 const avatarColors = [
-  "from-[#3b82f6] to-[#60a5fa]",
-  "from-[#38bdf8] to-[#7dd3fc]",
-  "from-[#60a5fa] to-[#93c5fd]",
-  "from-[#0ea5e9] to-[#38bdf8]",
-  "from-[#3b82f6] to-[#93c5fd]",
+  'from-[#3b82f6] to-[#60a5fa]',
+  'from-[#38bdf8] to-[#7dd3fc]',
+  'from-[#60a5fa] to-[#93c5fd]',
+  'from-[#0ea5e9] to-[#38bdf8]',
+  'from-[#3b82f6] to-[#93c5fd]',
 ];
 
-const filters = ["Tất cả", "Xác nhận", "Chờ xử lý", "Đã hủy", "Hoàn thành"];
-const branches = ["Tất cả chi nhánh", "Quận 1", "Quận 3", "Quận 7", "Thủ Đức", "Bình Thạnh"];
+const filters = ['Tất cả', 'Xác nhận', 'Chờ xử lý', 'Đã hủy', 'Hoàn thành'];
 
 export function Appointments() {
-  const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState("Tất cả");
-  const [branch, setBranch] = useState("Tất cả chi nhánh");
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('Tất cả');
+  const [branch, setBranch] = useState('Tất cả chi nhánh');
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        const [appointmentRes, customerRes, serviceRes, staffRes] = await Promise.all([
+          apiFetch('/api/appointments'),
+          apiFetch('/api/customers'),
+          apiFetch('/api/services'),
+          apiFetch('/api/staffs'),
+        ]);
+
+        const appointmentRows = appointmentRes?.items || [];
+        const customerRows = customerRes?.items || [];
+        const serviceRows = serviceRes?.items || [];
+        const staffRows = staffRes?.items || [];
+
+        let branchRows: any[] = [];
+        try {
+          const branchesRes = await apiFetch('/api/branches');
+          branchRows = branchesRes?.items || [];
+        } catch {
+          branchRows = [];
+        }
+
+        const customerById = new Map<number, any>();
+        customerRows.forEach((c: any) => customerById.set(Number(c?.id), c));
+
+        const serviceById = new Map<number, any>();
+        serviceRows.forEach((s: any) => serviceById.set(Number(s?.id), s));
+
+        const staffById = new Map<number, any>();
+        staffRows.forEach((s: any) => staffById.set(Number(s?.id), s));
+
+        const branchById = new Map<number, any>();
+        branchRows.forEach((b: any) => branchById.set(Number(b?.id), b));
+
+        const mapped = appointmentRows.map((apt: any) => {
+          const customer = customerById.get(Number(apt?.customer_id));
+          const service = serviceById.get(Number(apt?.service_id));
+          const staff = staffById.get(Number(apt?.staff_id));
+          const branchRow = branchById.get(Number(apt?.branch_id));
+          const uiStatus = toUiStatus(String(apt?.status || 'pending'));
+
+          return {
+            id: Number(apt?.id || 0),
+            customer: customer?.full_name || `Khách #${apt?.customer_id || ''}`,
+            phone: customer?.phone || '-',
+            service: service?.name || 'Chưa gán dịch vụ',
+            time: formatTimeHHMM(apt?.start_time),
+            date: formatDateDDMMYYYY(apt?.start_time),
+            branch: branchRow?.name || `CN #${apt?.branch_id || ''}`,
+            staff: staff?.full_name || 'Chưa phân công',
+            price: formatMoneyVND(service?.price || 0),
+            status: uiStatus,
+          };
+        });
+
+        if (mounted) setAppointments(mapped);
+      } catch {
+        if (mounted) setAppointments([]);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const branches = useMemo(() => {
+    const list = Array.from(new Set(appointments.map((a) => a.branch).filter(Boolean)));
+    return ['Tất cả chi nhánh', ...list];
+  }, [appointments]);
 
   const filtered = appointments.filter((a) => {
     const matchSearch = a.customer.toLowerCase().includes(search.toLowerCase()) || a.service.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = activeFilter === "Tất cả" || statusConfig[a.status]?.label === activeFilter;
-    const matchBranch = branch === "Tất cả chi nhánh" || a.branch === branch;
+    const matchFilter = activeFilter === 'Tất cả' || statusConfig[a.status]?.label === activeFilter;
+    const matchBranch = branch === 'Tất cả chi nhánh' || a.branch === branch;
     return matchSearch && matchFilter && matchBranch;
   });
 
   const counts = {
     total: appointments.length,
-    confirmed: appointments.filter(a => a.status === "confirmed").length,
-    pending: appointments.filter(a => a.status === "pending").length,
-    cancelled: appointments.filter(a => a.status === "cancelled").length,
-    completed: appointments.filter(a => a.status === "completed").length,
+    confirmed: appointments.filter(a => a.status === 'confirmed').length,
+    pending: appointments.filter(a => a.status === 'pending').length,
+    cancelled: appointments.filter(a => a.status === 'cancelled').length,
+    completed: appointments.filter(a => a.status === 'completed').length,
   };
 
   return (
@@ -76,13 +174,12 @@ export function Appointments() {
         </button>
       </div>
 
-      {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Tổng lịch hẹn", value: counts.total, color: "text-[#3b82f6]", bg: "bg-blue-50", border: "border-blue-100" },
-          { label: "Xác nhận", value: counts.confirmed, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-100" },
-          { label: "Chờ xử lý", value: counts.pending, color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-100" },
-          { label: "Đã hủy", value: counts.cancelled, color: "text-red-500", bg: "bg-red-50", border: "border-red-100" },
+          { label: 'Tổng lịch hẹn', value: counts.total, color: 'text-[#3b82f6]', bg: 'bg-blue-50', border: 'border-blue-100' },
+          { label: 'Xác nhận', value: counts.confirmed, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+          { label: 'Chờ xử lý', value: counts.pending, color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-100' },
+          { label: 'Đã hủy', value: counts.cancelled, color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-100' },
         ].map((item) => (
           <div key={item.label} className={`${item.bg} border ${item.border} rounded-xl p-4`}>
             <div className={`text-2xl font-bold ${item.color}`}>{item.value}</div>
@@ -91,7 +188,6 @@ export function Appointments() {
         ))}
       </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#dbeafe]">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex items-center gap-2 bg-[#eff6ff] border border-[#bfdbfe] rounded-xl px-3 py-2.5 flex-1">
@@ -120,7 +216,7 @@ export function Appointments() {
             <button
               key={f}
               onClick={() => setActiveFilter(f)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeFilter === f ? "bg-[#3b82f6] text-white shadow-sm" : "bg-[#eff6ff] text-[#475569] hover:bg-[#dbeafe] hover:text-[#3b82f6]"}`}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeFilter === f ? 'bg-[#3b82f6] text-white shadow-sm' : 'bg-[#eff6ff] text-[#475569] hover:bg-[#dbeafe] hover:text-[#3b82f6]'}`}
             >
               {f}
             </button>
@@ -128,14 +224,13 @@ export function Appointments() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-[#dbeafe] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#dbeafe] bg-[#eff6ff]">
-                {["Khách hàng", "Dịch vụ", "Thời gian", "Chi nhánh", "Nhân viên", "Giá", "Trạng thái", ""].map((h, i) => (
-                  <th key={i} className={`text-left px-4 py-3.5 text-xs font-semibold text-[#64748b] uppercase tracking-wider ${i === 1 ? "hidden md:table-cell" : i === 3 ? "hidden lg:table-cell" : i === 4 ? "hidden xl:table-cell" : i === 5 ? "hidden md:table-cell" : ""}`}>
+                {['Khách hàng', 'Dịch vụ', 'Thời gian', 'Chi nhánh', 'Nhân viên', 'Giá', 'Trạng thái', ''].map((h, i) => (
+                  <th key={i} className={`text-left px-4 py-3.5 text-xs font-semibold text-[#64748b] uppercase tracking-wider ${i === 1 ? 'hidden md:table-cell' : i === 3 ? 'hidden lg:table-cell' : i === 4 ? 'hidden xl:table-cell' : i === 5 ? 'hidden md:table-cell' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -143,8 +238,7 @@ export function Appointments() {
             </thead>
             <tbody className="divide-y divide-[#eff6ff]">
               {filtered.map((apt, idx) => {
-                const s = statusConfig[apt.status];
-                const SIcon = s.icon;
+                const s = statusConfig[apt.status] || statusConfig.pending;
                 return (
                   <tr key={apt.id} className="hover:bg-[#eff6ff] transition-colors">
                     <td className="px-4 py-3.5">
@@ -211,7 +305,7 @@ export function Appointments() {
               <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg hover:bg-[#eff6ff] flex items-center justify-center text-[#94a3b8]"><XCircle size={18} /></button>
             </div>
             <div className="space-y-3">
-              {[{ label: "Tên khách hàng", placeholder: "Nhập tên khách hàng" }, { label: "Số điện thoại", placeholder: "Nhập số điện thoại" }].map((f) => (
+              {[{ label: 'Tên khách hàng', placeholder: 'Nhập tên khách hàng' }, { label: 'Số điện thoại', placeholder: 'Nhập số điện thoại' }].map((f) => (
                 <div key={f.label}>
                   <label className="block text-xs font-semibold text-[#475569] mb-1.5 uppercase tracking-wide">{f.label}</label>
                   <input className="w-full border border-[#bfdbfe] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#3b82f6] focus:ring-2 focus:ring-blue-100 bg-[#eff6ff] transition-all" placeholder={f.placeholder} />
@@ -219,28 +313,7 @@ export function Appointments() {
               ))}
               <div>
                 <label className="block text-xs font-semibold text-[#475569] mb-1.5 uppercase tracking-wide">Dịch vụ</label>
-                <select className="w-full border border-[#bfdbfe] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#3b82f6] bg-[#eff6ff]">
-                  <option>Massage toàn thân 90 phút</option>
-                  <option>Chăm sóc da cơ bản</option>
-                  <option>Xông hơi thảo dược</option>
-                  <option>Manicure + Pedicure</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-[#475569] mb-1.5 uppercase tracking-wide">Ngày</label>
-                  <input type="date" className="w-full border border-[#bfdbfe] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#3b82f6] bg-[#eff6ff]" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#475569] mb-1.5 uppercase tracking-wide">Giờ</label>
-                  <input type="time" className="w-full border border-[#bfdbfe] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#3b82f6] bg-[#eff6ff]" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#475569] mb-1.5 uppercase tracking-wide">Chi nhánh</label>
-                <select className="w-full border border-[#bfdbfe] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#3b82f6] bg-[#eff6ff]">
-                  {["Quận 1", "Quận 3", "Quận 7", "Thủ Đức", "Bình Thạnh"].map((b) => <option key={b}>{b}</option>)}
-                </select>
+                <input className="w-full border border-[#bfdbfe] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#3b82f6] bg-[#eff6ff]" placeholder="Tên dịch vụ" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">

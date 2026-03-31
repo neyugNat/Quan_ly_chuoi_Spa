@@ -10,7 +10,7 @@ export async function apiFetch(path, options = {}) {
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
   const branchId = localStorage.getItem('branch_id')
-  if (branchId) headers.set('X-Branch-Id', branchId)
+  if (branchId && !headers.has('X-Branch-Id')) headers.set('X-Branch-Id', branchId)
 
   const res = await fetch(`${API_URL}${path}`, {
     ...options,

@@ -2,11 +2,12 @@
 
 import os
 
-from flask import Flask
+from flask import Flask, redirect, url_for
 
 from backend.api import api_bp
 from backend.config import DevConfig
 from backend.extensions import cors, db, jwt, migrate
+from backend.web import web_bp
 
 
 def create_app():
@@ -19,6 +20,11 @@ def create_app():
     jwt.init_app(app)
 
     app.register_blueprint(api_bp)
+    app.register_blueprint(web_bp)
+
+    @app.get("/")
+    def root():
+        return redirect(url_for("web.index"))
 
     if os.getenv("AUTO_SEED_DEMO") == "1":
         from backend.api.auth import ensure_demo_seed

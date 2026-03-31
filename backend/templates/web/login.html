@@ -1,0 +1,34 @@
+{% extends "web/base.html" %}
+
+{% block title %}Dang nhap | QuanLySpa{% endblock %}
+
+{% block auth_content %}
+  <div class="login">
+    <div class="login-card card">
+      <h1>Dang nhap he thong Spa</h1>
+      <p class="muted">Frontend Python (Flask + Jinja) giu theme cu, du lieu backend that.</p>
+      <form method="post" action="{{ url_for('web.login', next=request.args.get('next', '')) }}">
+        <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+        <div class="field">
+          <label for="username">Tai khoan</label>
+          <input id="username" name="username" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="password">Mat khau</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="btn" type="submit">Dang nhap</button>
+      </form>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-wrap">
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+    </div>
+  </div>
+{% endblock %}

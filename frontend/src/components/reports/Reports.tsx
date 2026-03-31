@@ -1,59 +1,83 @@
-import { useState } from "react";
+﻿import { useEffect, useMemo, useState } from 'react';
+import { apiFetch } from '../../lib/api';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from "recharts";
-import { TrendingUp, TrendingDown, DollarSign, Users, CalendarDays, Download } from "lucide-react";
+} from 'recharts';
+import { TrendingUp, TrendingDown, DollarSign, Users, CalendarDays, Download } from 'lucide-react';
 
-const monthlyRevenue = [
-  { month: "T1", revenue: 85, expenses: 42, profit: 43 },
-  { month: "T2", revenue: 92, expenses: 45, profit: 47 },
-  { month: "T3", revenue: 78, expenses: 40, profit: 38 },
-  { month: "T4", revenue: 110, expenses: 52, profit: 58 },
-  { month: "T5", revenue: 125, expenses: 58, profit: 67 },
-  { month: "T6", revenue: 98, expenses: 48, profit: 50 },
-  { month: "T7", revenue: 142, expenses: 65, profit: 77 },
-  { month: "T8", revenue: 135, expenses: 62, profit: 73 },
-  { month: "T9", revenue: 158, expenses: 72, profit: 86 },
-  { month: "T10", revenue: 172, expenses: 78, profit: 94 },
-  { month: "T11", revenue: 165, expenses: 75, profit: 90 },
-  { month: "T12", revenue: 195, expenses: 88, profit: 107 },
-];
+function dateToIso(value: Date) {
+  const y = value.getFullYear();
+  const m = String(value.getMonth() + 1).padStart(2, '0');
+  const d = String(value.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
-const branchRevenue = [
-  { name: "Quận 1", revenue: 195 },
-  { name: "Quận 3", revenue: 162 },
-  { name: "Quận 7", revenue: 148 },
-  { name: "Thủ Đức", revenue: 125 },
-  { name: "Bình Thạnh", revenue: 110 },
-];
+function buildPeriodRange(period: string) {
+  const now = new Date();
+  const to = dateToIso(now);
 
-const serviceRevenue = [
-  { name: "Massage", value: 35, color: "#1d4ed8" },
-  { name: "Chăm sóc da", value: 28, color: "#4f46e5" },
-  { name: "Nail & Tóc", value: 20, color: "#0891b2" },
-  { name: "Xông hơi", value: 12, color: "#0369a1" },
-  { name: "Gói đặc biệt", value: 5, color: "#1e40af" },
-];
+  if (period === 'Tháng này') {
+    const from = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { from: dateToIso(from), to };
+  }
 
-const customerGrowth = [
-  { month: "T7", new: 45, returning: 120 },
-  { month: "T8", new: 52, returning: 130 },
-  { month: "T9", new: 61, returning: 148 },
-  { month: "T10", new: 78, returning: 162 },
-  { month: "T11", new: 69, returning: 170 },
-  { month: "T12", new: 124, returning: 185 },
-];
+  if (period === 'Quý này') {
+    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    const from = new Date(now.getFullYear(), quarterStartMonth, 1);
+    return { from: dateToIso(from), to };
+  }
 
-const topServices = [
-  { name: "Manicure + Pedicure", bookings: 334, revenue: "126,920,000đ", growth: "+18%" },
-  { name: "Massage thư giãn 60'", bookings: 312, revenue: "187,200,000đ", growth: "+12%" },
-  { name: "Chăm sóc da cơ bản", bookings: 276, revenue: "124,200,000đ", growth: "+9%" },
-  { name: "Massage toàn thân 90'", bookings: 248, revenue: "210,800,000đ", growth: "+22%" },
-  { name: "Xông hơi thảo dược", bookings: 167, revenue: "58,450,000đ", growth: "+6%" },
-];
+  if (period === '6 tháng') {
+    const from = new Date(now);
+    from.setDate(from.getDate() - 180);
+    return { from: dateToIso(from), to };
+  }
 
-const periods = ["Tháng này", "Quý này", "6 tháng", "Năm nay"];
+  const from = new Date(now.getFullYear(), 0, 1);
+  return { from: dateToIso(from), to };
+}
+
+function formatMoney(value: any) {
+  const n = Number(value || 0);
+  try {
+    return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n);
+  } catch {
+    return String(n);
+  }
+}
+
+function formatMoneyM(value: any) {
+  const n = Number(value || 0) / 1000000;
+  return `${n.toFixed(1)} tr`;
+}
+
+function toMonthKey(day: string) {
+  return String(day || '').slice(0, 7);
+}
+
+function toMonthLabel(monthKey: string) {
+  const month = Number(String(monthKey || '').slice(5, 7) || 0);
+  return month ? `T${month}` : monthKey;
+}
+
+function monthToKey(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function buildRecentMonthKeys(count: number, anchorDate = new Date()) {
+  const keys: string[] = [];
+  const anchor = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
+  for (let offset = count - 1; offset >= 0; offset -= 1) {
+    const d = new Date(anchor.getFullYear(), anchor.getMonth() - offset, 1);
+    keys.push(monthToKey(d));
+  }
+  return keys;
+}
+
+const periods = ['Tháng này', 'Quý này', '6 tháng', 'Năm nay'];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -72,7 +96,209 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function Reports() {
-  const [period, setPeriod] = useState("Năm nay");
+  const [period, setPeriod] = useState('Năm nay');
+  const [revenueItems, setRevenueItems] = useState<any[]>([]);
+  const [appointmentItems, setAppointmentItems] = useState<any[]>([]);
+  const [appointmentList, setAppointmentList] = useState<any[]>([]);
+  const [allAppointments, setAllAppointments] = useState<any[]>([]);
+  const [serviceItems, setServiceItems] = useState<any[]>([]);
+  const [branchRevenue, setBranchRevenue] = useState<any[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      const { from, to } = buildPeriodRange(period);
+      const query = `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+
+      try {
+        const [revenueRes, appointmentRes, serviceRes, appointmentListRes] = await Promise.all([
+          apiFetch(`/api/reports/revenue${query}`),
+          apiFetch(`/api/reports/appointments${query}`),
+          apiFetch('/api/services'),
+          apiFetch('/api/appointments'),
+        ]);
+
+        if (!mounted) return;
+        setRevenueItems(revenueRes?.items || []);
+        setAppointmentItems(appointmentRes?.items || []);
+        setServiceItems(serviceRes?.items || []);
+        const allRows = appointmentListRes?.items || [];
+        setAllAppointments(allRows);
+        setAppointmentList(allRows.filter((row: any) => {
+          const day = String(row?.start_time || '').slice(0, 10);
+          return day >= from && day <= to;
+        }));
+      } catch {
+        if (!mounted) return;
+        setRevenueItems([]);
+        setAppointmentItems([]);
+        setServiceItems([]);
+        setAppointmentList([]);
+        setAllAppointments([]);
+      }
+
+      try {
+        const branchesRes = await apiFetch('/api/branches');
+        const branches = branchesRes?.items || [];
+        const { from: f, to: t } = buildPeriodRange(period);
+        const queryBranch = `?from=${encodeURIComponent(f)}&to=${encodeURIComponent(t)}`;
+
+        const revenueRows = await Promise.all(
+          branches.slice(0, 5).map(async (branch: any) => {
+            try {
+              const headers = { 'X-Branch-Id': String(branch.id) };
+              const revenueRes = await apiFetch(`/api/reports/revenue${queryBranch}`, { headers });
+              const revenueTotal = (revenueRes?.items || []).reduce((sum: number, it: any) => sum + Number(it?.revenue || 0), 0);
+              return { name: branch?.name || `CN #${branch?.id}`, revenue: Math.round(revenueTotal / 1000000) };
+            } catch {
+              return null;
+            }
+          }),
+        );
+
+        if (mounted) {
+          const resolved = revenueRows.filter(Boolean).sort((a: any, b: any) => Number(b?.revenue || 0) - Number(a?.revenue || 0));
+          setBranchRevenue(resolved);
+        }
+      } catch {
+        if (mounted) {
+          const revenueTotal = revenueItems.reduce((sum, it) => sum + Number(it?.revenue || 0), 0);
+          setBranchRevenue([{ name: 'Chi nhánh hiện tại', revenue: Math.round(revenueTotal / 1000000) }]);
+        }
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [period]);
+
+  const monthlyRevenue = useMemo(() => {
+    const byMonth = new Map<string, number>();
+    revenueItems.forEach((row: any) => {
+      const monthKey = toMonthKey(row?.day || '');
+      if (!monthKey) return;
+      byMonth.set(monthKey, (byMonth.get(monthKey) || 0) + Number(row?.revenue || 0));
+    });
+
+    return Array.from(byMonth.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([month, revenue]) => ({
+        month: toMonthLabel(month),
+        revenue: Math.round(revenue / 1000000),
+        expenses: 0,
+        profit: Math.round(revenue / 1000000),
+      }));
+  }, [revenueItems]);
+
+  const serviceNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    serviceItems.forEach((s: any) => map.set(Number(s?.id), s?.name || `Dịch vụ #${s?.id}`));
+    return map;
+  }, [serviceItems]);
+
+  const serviceRevenue = useMemo(() => {
+    const colorPalette = ['#1d4ed8', '#4f46e5', '#0891b2', '#0369a1', '#1e40af'];
+    const byService = new Map<number, number>();
+    revenueItems.forEach((row: any) => {
+      const serviceId = Number(row?.service_id || 0);
+      if (!serviceId) return;
+      byService.set(serviceId, (byService.get(serviceId) || 0) + Number(row?.revenue || 0));
+    });
+
+    const rows = Array.from(byService.entries())
+      .map(([serviceId, revenue]) => ({ serviceId, revenue }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    const total = rows.reduce((sum, row) => sum + row.revenue, 0);
+    if (total <= 0) return [];
+
+    return rows.map((row, idx) => ({
+      name: serviceNameById.get(row.serviceId) || `DV #${row.serviceId}`,
+      value: Math.max(1, Math.round((row.revenue / total) * 100)),
+      color: colorPalette[idx % colorPalette.length],
+    }));
+  }, [revenueItems, serviceNameById]);
+
+  const topServices = useMemo(() => {
+    const bookingsByService = new Map<number, number>();
+    appointmentList.forEach((apt: any) => {
+      const serviceId = Number(apt?.service_id || 0);
+      if (!serviceId) return;
+      bookingsByService.set(serviceId, (bookingsByService.get(serviceId) || 0) + 1);
+    });
+
+    const revenueByService = new Map<number, number>();
+    revenueItems.forEach((row: any) => {
+      const serviceId = Number(row?.service_id || 0);
+      if (!serviceId) return;
+      revenueByService.set(serviceId, (revenueByService.get(serviceId) || 0) + Number(row?.revenue || 0));
+    });
+
+    const rows = Array.from(revenueByService.entries())
+      .map(([serviceId, revenue]) => ({
+        serviceId,
+        name: serviceNameById.get(serviceId) || `Dịch vụ #${serviceId}`,
+        bookings: bookingsByService.get(serviceId) || 0,
+        revenue,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    const total = rows.reduce((sum, row) => sum + row.revenue, 0);
+    return rows.map((row) => ({
+      name: row.name,
+      bookings: row.bookings,
+      revenue: `${formatMoney(row.revenue)}đ`,
+      growth: total > 0 ? `+${Math.round((row.revenue / total) * 100)}%` : '0%',
+    }));
+  }, [appointmentList, revenueItems, serviceNameById]);
+
+  const customerGrowth = useMemo(() => {
+    const customerFirstMonth = new Map<number, string>();
+    const recentMonthKeys = buildRecentMonthKeys(6, new Date());
+    const recentMonthKeySet = new Set(recentMonthKeys);
+    const monthlyActiveByCustomer = new Map<string, Set<number>>();
+    recentMonthKeys.forEach((monthKey) => {
+      monthlyActiveByCustomer.set(monthKey, new Set());
+    });
+
+    allAppointments.forEach((apt: any) => {
+      const customerId = Number(apt?.customer_id || 0);
+      const day = String(apt?.start_time || '').slice(0, 10);
+      const monthKey = toMonthKey(day);
+      if (!customerId || !monthKey) return;
+
+      const prevFirst = customerFirstMonth.get(customerId);
+      if (!prevFirst || monthKey < prevFirst) {
+        customerFirstMonth.set(customerId, monthKey);
+      }
+
+      if (!recentMonthKeySet.has(monthKey)) return;
+      monthlyActiveByCustomer.get(monthKey)?.add(customerId);
+    });
+
+    return recentMonthKeys.map((monthKey) => {
+      const active = monthlyActiveByCustomer.get(monthKey) || new Set<number>();
+      let newCount = 0;
+      active.forEach((customerId) => {
+        if (customerFirstMonth.get(customerId) === monthKey) newCount += 1;
+      });
+      const returning = Math.max(0, active.size - newCount);
+      return {
+        month: toMonthLabel(monthKey),
+        new: newCount,
+        returning,
+      };
+    });
+  }, [allAppointments]);
+
+  const revenueTotal = useMemo(() => revenueItems.reduce((sum, row) => sum + Number(row?.revenue || 0), 0), [revenueItems]);
+  const apptTotal = useMemo(() => appointmentItems.reduce((sum, row) => sum + Number(row?.total || 0), 0), [appointmentItems]);
+  const customerServed = useMemo(() => new Set(appointmentList.map((row: any) => Number(row?.customer_id || 0)).filter(Boolean)).size, [appointmentList]);
 
   return (
     <div className="space-y-5">
@@ -84,7 +310,7 @@ export function Reports() {
               <button
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-3 py-2 text-xs font-medium transition-colors ${period === p ? "bg-[#3b82f6] text-white" : "text-[#64748b] hover:bg-[#eff6ff]"}`}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${period === p ? 'bg-[#3b82f6] text-white' : 'text-[#64748b] hover:bg-[#eff6ff]'}`}
               >
                 {p}
               </button>
@@ -96,13 +322,12 @@ export function Reports() {
         </div>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { label: "Tổng doanh thu", value: "1,555 tr", sub: "Cả 5 chi nhánh", icon: DollarSign, change: "+15.2%", up: true, gradient: "from-[#3b82f6] to-[#60a5fa]" },
-          { label: "Tổng lợi nhuận", value: "730 tr", sub: "Biên LN 47%", icon: TrendingUp, change: "+18.5%", up: true, gradient: "from-[#38bdf8] to-[#7dd3fc]" },
-          { label: "Khách hàng phục vụ", value: "2,847", sub: "+214 so kỳ trước", icon: Users, change: "+8.2%", up: true, gradient: "from-[#60a5fa] to-[#93c5fd]" },
-          { label: "Tổng lịch hẹn", value: "3,124", sub: "Hoàn thành 94%", icon: CalendarDays, change: "+11.3%", up: true, gradient: "from-[#0ea5e9] to-[#38bdf8]" },
+          { label: 'Tổng doanh thu', value: formatMoneyM(revenueTotal), sub: 'Theo backend', icon: DollarSign, change: '+0.0%', up: true, gradient: 'from-[#3b82f6] to-[#60a5fa]' },
+          { label: 'Tổng lợi nhuận', value: 'N/A', sub: 'Thiếu dữ liệu chi phí', icon: TrendingUp, change: 'N/A', up: true, gradient: 'from-[#38bdf8] to-[#7dd3fc]' },
+          { label: 'Khách hàng phục vụ', value: customerServed.toLocaleString('vi-VN'), sub: 'Khách có lịch hẹn', icon: Users, change: '+0.0%', up: true, gradient: 'from-[#60a5fa] to-[#93c5fd]' },
+          { label: 'Tổng lịch hẹn', value: apptTotal.toLocaleString('vi-VN'), sub: 'Theo kỳ đã chọn', icon: CalendarDays, change: '+0.0%', up: true, gradient: 'from-[#0ea5e9] to-[#38bdf8]' },
         ].map((kpi) => {
           const Icon = kpi.icon;
           return (
@@ -111,7 +336,7 @@ export function Reports() {
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${kpi.gradient} flex items-center justify-center shadow-md`}>
                   <Icon size={18} className="text-white" />
                 </div>
-                <span className={`flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-lg ${kpi.up ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}>
+                <span className={`flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-lg ${kpi.up ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
                   {kpi.up ? <TrendingUp size={10} /> : <TrendingDown size={10} />} {kpi.change}
                 </span>
               </div>
@@ -123,12 +348,11 @@ export function Reports() {
         })}
       </div>
 
-      {/* Revenue bar chart */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8eef8]">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="text-[#0c1e40]">Doanh thu & Lợi nhuận theo tháng</h3>
-            <p className="text-[#94a3b8] text-xs mt-0.5">Đơn vị: Triệu đồng — Năm 2025</p>
+            <h3 className="text-[#0c1e40]">Doanh thu theo tháng</h3>
+            <p className="text-[#94a3b8] text-xs mt-0.5">Đơn vị: Triệu đồng</p>
           </div>
           <div className="hidden sm:flex items-center gap-4 text-xs text-[#94a3b8]">
             <span className="flex items-center gap-1.5"><span className="w-3 h-2 rounded-sm bg-[#1d4ed8] inline-block" />Doanh thu</span>
@@ -139,8 +363,8 @@ export function Reports() {
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={monthlyRevenue} barGap={3} barCategoryGap="25%">
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="revenue" fill="#1d4ed8" radius={[4, 4, 0, 0]} name="Doanh thu" />
             <Bar dataKey="expenses" fill="#bfdbfe" radius={[4, 4, 0, 0]} name="Chi phí" />
@@ -149,16 +373,15 @@ export function Reports() {
         </ResponsiveContainer>
       </div>
 
-      {/* 2 col */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        {/* Branch bars */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8eef8]">
           <h3 className="text-[#0c1e40] mb-1">Doanh thu theo chi nhánh</h3>
-          <p className="text-[#94a3b8] text-xs mb-5">Tháng 12/2025 (triệu đồng)</p>
+          <p className="text-[#94a3b8] text-xs mb-5">Theo kỳ đã chọn (triệu đồng)</p>
           <div className="space-y-4">
             {branchRevenue.map((b, i) => {
-              const pct = (b.revenue / 200) * 100;
-              const blues = ["#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd"];
+              const max = Math.max(1, ...branchRevenue.map((row) => Number(row.revenue || 0)));
+              const pct = (Number(b.revenue || 0) / max) * 100;
+              const blues = ['#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'];
               return (
                 <div key={b.name}>
                   <div className="flex items-center justify-between mb-1.5">
@@ -166,7 +389,7 @@ export function Reports() {
                     <span className="text-sm font-bold text-[#1d4ed8]">{b.revenue} tr</span>
                   </div>
                   <div className="h-2.5 bg-[#f0f4fb] rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: blues[i] }} />
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: blues[i % blues.length] }} />
                   </div>
                 </div>
               );
@@ -174,10 +397,9 @@ export function Reports() {
           </div>
         </div>
 
-        {/* Pie */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8eef8]">
           <h3 className="text-[#0c1e40] mb-1">Doanh thu theo dịch vụ</h3>
-          <p className="text-[#94a3b8] text-xs mb-2">Phân bổ % năm 2025</p>
+          <p className="text-[#94a3b8] text-xs mb-2">Phân bổ % theo kỳ</p>
           <div className="flex items-center gap-4">
             <ResponsiveContainer width={160} height={160}>
               <PieChart>
@@ -186,7 +408,7 @@ export function Reports() {
                     <Cell key={index} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v: any) => [`${v}%`, ""]} contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e2eaff" }} />
+                <Tooltip formatter={(v: any) => [`${v}%`, '']} contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e2eaff' }} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex-1 space-y-2.5">
@@ -204,11 +426,10 @@ export function Reports() {
         </div>
       </div>
 
-      {/* Customer growth */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-[#e8eef8]">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="text-[#0c1e40]">Lượt khách — Mới vs Quay lại</h3>
+            <h3 className="text-[#0c1e40]">Lượt khách - Mới vs Quay lại</h3>
             <p className="text-[#94a3b8] text-xs mt-0.5">6 tháng gần đây</p>
           </div>
           <div className="flex items-center gap-4 text-xs text-[#94a3b8]">
@@ -229,20 +450,19 @@ export function Reports() {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: "1px solid #e2eaff" }} formatter={(v: any, name) => [v, name === "new" ? "Khách mới" : "Quay lại"]} />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ borderRadius: 12, fontSize: 12, border: '1px solid #e2eaff' }} formatter={(v: any, name) => [v, name === 'new' ? 'Khách mới' : 'Quay lại']} />
             <Area type="monotone" dataKey="returning" stroke="#93c5fd" strokeWidth={2} fill="url(#gRet)" />
             <Area type="monotone" dataKey="new" stroke="#1d4ed8" strokeWidth={2.5} fill="url(#gNew)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Top services table */}
       <div className="bg-white rounded-2xl shadow-sm border border-[#e8eef8] overflow-hidden">
         <div className="px-5 py-4 border-b border-[#e8eef8] bg-[#f8faff]">
           <h3 className="text-[#0c1e40]">Top dịch vụ theo doanh thu</h3>
-          <p className="text-[#94a3b8] text-xs mt-0.5">Năm 2025 — Toàn chuỗi</p>
+          <p className="text-[#94a3b8] text-xs mt-0.5">Theo kỳ đã chọn</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -260,7 +480,7 @@ export function Reports() {
                 <tr key={svc.name} className="hover:bg-[#f8faff] transition-colors">
                   <td className="px-5 py-3.5">
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold
-                      ${idx === 0 ? "bg-amber-100 text-amber-700" : idx === 1 ? "bg-slate-100 text-slate-600" : idx === 2 ? "bg-orange-100 text-orange-600" : "bg-blue-50 text-[#3b82f6]"}`}>
+                      ${idx === 0 ? 'bg-amber-100 text-amber-700' : idx === 1 ? 'bg-slate-100 text-slate-600' : idx === 2 ? 'bg-orange-100 text-orange-600' : 'bg-blue-50 text-[#3b82f6]'}`}>
                       {idx + 1}
                     </div>
                   </td>
@@ -268,7 +488,7 @@ export function Reports() {
                     <span className="text-sm font-semibold text-[#0c1e40]">{svc.name}</span>
                   </td>
                   <td className="px-5 py-3.5 hidden md:table-cell">
-                    <span className="text-sm text-[#475569]">{svc.bookings.toLocaleString()}</span>
+                    <span className="text-sm text-[#475569]">{svc.bookings.toLocaleString('vi-VN')}</span>
                   </td>
                   <td className="px-5 py-3.5">
                     <span className="text-sm font-bold text-[#3b82f6]">{svc.revenue}</span>
