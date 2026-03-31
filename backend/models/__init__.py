@@ -3,6 +3,7 @@ from .appointment import Appointment
 from .branch import Branch
 from .commission_record import CommissionRecord
 from .customer import Customer
+from .customer_account import CustomerAccount
 from .customer_package import CustomerPackage
 from .inventory_item import InventoryItem
 from .invoice import Invoice
@@ -25,6 +26,7 @@ __all__ = [
     "Branch",
     "CommissionRecord",
     "Customer",
+    "CustomerAccount",
     "CustomerPackage",
     "InventoryItem",
     "Invoice",

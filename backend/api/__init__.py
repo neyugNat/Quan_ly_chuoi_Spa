@@ -10,6 +10,7 @@ from . import appointments  # noqa: E402,F401
 from . import branches  # noqa: E402,F401
 from . import commission_records  # noqa: E402,F401
 from . import customers  # noqa: E402,F401
+from . import customer_auth  # noqa: E402,F401
 from . import customer_packages  # noqa: E402,F401
 from . import health  # noqa: E402,F401
 from . import invoices  # noqa: E402,F401

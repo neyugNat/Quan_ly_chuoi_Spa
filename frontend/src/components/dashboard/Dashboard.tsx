@@ -77,6 +77,18 @@ function buildTrendFromDaily(items: any[], numericKey: string) {
   };
 }
 
+function buildTrendFromPair(current: number, previous: number) {
+  if (previous <= 0) {
+    if (current <= 0) return { changeText: '0.0%', up: true };
+    return { changeText: '+100.0%', up: true };
+  }
+  const pct = ((current - previous) / previous) * 100;
+  return {
+    changeText: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`,
+    up: pct >= 0,
+  };
+}
+
 const MONTH_LABELS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
 
 const fallbackServiceData = [
@@ -238,12 +250,58 @@ export function Dashboard() {
   const revenueTotal = useMemo(() => revenueItems.reduce((sum, it) => sum + Number(it?.revenue || 0), 0), [revenueItems]);
   const apptTotal = useMemo(() => appointmentItems.reduce((sum, it) => sum + Number(it?.total || 0), 0), [appointmentItems]);
   const apptCancelled = useMemo(() => appointmentItems.reduce((sum, it) => sum + Number(it?.cancelled || 0), 0), [appointmentItems]);
-  const paymentsTotal = useMemo(() => revenueItems.reduce((sum, it) => sum + Number(it?.payments_count || 0), 0), [revenueItems]);
   const lowStockCount = useMemo(() => lowStockItems.length, [lowStockItems]);
 
   const revenueTrend = useMemo(() => buildTrendFromDaily(revenueItems, 'revenue'), [revenueItems]);
-  const appointmentTrend = useMemo(() => buildTrendFromDaily(appointmentItems, 'total'), [appointmentItems]);
-  const paymentTrend = useMemo(() => buildTrendFromDaily(revenueItems, 'payments_count'), [revenueItems]);
+
+  const todayKeyForCard = useMemo(() => localDateKey(new Date()), []);
+  const yesterdayKeyForCard = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return localDateKey(d);
+  }, []);
+
+  const todayAppointmentCount = useMemo(() => {
+    const reportRow = appointmentItems.find((item: any) => item?.day === todayKeyForCard);
+    if (reportRow) return Number(reportRow?.total || 0);
+    return appointmentList.filter((item: any) => toDateOnly(item?.start_time) === todayKeyForCard).length;
+  }, [appointmentItems, appointmentList, todayKeyForCard]);
+
+  const yesterdayAppointmentCount = useMemo(() => {
+    const reportRow = appointmentItems.find((item: any) => item?.day === yesterdayKeyForCard);
+    if (reportRow) return Number(reportRow?.total || 0);
+    return appointmentList.filter((item: any) => toDateOnly(item?.start_time) === yesterdayKeyForCard).length;
+  }, [appointmentItems, appointmentList, yesterdayKeyForCard]);
+
+  const todayAppointmentTrend = useMemo(
+    () => buildTrendFromPair(todayAppointmentCount, yesterdayAppointmentCount),
+    [todayAppointmentCount, yesterdayAppointmentCount],
+  );
+
+  const newCustomersLast14Days = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 13, 0, 0, 0, 0);
+    return customerItems.filter((item: any) => {
+      const created = new Date(item?.created_at || '');
+      return !Number.isNaN(created.getTime()) && created >= start && created <= now;
+    }).length;
+  }, [customerItems]);
+
+  const newCustomersPrev14Days = useMemo(() => {
+    const now = new Date();
+    const currentStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 13, 0, 0, 0, 0);
+    const prevEnd = new Date(currentStart.getTime() - 1);
+    const prevStart = new Date(prevEnd.getFullYear(), prevEnd.getMonth(), prevEnd.getDate() - 13, 0, 0, 0, 0);
+    return customerItems.filter((item: any) => {
+      const created = new Date(item?.created_at || '');
+      return !Number.isNaN(created.getTime()) && created >= prevStart && created <= prevEnd;
+    }).length;
+  }, [customerItems]);
+
+  const newCustomersTrend = useMemo(
+    () => buildTrendFromPair(newCustomersLast14Days, newCustomersPrev14Days),
+    [newCustomersLast14Days, newCustomersPrev14Days],
+  );
 
   const dynamicStats = [
     {
@@ -257,20 +315,20 @@ export function Dashboard() {
       iconColor: 'text-blue-600',
     },
     {
-      label: 'Lịch hẹn',
-      value: `${apptTotal}`,
-      change: appointmentTrend.changeText,
-      up: appointmentTrend.up,
+      label: 'Lịch hẹn hôm nay',
+      value: `${todayAppointmentCount}`,
+      change: todayAppointmentTrend.changeText,
+      up: todayAppointmentTrend.up,
       icon: CalendarDays,
       gradient: 'from-[#38bdf8] to-[#7dd3fc]',
       light: 'bg-sky-50',
       iconColor: 'text-sky-600',
     },
     {
-      label: 'Giao dịch',
-      value: `${paymentsTotal}`,
-      change: paymentTrend.changeText,
-      up: paymentTrend.up,
+      label: 'Lượt khách hàng mới (2 tuần)',
+      value: `${newCustomersLast14Days}`,
+      change: newCustomersTrend.changeText,
+      up: newCustomersTrend.up,
       icon: Users,
       gradient: 'from-[#60a5fa] to-[#93c5fd]',
       light: 'bg-blue-50',

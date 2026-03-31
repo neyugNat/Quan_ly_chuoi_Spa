@@ -1,0 +1,888 @@
+{% extends "web/base.html" %}
+
+{% block title %}{{ page_title }} | QuanLySpa{% endblock %}
+
+{% block content %}
+  {% macro icon(name, size=16, css_class='') -%}
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="{{ size }}"
+      height="{{ size }}"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="{{ css_class }}"
+      aria-hidden="true"
+    >
+      {% if name == "palette" %}
+        <path d="M12 22a10 10 0 1 1 0-20 7 7 0 0 1 0 14h-1a2 2 0 0 0 0 4z" />
+        <circle cx="7.5" cy="10.5" r="0.5" fill="currentColor" />
+        <circle cx="12" cy="7" r="0.5" fill="currentColor" />
+        <circle cx="16.5" cy="10.5" r="0.5" fill="currentColor" />
+      {% elif name == "globe" %}
+        <circle cx="12" cy="12" r="10" />
+        <path d="M2 12h20" />
+        <path d="M12 2a15.3 15.3 0 0 1 0 20" />
+        <path d="M12 2a15.3 15.3 0 0 0 0 20" />
+      {% elif name == "bell" %}
+        <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+        <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
+      {% elif name == "monitor" %}
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+        <line x1="8" y1="21" x2="16" y2="21" />
+        <line x1="12" y1="17" x2="12" y2="21" />
+      {% elif name == "user" %}
+        <path d="M20 21a8 8 0 1 0-16 0" />
+        <circle cx="12" cy="7" r="4" />
+      {% elif name == "lock" %}
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      {% elif name == "database" %}
+        <ellipse cx="12" cy="5" rx="9" ry="3" />
+        <path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5" />
+        <path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3" />
+      {% elif name == "check" %}
+        <path d="m20 6-11 11-5-5" />
+      {% elif name == "sun" %}
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2" />
+        <path d="M12 20v2" />
+        <path d="m4.93 4.93 1.41 1.41" />
+        <path d="m17.66 17.66 1.41 1.41" />
+        <path d="M2 12h2" />
+        <path d="M20 12h2" />
+        <path d="m6.34 17.66-1.41 1.41" />
+        <path d="m19.07 4.93-1.41 1.41" />
+      {% elif name == "moon" %}
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9" />
+      {% elif name == "laptop" %}
+        <path d="M20 16V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12" />
+        <path d="M2 20h20" />
+      {% elif name == "volume" %}
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+      {% elif name == "mail" %}
+        <rect x="2" y="4" width="20" height="16" rx="2" />
+        <path d="m22 7-10 6L2 7" />
+      {% elif name == "smartphone" %}
+        <rect x="7" y="2" width="10" height="20" rx="2" ry="2" />
+        <line x1="12" y1="18" x2="12.01" y2="18" />
+      {% elif name == "file-chart" %}
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+        <path d="M16 13v5" />
+        <path d="M12 17v1" />
+        <path d="M8 15v3" />
+      {% elif name == "chevron-right" %}
+        <path d="m9 18 6-6-6-6" />
+      {% elif name == "save" %}
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+        <path d="M17 21v-8H7v8" />
+        <path d="M7 3v5h8" />
+      {% elif name == "refresh" %}
+        <path d="M3 12a9 9 0 0 1 15.5-6.36L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-15.5 6.36L3 16" />
+        <path d="M3 21v-5h5" />
+      {% endif %}
+    </svg>
+  {%- endmacro %}
+
+  {% set nav_sections = [
+    {"id": "appearance", "label": "Giao diện", "icon": "palette"},
+    {"id": "language", "label": "Ngôn ngữ", "icon": "globe"},
+    {"id": "notifications", "label": "Thông báo", "icon": "bell"},
+    {"id": "display", "label": "Hiển thị", "icon": "monitor"},
+    {"id": "account", "label": "Tài khoản", "icon": "user"},
+    {"id": "security", "label": "Bảo mật", "icon": "lock"},
+    {"id": "data", "label": "Dữ liệu & Backup", "icon": "database"},
+  ] %}
+
+  <div class="settings-page" data-settings-root data-current-section="{{ current_section }}">
+    <div class="settings-toolbar">
+      <p class="settings-toolbar-copy">Tuỳ chỉnh giao diện, ngôn ngữ và hệ thống</p>
+      <div class="settings-toolbar-actions">
+        <button type="button" class="btn settings-reset-btn" data-reset-btn>
+          {{ icon("refresh", 13, "settings-inline-icon") }}
+          <span>Đặt lại mặc định</span>
+        </button>
+        <button type="button" class="btn settings-save-btn" data-save-btn>
+          <span class="settings-save-icon settings-save-icon-default">{{ icon("save", 13, "settings-inline-icon") }}</span>
+          <span class="settings-save-icon settings-save-icon-ok">{{ icon("check", 13, "settings-inline-icon") }}</span>
+          <span data-save-label>Lưu cài đặt</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="settings-shell">
+      <aside class="card panel-card settings-nav" aria-label="Settings sections">
+        {% for item in nav_sections %}
+          <button
+            type="button"
+            class="settings-nav-item {% if current_section == item.id %}active{% endif %}"
+            data-section-target="{{ item.id }}"
+          >
+            <span class="settings-nav-left">
+              <span class="settings-nav-icon">{{ icon(item.icon, 16, "settings-nav-svg") }}</span>
+              <span>{{ item.label }}</span>
+            </span>
+            <span class="settings-nav-arrow">{{ icon("chevron-right", 13, "settings-chevron") }}</span>
+          </button>
+        {% endfor %}
+      </aside>
+
+      <div class="settings-content">
+        <section class="settings-panel" data-section="appearance">
+          <article class="card panel-card settings-block">
+            <header class="settings-block-head">
+              <div class="settings-block-title">
+                <span class="settings-head-icon settings-head-icon-violet">{{ icon("palette", 14, "settings-head-svg") }}</span>
+                <div>
+                  <h2>Bảng màu chủ đề</h2>
+                  <p>Chọn gam màu cho toàn bộ ứng dụng</p>
+                </div>
+              </div>
+            </header>
+            <div class="settings-theme-grid">
+              {% for item in theme_items %}
+                <button type="button" class="settings-theme-card" data-theme-id="{{ item.id }}">
+                  <span class="settings-select-check">{{ icon("check", 10, "settings-check-svg") }}</span>
+                  <span class="settings-theme-preview" data-bg="{{ item.bg }}"></span>
+                  <span class="settings-theme-sidebar" data-bg="{{ item.sidebar }}"></span>
+                  <span class="settings-theme-name">{{ item.emoji }} {{ item.name }}</span>
+                </button>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="card panel-card settings-block">
+            <header class="settings-block-head">
+              <div class="settings-block-title">
+                <span class="settings-head-icon settings-head-icon-pink">{{ icon("sun", 14, "settings-head-svg") }}</span>
+                <div>
+                  <h2>Hình nền & Hiệu ứng</h2>
+                  <p>Lớp phủ gradient trên toàn trang</p>
+                </div>
+              </div>
+            </header>
+            <div class="settings-wallpaper-grid">
+              {% for item in wallpaper_items %}
+                <button type="button" class="settings-wallpaper-card" data-wallpaper-id="{{ item.id }}">
+                  <span class="settings-select-check">{{ icon("check", 10, "settings-check-svg") }}</span>
+                  <span class="settings-wallpaper-preview" data-inline-style="{{ item.style }}"></span>
+                  <span class="settings-wallpaper-name">{{ item.name }}</span>
+                </button>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="card panel-card settings-block">
+            <header class="settings-block-head">
+              <div class="settings-block-title">
+                <span class="settings-head-icon settings-head-icon-amber">{{ icon("sun", 14, "settings-head-svg") }}</span>
+                <div>
+                  <h2>Chế độ giao diện</h2>
+                  <p>Sáng, tối hoặc theo hệ thống</p>
+                </div>
+              </div>
+            </header>
+            <div class="settings-mode-grid">
+              <button type="button" class="settings-mode-card" data-color-mode="light">
+                <span class="settings-mode-icon">{{ icon("sun", 20, "settings-mode-svg") }}</span>
+                <strong>Sáng</strong>
+                <small>Dùng nền sáng</small>
+                <span class="settings-mode-dot"></span>
+              </button>
+              <button type="button" class="settings-mode-card" data-color-mode="dark">
+                <span class="settings-mode-icon">{{ icon("moon", 20, "settings-mode-svg") }}</span>
+                <strong>Tối</strong>
+                <small>Dùng nền tối</small>
+                <span class="settings-mode-dot"></span>
+              </button>
+              <button type="button" class="settings-mode-card" data-color-mode="system">
+                <span class="settings-mode-icon">{{ icon("laptop", 20, "settings-mode-svg") }}</span>
+                <strong>Hệ thống</strong>
+                <small>Theo OS</small>
+                <span class="settings-mode-dot"></span>
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <section class="settings-panel" data-section="language">
+          <article class="card panel-card settings-block">
+            <header class="settings-block-head">
+              <div class="settings-block-title">
+                <span class="settings-head-icon settings-head-icon-blue">{{ icon("globe", 14, "settings-head-svg") }}</span>
+                <div>
+                  <h2>Ngôn ngữ giao diện</h2>
+                  <p>Chọn ngôn ngữ hiển thị cho toàn bộ ứng dụng</p>
+                </div>
+              </div>
+            </header>
+            <div class="settings-language-list">
+              {% for item in language_items %}
+                <button type="button" class="settings-language-item" data-language-id="{{ item.id }}">
+                  <span class="settings-language-left">
+                    <span class="settings-language-flag">{{ item.flag }}</span>
+                    <span>
+                      <strong>{{ item.name }}</strong>
+                      <small>{{ item.id|upper }}</small>
+                    </span>
+                  </span>
+                  <span class="settings-language-check">{{ icon("check", 12, "settings-check-svg") }}</span>
+                </button>
+              {% endfor %}
+            </div>
+            <div class="settings-note">💡 <strong>Ghi chú:</strong> Việc thay đổi ngôn ngữ sẽ áp dụng sau khi tải lại trang. Dữ liệu nhập liệu không bị ảnh hưởng.</div>
+          </article>
+        </section>
+
+        <section class="settings-panel" data-section="notifications">
+          <article class="card panel-card settings-block">
+            <header class="settings-block-head">
+              <div class="settings-block-title">
+                <span class="settings-head-icon settings-head-icon-red">{{ icon("bell", 14, "settings-head-svg") }}</span>
+                <div>
+                  <h2>Cài đặt thông báo</h2>
+                  <p>Quản lý cách bạn nhận thông báo từ hệ thống</p>
+                </div>
+              </div>
+            </header>
+            <div class="settings-toggle-list">
+              <div class="settings-toggle-row">
+                <div class="settings-toggle-main">
+                  <span class="settings-toggle-icon-wrap settings-toggle-icon-blue">{{ icon("mail", 16, "settings-toggle-svg") }}</span>
+                  <div>
+                    <strong>Thông báo Email</strong>
+                    <p>Nhận email khi có lịch hẹn mới hoặc thay đổi</p>
+                  </div>
+                </div>
+                <button type="button" class="settings-toggle" data-notification-toggle="email" aria-pressed="true">
+                  <span class="settings-toggle-knob"></span>
+                </button>
+              </div>
+              <div class="settings-toggle-row">
+                <div class="settings-toggle-main">
+                  <span class="settings-toggle-icon-wrap settings-toggle-icon-green">{{ icon("smartphone", 16, "settings-toggle-svg") }}</span>
+                  <div>
+                    <strong>Thông báo đẩy</strong>
+                    <p>Thông báo trực tiếp trên trình duyệt</p>
+                  </div>
+                </div>
+                <button type="button" class="settings-toggle" data-notification-toggle="push" aria-pressed="true">
+                  <span class="settings-toggle-knob"></span>
+                </button>
+              </div>
+              <div class="settings-toggle-row">
+                <div class="settings-toggle-main">
+                  <span class="settings-toggle-icon-wrap settings-toggle-icon-amber">{{ icon("volume", 16, "settings-toggle-svg") }}</span>
+                  <div>
+                    <strong>Âm thanh thông báo</strong>
+                    <p>Phát âm khi có thông báo mới</p>
+                  </div>
+                </div>
+                <button type="button" class="settings-toggle" data-notification-toggle="sound" aria-pressed="false">
+                  <span class="settings-toggle-knob"></span>
+                </button>
+              </div>
+              <div class="settings-toggle-row">
+                <div class="settings-toggle-main">
+                  <span class="settings-toggle-icon-wrap settings-toggle-icon-purple">{{ icon("file-chart", 16, "settings-toggle-svg") }}</span>
+                  <div>
+                    <strong>Báo cáo tự động</strong>
+                    <p>Nhận báo cáo tổng hợp hàng tuần qua email</p>
+                  </div>
+                </div>
+                <button type="button" class="settings-toggle" data-notification-toggle="reports" aria-pressed="true">
+                  <span class="settings-toggle-knob"></span>
+                </button>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="settings-panel" data-section="display">
+          <article class="card panel-card settings-block">
+            <header class="settings-block-head">
+              <div class="settings-block-title">
+                <span class="settings-head-icon settings-head-icon-cyan">{{ icon("monitor", 14, "settings-head-svg") }}</span>
+                <div>
+                  <h2>Mật độ hiển thị</h2>
+                  <p>Điều chỉnh khoảng cách giữa các phần tử</p>
+                </div>
+              </div>
+            </header>
+            <div class="settings-density-grid">
+              <button type="button" class="settings-density-card" data-density="compact">
+                <span class="settings-density-icon">▤</span>
+                <strong>Gọn</strong>
+                <small>Nhiều thông tin hơn</small>
+                <span class="settings-density-check">{{ icon("check", 14, "settings-check-svg") }}</span>
+              </button>
+              <button type="button" class="settings-density-card" data-density="comfortable">
+                <span class="settings-density-icon">▥</span>
+                <strong>Chuẩn</strong>
+                <small>Cân bằng mặc định</small>
+                <span class="settings-density-check">{{ icon("check", 14, "settings-check-svg") }}</span>
+              </button>
+              <button type="button" class="settings-density-card" data-density="spacious">
+                <span class="settings-density-icon">▦</span>
+                <strong>Rộng</strong>
+                <small>Dễ đọc hơn</small>
+                <span class="settings-density-check">{{ icon("check", 14, "settings-check-svg") }}</span>
+              </button>
+            </div>
+          </article>
+
+          <article class="card panel-card settings-block">
+            <header class="settings-block-head settings-block-head-plain">
+              <h2>Định dạng số & Ngày tháng</h2>
+              <p>Cấu hình cách hiển thị số liệu và thời gian</p>
+            </header>
+            <div class="settings-select-list">
+              <div class="settings-select-row">
+                <label for="settings-currency">Đơn vị tiền tệ</label>
+                <select id="settings-currency" data-storage-key="spa_display_currency">
+                  <option>VND (₫)</option>
+                  <option>USD ($)</option>
+                  <option>EUR (€)</option>
+                </select>
+              </div>
+              <div class="settings-select-row">
+                <label for="settings-date-format">Định dạng ngày</label>
+                <select id="settings-date-format" data-storage-key="spa_display_date">
+                  <option>DD/MM/YYYY</option>
+                  <option>MM/DD/YYYY</option>
+                  <option>YYYY-MM-DD</option>
+                </select>
+              </div>
+              <div class="settings-select-row">
+                <label for="settings-timezone">Múi giờ</label>
+                <select id="settings-timezone" data-storage-key="spa_display_timezone">
+                  <option>GMT+7 (Hà Nội)</option>
+                  <option>GMT+0 (London)</option>
+                  <option>GMT-5 (New York)</option>
+                </select>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="settings-panel" data-section="account">
+          <article class="card panel-card settings-block">
+            <header class="settings-block-head">
+              <div class="settings-block-title">
+                <span class="settings-head-icon settings-head-icon-violet">{{ icon("user", 14, "settings-head-svg") }}</span>
+                <div>
+                  <h2>Thông tin tài khoản</h2>
+                  <p>Cập nhật thông tin cá nhân và liên lạc</p>
+                </div>
+              </div>
+            </header>
+
+            <div class="settings-account-hero">
+              <span class="settings-account-avatar">{{ account_profile.username[:1]|upper if account_profile.username else "U" }}</span>
+              <div>
+                <strong>{{ account_profile.username or "User" }}</strong>
+                <p>{{ account_profile.email }}</p>
+                <span class="settings-role-pill">{{ account_profile.role }}</span>
+              </div>
+            </div>
+
+            <div class="settings-form-stack">
+              <label>
+                <span>Họ và tên</span>
+                <input type="text" value="{{ account_profile.full_name }}">
+              </label>
+              <label>
+                <span>Email</span>
+                <input type="text" value="{{ account_profile.email }}">
+              </label>
+              <label>
+                <span>Số điện thoại</span>
+                <input type="text" value="{{ account_profile.phone }}">
+              </label>
+              <label>
+                <span>Chức vụ</span>
+                <input type="text" value="{{ account_profile.title }}">
+              </label>
+            </div>
+          </article>
+        </section>
+
+        <section class="settings-panel" data-section="security">
+          <div class="settings-panel-stack">
+            <article class="card panel-card settings-block">
+              <header class="settings-block-head">
+                <div class="settings-block-title">
+                  <span class="settings-head-icon settings-head-icon-red">{{ icon("lock", 14, "settings-head-svg") }}</span>
+                  <div>
+                    <h2>Đổi mật khẩu</h2>
+                    <p>Cập nhật mật khẩu đăng nhập</p>
+                  </div>
+                </div>
+              </header>
+
+              <form method="post" action="{{ url_for('web.settings_change_password') }}" class="settings-password-form">
+                <label>
+                  <span>Mật khẩu hiện tại</span>
+                  <input type="password" name="old_password" autocomplete="current-password" placeholder="••••••••" required>
+                </label>
+                <label>
+                  <span>Mật khẩu mới</span>
+                  <input type="password" name="new_password" autocomplete="new-password" placeholder="••••••••" required>
+                </label>
+                <label>
+                  <span>Xác nhận mật khẩu mới</span>
+                  <input type="password" name="confirm_password" autocomplete="new-password" placeholder="••••••••" required>
+                </label>
+                <button type="submit" class="btn settings-danger-btn">Cập nhật mật khẩu</button>
+              </form>
+            </article>
+
+            <article class="card panel-card settings-block">
+              <header class="settings-block-head settings-block-head-plain">
+                <h2>Xác thực 2 bước (2FA)</h2>
+                <p>Tăng cường bảo mật cho tài khoản</p>
+              </header>
+              <div class="settings-plain-row">
+                <div>
+                  <strong>Xác thực qua Authenticator App</strong>
+                  <p>Google Authenticator, Authy...</p>
+                </div>
+                <button type="button" class="settings-toggle" data-simple-toggle aria-pressed="false">
+                  <span class="settings-toggle-knob"></span>
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="settings-panel" data-section="data">
+          <div class="settings-panel-stack">
+            <article class="card panel-card settings-block">
+              <header class="settings-block-head">
+                <div class="settings-block-title">
+                  <span class="settings-head-icon settings-head-icon-green">{{ icon("database", 14, "settings-head-svg") }}</span>
+                  <div>
+                    <h2>Backup & Khôi phục</h2>
+                    <p>Sao lưu dữ liệu hệ thống</p>
+                  </div>
+                </div>
+              </header>
+              <div class="settings-info-list">
+                <div>
+                  <span>Lịch backup tự động</span>
+                  <div class="settings-info-right">
+                    <strong>Hàng ngày lúc 00:00</strong>
+                    <small>✅ Đang hoạt động</small>
+                  </div>
+                </div>
+                <div>
+                  <span>Vị trí lưu trữ</span>
+                  <div class="settings-info-right">
+                    <strong>Cloud Storage (Google Drive)</strong>
+                  </div>
+                </div>
+                <div>
+                  <span>Backup gần nhất</span>
+                  <div class="settings-info-right">
+                    <strong>25/03/2026 00:01</strong>
+                    <small>✅ Thành công</small>
+                  </div>
+                </div>
+                <div>
+                  <span>Dung lượng đã dùng</span>
+                  <div class="settings-info-right">
+                    <strong>2.4 GB / 10 GB</strong>
+                    <small>24%</small>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-inline-actions">
+                <button type="button" class="btn btn-primary settings-success-btn">Backup ngay</button>
+                <button type="button" class="btn">Xem lịch sử</button>
+              </div>
+            </article>
+
+            <article class="card panel-card settings-block">
+              <header class="settings-block-head settings-block-head-plain">
+                <h2>Xuất dữ liệu</h2>
+                <p>Tải xuống toàn bộ dữ liệu hệ thống</p>
+              </header>
+              <div class="settings-export-grid">
+                <button type="button" class="settings-export-item">{{ icon("file-chart", 14, "settings-export-svg") }} Khách hàng (CSV)</button>
+                <button type="button" class="settings-export-item">{{ icon("file-chart", 14, "settings-export-svg") }} Lịch hẹn (Excel)</button>
+                <button type="button" class="settings-export-item">{{ icon("file-chart", 14, "settings-export-svg") }} Doanh thu (PDF)</button>
+                <button type="button" class="settings-export-item">{{ icon("file-chart", 14, "settings-export-svg") }} Toàn bộ (ZIP)</button>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var root = document.querySelector("[data-settings-root]");
+      if (!root) {
+        return;
+      }
+
+      var STORAGE_KEYS = {
+        theme: "spa_theme_id",
+        wallpaper: "spa_wallpaper",
+        language: "spa_language",
+        density: "spa_density",
+        notifications: "spa_notifications",
+        colorMode: "spa_color_mode",
+      };
+
+      var defaults = {
+        theme: "aurora",
+        wallpaper: "none",
+        language: "vi",
+        density: "comfortable",
+        colorMode: "light",
+        notifications: {
+          email: true,
+          push: true,
+          sound: false,
+          reports: true,
+        },
+      };
+
+      function parseJSON(value, fallback) {
+        try {
+          var parsed = JSON.parse(value);
+          if (parsed && typeof parsed === "object") {
+            return parsed;
+          }
+        } catch (error) {
+          return fallback;
+        }
+        return fallback;
+      }
+
+      root.querySelectorAll("[data-bg]").forEach(function (node) {
+        node.style.background = node.getAttribute("data-bg") || "";
+      });
+
+      root.querySelectorAll("[data-inline-style]").forEach(function (node) {
+        node.style.cssText = node.getAttribute("data-inline-style") || "";
+      });
+
+      function extractBackgroundFromStyle(styleText) {
+        var normalized = (styleText || "").trim();
+        if (!normalized) {
+          return "";
+        }
+        var match = normalized.match(/background\s*:\s*([^;]+)\s*;?/i);
+        if (match && match[1]) {
+          return match[1].trim();
+        }
+        return normalized;
+      }
+
+      var themeBackgroundById = {};
+      var sidebarBackgroundById = {};
+      root.querySelectorAll("[data-theme-id]").forEach(function (cardNode) {
+        var id = cardNode.getAttribute("data-theme-id") || "";
+        if (!id) {
+          return;
+        }
+        var previewNode = cardNode.querySelector(".settings-theme-preview");
+        var sidebarNode = cardNode.querySelector(".settings-theme-sidebar");
+        themeBackgroundById[id] = (previewNode && (previewNode.getAttribute("data-bg") || previewNode.style.background)) || "";
+        sidebarBackgroundById[id] = (sidebarNode && (sidebarNode.getAttribute("data-bg") || sidebarNode.style.background)) || "";
+      });
+
+      var wallpaperBackgroundById = {};
+      root.querySelectorAll("[data-wallpaper-id]").forEach(function (cardNode) {
+        var id = cardNode.getAttribute("data-wallpaper-id") || "";
+        if (!id) {
+          return;
+        }
+        var previewNode = cardNode.querySelector(".settings-wallpaper-preview");
+        wallpaperBackgroundById[id] = extractBackgroundFromStyle(
+          (previewNode && (previewNode.getAttribute("data-inline-style") || previewNode.style.cssText)) || ""
+        );
+      });
+
+      var state = {
+        section: root.getAttribute("data-current-section") || "appearance",
+        theme: localStorage.getItem(STORAGE_KEYS.theme) || defaults.theme,
+        wallpaper: localStorage.getItem(STORAGE_KEYS.wallpaper) || defaults.wallpaper,
+        language: localStorage.getItem(STORAGE_KEYS.language) || defaults.language,
+        density: localStorage.getItem(STORAGE_KEYS.density) || defaults.density,
+        colorMode: localStorage.getItem(STORAGE_KEYS.colorMode) || defaults.colorMode,
+        notifications: parseJSON(localStorage.getItem(STORAGE_KEYS.notifications), defaults.notifications),
+      };
+
+      state.notifications = Object.assign({}, defaults.notifications, state.notifications || {});
+
+      var navButtons = Array.prototype.slice.call(root.querySelectorAll("[data-section-target]"));
+      var sectionPanels = Array.prototype.slice.call(root.querySelectorAll("[data-section]"));
+      var colorSchemeQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+
+      function resolveColorMode(mode) {
+        if (mode === "dark") {
+          return "dark";
+        }
+        if (mode === "light") {
+          return "light";
+        }
+        if (colorSchemeQuery && colorSchemeQuery.matches) {
+          return "dark";
+        }
+        return "light";
+      }
+
+      function applyVisualTheme() {
+        var themeBackground = themeBackgroundById[state.theme] || themeBackgroundById[defaults.theme] || "";
+        var sidebarBackground = sidebarBackgroundById[state.theme] || sidebarBackgroundById[defaults.theme] || "";
+        var wallpaperBackground = "none";
+        if (state.wallpaper && state.wallpaper !== "none") {
+          wallpaperBackground = wallpaperBackgroundById[state.wallpaper] || "none";
+        }
+
+        if (themeBackground) {
+          document.documentElement.style.setProperty("--shell-bg", themeBackground);
+        }
+        if (sidebarBackground) {
+          document.documentElement.style.setProperty("--sidebar-bg", sidebarBackground);
+        }
+        document.documentElement.style.setProperty("--shell-wallpaper", wallpaperBackground || "none");
+        document.documentElement.classList.toggle("web-dark", resolveColorMode(state.colorMode) === "dark");
+      }
+
+      function persistState() {
+        localStorage.setItem(STORAGE_KEYS.theme, state.theme);
+        localStorage.setItem(STORAGE_KEYS.wallpaper, state.wallpaper);
+        localStorage.setItem(STORAGE_KEYS.language, state.language);
+        localStorage.setItem(STORAGE_KEYS.density, state.density);
+        localStorage.setItem(STORAGE_KEYS.colorMode, state.colorMode);
+        localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(state.notifications));
+      }
+
+      function setActiveSection(sectionId) {
+        state.section = sectionId;
+        navButtons.forEach(function (button) {
+          button.classList.toggle("active", button.getAttribute("data-section-target") === sectionId);
+        });
+        sectionPanels.forEach(function (panel) {
+          panel.classList.toggle("active", panel.getAttribute("data-section") === sectionId);
+        });
+      }
+
+      navButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          setActiveSection(button.getAttribute("data-section-target") || "appearance");
+        });
+      });
+
+      function renderChoice(selector, attrName, value) {
+        var nodes = Array.prototype.slice.call(root.querySelectorAll(selector));
+        nodes.forEach(function (node) {
+          var isActive = node.getAttribute(attrName) === value;
+          node.classList.toggle("is-active", isActive);
+        });
+      }
+
+      function renderToggles() {
+        var buttons = Array.prototype.slice.call(root.querySelectorAll("[data-notification-toggle]"));
+        buttons.forEach(function (button) {
+          var key = button.getAttribute("data-notification-toggle") || "";
+          var enabled = Boolean(state.notifications[key]);
+          button.classList.toggle("is-on", enabled);
+          button.setAttribute("aria-pressed", enabled ? "true" : "false");
+        });
+      }
+
+      function renderSimpleToggles() {
+        root.querySelectorAll("[data-simple-toggle]").forEach(function (node) {
+          var enabled = node.getAttribute("aria-pressed") === "true";
+          node.classList.toggle("is-on", enabled);
+        });
+      }
+
+      function renderDisplaySelects() {
+        var selects = Array.prototype.slice.call(root.querySelectorAll("select[data-storage-key]"));
+        selects.forEach(function (selectNode) {
+          var key = selectNode.getAttribute("data-storage-key") || "";
+          var saved = localStorage.getItem(key);
+          if (!saved) {
+            return;
+          }
+          var options = Array.prototype.slice.call(selectNode.options || []);
+          var found = options.some(function (optionNode) {
+            return optionNode.value === saved || optionNode.text === saved;
+          });
+          if (found) {
+            selectNode.value = saved;
+          }
+        });
+      }
+
+      function renderAll() {
+        renderChoice("[data-theme-id]", "data-theme-id", state.theme);
+        renderChoice("[data-wallpaper-id]", "data-wallpaper-id", state.wallpaper);
+        renderChoice("[data-language-id]", "data-language-id", state.language);
+        renderChoice("[data-density]", "data-density", state.density);
+        renderChoice("[data-color-mode]", "data-color-mode", state.colorMode);
+        renderToggles();
+        renderSimpleToggles();
+        renderDisplaySelects();
+        applyVisualTheme();
+        setActiveSection(state.section);
+      }
+
+      root.querySelectorAll("[data-theme-id]").forEach(function (node) {
+        node.addEventListener("click", function () {
+          state.theme = node.getAttribute("data-theme-id") || defaults.theme;
+          renderChoice("[data-theme-id]", "data-theme-id", state.theme);
+          applyVisualTheme();
+          persistState();
+        });
+      });
+
+      root.querySelectorAll("[data-wallpaper-id]").forEach(function (node) {
+        node.addEventListener("click", function () {
+          state.wallpaper = node.getAttribute("data-wallpaper-id") || defaults.wallpaper;
+          renderChoice("[data-wallpaper-id]", "data-wallpaper-id", state.wallpaper);
+          applyVisualTheme();
+          persistState();
+        });
+      });
+
+      root.querySelectorAll("[data-language-id]").forEach(function (node) {
+        node.addEventListener("click", function () {
+          state.language = node.getAttribute("data-language-id") || defaults.language;
+          renderChoice("[data-language-id]", "data-language-id", state.language);
+          persistState();
+        });
+      });
+
+      root.querySelectorAll("[data-density]").forEach(function (node) {
+        node.addEventListener("click", function () {
+          state.density = node.getAttribute("data-density") || defaults.density;
+          renderChoice("[data-density]", "data-density", state.density);
+          persistState();
+        });
+      });
+
+      root.querySelectorAll("[data-color-mode]").forEach(function (node) {
+        node.addEventListener("click", function () {
+          state.colorMode = node.getAttribute("data-color-mode") || defaults.colorMode;
+          renderChoice("[data-color-mode]", "data-color-mode", state.colorMode);
+          applyVisualTheme();
+          persistState();
+        });
+      });
+
+      function onSystemColorSchemeChanged() {
+        if (state.colorMode === "system") {
+          applyVisualTheme();
+        }
+      }
+
+      if (colorSchemeQuery) {
+        if (typeof colorSchemeQuery.addEventListener === "function") {
+          colorSchemeQuery.addEventListener("change", onSystemColorSchemeChanged);
+        } else if (typeof colorSchemeQuery.addListener === "function") {
+          colorSchemeQuery.addListener(onSystemColorSchemeChanged);
+        }
+      }
+
+      root.querySelectorAll("[data-notification-toggle]").forEach(function (node) {
+        node.addEventListener("click", function () {
+          var key = node.getAttribute("data-notification-toggle") || "";
+          state.notifications[key] = !Boolean(state.notifications[key]);
+          renderToggles();
+          persistState();
+        });
+      });
+
+      root.querySelectorAll("[data-simple-toggle]").forEach(function (node) {
+        node.addEventListener("click", function () {
+          var enabled = node.getAttribute("aria-pressed") === "true";
+          node.setAttribute("aria-pressed", enabled ? "false" : "true");
+          node.classList.toggle("is-on", !enabled);
+        });
+      });
+
+      root.querySelectorAll("select[data-storage-key]").forEach(function (node) {
+        node.addEventListener("change", function () {
+          var key = node.getAttribute("data-storage-key") || "";
+          if (!key) {
+            return;
+          }
+          localStorage.setItem(key, node.value);
+        });
+      });
+
+      var saveButton = root.querySelector("[data-save-btn]");
+      var saveLabel = root.querySelector("[data-save-label]");
+      if (saveButton && saveLabel) {
+        saveButton.addEventListener("click", function () {
+          persistState();
+
+          saveButton.classList.add("is-saved");
+          saveLabel.textContent = "Đã lưu!";
+          window.setTimeout(function () {
+            saveButton.classList.remove("is-saved");
+            saveLabel.textContent = "Lưu cài đặt";
+          }, 2000);
+        });
+      }
+
+      var resetButton = root.querySelector("[data-reset-btn]");
+      if (resetButton) {
+        resetButton.addEventListener("click", function () {
+          state.theme = defaults.theme;
+          state.wallpaper = defaults.wallpaper;
+          state.language = defaults.language;
+          state.density = defaults.density;
+          state.colorMode = defaults.colorMode;
+          state.notifications = {
+            email: defaults.notifications.email,
+            push: defaults.notifications.push,
+            sound: defaults.notifications.sound,
+            reports: defaults.notifications.reports,
+          };
+
+          localStorage.removeItem(STORAGE_KEYS.theme);
+          localStorage.removeItem(STORAGE_KEYS.wallpaper);
+          localStorage.removeItem(STORAGE_KEYS.language);
+          localStorage.removeItem(STORAGE_KEYS.density);
+          localStorage.removeItem(STORAGE_KEYS.colorMode);
+          localStorage.removeItem(STORAGE_KEYS.notifications);
+
+          root.querySelectorAll("select[data-storage-key]").forEach(function (node) {
+            var key = node.getAttribute("data-storage-key") || "";
+            localStorage.removeItem(key);
+            if (node.options.length > 0) {
+              node.selectedIndex = 0;
+            }
+          });
+
+          renderAll();
+        });
+      }
+
+      if (!Array.prototype.some.call(sectionPanels, function (panel) {
+        return panel.getAttribute("data-section") === state.section;
+      })) {
+        state.section = "appearance";
+      }
+
+      renderAll();
+    })();
+  </script>
+{% endblock %}

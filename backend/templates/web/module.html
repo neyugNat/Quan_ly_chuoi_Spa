@@ -12,22 +12,29 @@
 
   {% if cards %}
     <div class="cards-grid">
+      {% set metric_icons = ['#', '$', 'L', 'S'] %}
       {% for card in cards %}
-        <div class="card stat">
-          <div class="stat-title">{{ card.label }}</div>
-          <div class="stat-value">{{ card.value }}</div>
-        </div>
+        <article class="card metric-card">
+          <div class="metric-icon">{{ metric_icons[loop.index0] if loop.index0 < metric_icons|length else '+' }}</div>
+          <div>
+            <div class="metric-value">{{ card.value }}</div>
+            <div class="metric-title">{{ card.label }}</div>
+          </div>
+        </article>
       {% endfor %}
     </div>
   {% endif %}
 
   {% for table in tables %}
     <section class="section">
-      <div class="card">
-        <h2>{{ table.title }}</h2>
+      <div class="card panel-card">
+        <div class="panel-head">
+          <h2>{{ table.title }}</h2>
+          <p class="panel-sub">Du lieu dong bo tu backend</p>
+        </div>
         {% if table.rows %}
           <div class="table-wrap">
-            <table class="table">
+            <table class="table dense">
               <thead>
                 <tr>
                   {% for col in table.columns %}

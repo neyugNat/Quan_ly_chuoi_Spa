@@ -3,55 +3,210 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}QuanLySpa{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('web.static', filename='web/web.css') }}">
+    <title>{% block title %}Quản Lý Spa{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('web.static', filename='web/web.css', v='20260401-ui-refresh-18') }}">
+    <script>
+      (function () {
+        try {
+          var themeBackgroundMap = {
+            aurora: "radial-gradient(ellipse at 0% 0%, rgba(167,139,250,0.25) 0px, transparent 55%), radial-gradient(ellipse at 100% 0%, rgba(96,165,250,0.2) 0px, transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(52,211,153,0.15) 0px, transparent 55%), #f3f0ff",
+            ocean: "radial-gradient(ellipse at 0% 0%, rgba(56,189,248,0.2) 0px, transparent 55%), radial-gradient(ellipse at 100% 0%, rgba(99,102,241,0.15) 0px, transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(34,211,238,0.15) 0px, transparent 55%), #eff8ff",
+            sunset: "radial-gradient(ellipse at 0% 0%, rgba(252,165,50,0.2) 0px, transparent 55%), radial-gradient(ellipse at 100% 0%, rgba(251,113,133,0.2) 0px, transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(167,139,250,0.15) 0px, transparent 55%), #fff8f0",
+            forest: "radial-gradient(ellipse at 0% 0%, rgba(52,211,153,0.2) 0px, transparent 55%), radial-gradient(ellipse at 100% 0%, rgba(56,189,248,0.15) 0px, transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(167,243,208,0.2) 0px, transparent 55%), #f0fdf6",
+            rose: "radial-gradient(ellipse at 0% 0%, rgba(251,113,133,0.2) 0px, transparent 55%), radial-gradient(ellipse at 100% 0%, rgba(167,139,250,0.18) 0px, transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(252,165,165,0.15) 0px, transparent 55%), #fff0f6"
+          };
+          var sidebarBackgroundMap = {
+            aurora: "linear-gradient(165deg, #1e1b4b 0%, #312e81 45%, #1e3a8a 100%)",
+            ocean: "linear-gradient(165deg, #0c4a6e 0%, #075985 45%, #1d4ed8 100%)",
+            sunset: "linear-gradient(165deg, #4c0519 0%, #7c2d12 40%, #78350f 70%, #713f12 100%)",
+            forest: "linear-gradient(165deg, #064e3b 0%, #065f46 45%, #134e4a 100%)",
+            rose: "linear-gradient(165deg, #500724 0%, #881337 45%, #6b21a8 100%)"
+          };
+          var wallpaperBackgroundMap = {
+            gradient1: "linear-gradient(135deg, #f093fb 0%, #f5576c 50%, #4facfe 100%)",
+            gradient2: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
+            gradient3: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)",
+            gradient4: "linear-gradient(135deg, #f7971e 0%, #ffd200 100%)",
+            gradient5: "linear-gradient(135deg, #ee9ca7 0%, #ffdde1 100%)",
+            mesh1: "radial-gradient(at 40% 20%, hsla(28,100%,74%,1) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(189,100%,56%,1) 0px, transparent 50%), radial-gradient(at 0% 50%, hsla(355,100%,93%,1) 0px, transparent 50%), radial-gradient(at 80% 50%, hsla(340,100%,76%,1) 0px, transparent 50%), radial-gradient(at 0% 100%, hsla(22,100%,77%,1) 0px, transparent 50%), radial-gradient(at 80% 100%, hsla(242,100%,70%,1) 0px, transparent 50%), radial-gradient(at 0% 0%, hsla(343,100%,76%,1) 0px, transparent 50%)",
+            mesh2: "radial-gradient(at 40% 20%, hsla(260,100%,70%,1) 0px, transparent 50%), radial-gradient(at 80% 0%, hsla(220,100%,56%,1) 0px, transparent 50%), radial-gradient(at 0% 50%, hsla(290,100%,60%,1) 0px, transparent 50%), radial-gradient(at 80% 50%, hsla(200,100%,70%,1) 0px, transparent 50%), radial-gradient(at 0% 100%, hsla(250,100%,65%,1) 0px, transparent 50%)"
+          };
+
+          var themeId = localStorage.getItem("spa_theme_id") || "aurora";
+          var wallpaperId = localStorage.getItem("spa_wallpaper") || "none";
+          var colorMode = localStorage.getItem("spa_color_mode") || "light";
+
+          var shellBg = themeBackgroundMap[themeId] || themeBackgroundMap.aurora;
+          var sidebarBg = sidebarBackgroundMap[themeId] || sidebarBackgroundMap.aurora;
+          var wallpaperBg = wallpaperId !== "none" ? (wallpaperBackgroundMap[wallpaperId] || "none") : "none";
+
+          var root = document.documentElement;
+          root.style.setProperty("--shell-bg", shellBg);
+          root.style.setProperty("--sidebar-bg", sidebarBg);
+          root.style.setProperty("--shell-wallpaper", wallpaperBg);
+
+          var colorSchemeQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+
+          function isDarkModeEnabled(mode) {
+            if (mode === "dark") {
+              return true;
+            }
+            if (mode === "system" && colorSchemeQuery && colorSchemeQuery.matches) {
+              return true;
+            }
+            return false;
+          }
+
+          function applyModeClass() {
+            root.classList.toggle("web-dark", isDarkModeEnabled(colorMode));
+          }
+
+          applyModeClass();
+
+          if (colorSchemeQuery) {
+            var onSystemModeChanged = function () {
+              if (colorMode === "system") {
+                applyModeClass();
+              }
+            };
+            if (typeof colorSchemeQuery.addEventListener === "function") {
+              colorSchemeQuery.addEventListener("change", onSystemModeChanged);
+            } else if (typeof colorSchemeQuery.addListener === "function") {
+              colorSchemeQuery.addListener(onSystemModeChanged);
+            }
+          }
+        } catch (error) {
+          // Ignore theme bootstrap failures and keep default styles.
+        }
+      })();
+    </script>
   </head>
-  <body>
+  <body class="{% if web_user %}shell-mode{% else %}auth-mode{% endif %}">
     {% if web_user %}
+      {% set current = namespace(title="Tổng quan") %}
+      {% set main_paths = [
+        '/web/dashboard',
+        '/web/branches',
+        '/web/pos',
+        '/web/customers',
+        '/web/appointments',
+        '/web/services',
+        '/web/packages',
+        '/web/resources',
+        '/web/hr',
+        '/web/reports',
+        '/web/technician'
+      ] %}
+      {% set system_paths = ['/web/users', '/web/inventory', '/web/audit-logs'] %}
+      {% set has_system = namespace(value=false) %}
+
+      {% for item in web_nav_items %}
+        {% if request.path.startswith(item.path) %}
+          {% set current.title = item.label %}
+        {% endif %}
+        {% if item.path in system_paths %}
+          {% set has_system.value = true %}
+        {% endif %}
+      {% endfor %}
+
       <div class="app-shell">
         <aside class="sidebar">
-          <div class="brand">QuanLySpa</div>
-          <div class="user-line">{{ web_user.username }}</div>
+          <div class="sidebar-glow top"></div>
+          <div class="sidebar-glow bottom"></div>
 
-          {% if web_branch_options %}
-            <form method="post" action="{{ url_for('web.switch_branch') }}" class="branch-form">
-              <input type="hidden" name="next" value="{{ request.full_path if request.query_string else request.path }}">
-              <label for="branch-switch">Chi nhanh</label>
-              <select id="branch-switch" name="branch_id" onchange="this.form.submit()">
-                {% for branch in web_branch_options %}
-                  <option value="{{ branch.id }}" {% if branch.id == web_current_branch_id %}selected{% endif %}>
-                    {{ branch.name }} (#{{ branch.id }})
-                  </option>
-                {% endfor %}
-              </select>
-            </form>
-          {% endif %}
+          <div class="sidebar-brand">
+            <div class="brand-mark">
+              <img src="{{ url_for('web.static', filename='web/lotus-logo.svg') }}" alt="Lotus Spa">
+            </div>
+            <div class="brand-copy">
+              <div class="brand-title">Lotus Spa</div>
+              <div class="brand-sub">Management</div>
+            </div>
+          </div>
 
-          <nav class="nav" aria-label="main">
-            {% for item in web_nav_items %}
-              <a href="{{ item.path }}" class="{% if request.path.startswith(item.path) %}active{% endif %}">
-                {{ item.label }}
-              </a>
-            {% endfor %}
+          <nav class="nav-group" aria-label="menu-main">
+            <p class="nav-group-title">Menu chính</p>
+            <div class="nav">
+              {% for item in web_nav_items %}
+                {% if item.path in main_paths %}
+                  <a href="{{ item.path }}" class="{% if request.path.startswith(item.path) %}active{% endif %}">
+                    <span class="nav-icon nav-icon-{{ item.endpoint.split('.')[-1] }}"></span>
+                    <span class="nav-label">{{ item.label }}</span>
+                  </a>
+                {% endif %}
+              {% endfor %}
+            </div>
           </nav>
 
-          <form method="post" action="{{ url_for('web.logout') }}">
-            <button type="submit" class="btn">Dang xuat</button>
-          </form>
-        </aside>
-
-        <main class="main">
-          {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-              <div class="flash-wrap">
-                {% for category, message in messages %}
-                  <div class="flash {{ category }}">{{ message }}</div>
+          {% if has_system.value %}
+            <nav class="nav-group" aria-label="menu-system">
+              <p class="nav-group-title">Quản trị hệ thống</p>
+              <div class="nav">
+                {% for item in web_nav_items %}
+                  {% if item.path in system_paths %}
+                    <a href="{{ item.path }}" class="{% if request.path.startswith(item.path) %}active{% endif %}">
+                      <span class="nav-icon nav-icon-{{ item.endpoint.split('.')[-1] }}"></span>
+                      <span class="nav-label">{{ item.label }}</span>
+                    </a>
+                  {% endif %}
                 {% endfor %}
               </div>
-            {% endif %}
-          {% endwith %}
-          {% block content %}{% endblock %}
-        </main>
+            </nav>
+          {% endif %}
+
+          <div class="sidebar-foot">
+              <a href="{{ url_for('web.settings') }}" class="btn btn-sidebar btn-sidebar-muted {% if request.path.startswith('/web/settings') %}active{% endif %}">
+                <span class="btn-side-icon">&#9881;</span>
+                <span>Cài đặt</span>
+              </a>
+              <form method="post" action="{{ url_for('web.logout') }}">
+                <button type="submit" class="btn btn-sidebar btn-sidebar-danger">
+                  <span class="btn-side-icon">&#10140;</span>
+                  <span>Đăng xuất</span>
+                </button>
+              </form>
+          </div>
+
+          <button type="button" class="sidebar-collapse-hint" aria-hidden="true">&#8249;</button>
+        </aside>
+
+        <div class="main-wrap">
+          <header class="topbar">
+            <div class="topbar-title">
+              <div class="topbar-main">{{ current.title }}</div>
+              <div class="topbar-sub muted">{{ web_today_label }}</div>
+            </div>
+            <div class="topbar-right">
+              <label class="search-box">
+                <span class="search-icon">&#9906;</span>
+                <input class="top-search" type="text" value="" placeholder="Tìm kiếm..." readonly>
+              </label>
+              <button class="topbar-bell" type="button" aria-label="Thông báo">&#128276;</button>
+              <div class="user-pill">
+                <span class="user-avatar">
+                  <img src="{{ url_for('web.static', filename='web/lotus-logo.svg') }}" alt="Lotus Spa">
+                </span>
+                <span class="user-copy">
+                  <strong>{{ web_user.username }}</strong>
+                  <small>Người dùng</small>
+                </span>
+              </div>
+            </div>
+          </header>
+
+          <main class="main">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                <div class="flash-wrap">
+                  {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+          </main>
+        </div>
       </div>
     {% else %}
       {% block auth_content %}{% endblock %}

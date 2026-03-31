@@ -1,0 +1,626 @@
+{% extends "web/base.html" %}
+
+{% block title %}{{ page_title }} | QuanLySpa{% endblock %}
+
+{% block content %}
+  {% macro icon(name, size=16, css_class='') -%}
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="{{ size }}"
+      height="{{ size }}"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="{{ css_class }}"
+      aria-hidden="true"
+    >
+      {% if name == "search" %}
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      {% elif name == "plus" %}
+        <path d="M12 5v14"></path>
+        <path d="M5 12h14"></path>
+      {% elif name == "star" %}
+        <path d="m12 2 3.1 6.3 7 1-5 4.8 1.2 6.9-6.3-3.3-6.3 3.3 1.2-6.9-5-4.8 7-1z"></path>
+      {% elif name == "phone" %}
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.98.37 1.95.72 2.86a2 2 0 0 1-.45 2.11L8.1 10a16 16 0 0 0 6 6l1.31-1.28a2 2 0 0 1 2.11-.45c.91.35 1.88.59 2.86.72A2 2 0 0 1 22 16.92z"></path>
+      {% elif name == "calendar" %}
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <path d="M16 2v4"></path>
+        <path d="M8 2v4"></path>
+        <path d="M3 10h18"></path>
+      {% elif name == "crown" %}
+        <path d="m2 8 5 4 5-7 5 7 5-4-2 12H4z"></path>
+      {% elif name == "gift" %}
+        <rect x="3" y="8" width="18" height="13" rx="2"></rect>
+        <path d="M12 8v13"></path>
+        <path d="M3 13h18"></path>
+        <path d="M7.5 8a2.5 2.5 0 1 1 0-5c2 0 4.5 2.5 4.5 5"></path>
+        <path d="M16.5 8a2.5 2.5 0 1 0 0-5c-2 0-4.5 2.5-4.5 5"></path>
+      {% elif name == "x-circle" %}
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="m15 9-6 6"></path>
+        <path d="m9 9 6 6"></path>
+      {% elif name == "chevron-left" %}
+        <path d="m15 18-6-6 6-6"></path>
+      {% elif name == "chevron-right" %}
+        <path d="m9 18 6-6-6-6"></path>
+      {% endif %}
+    </svg>
+  {%- endmacro %}
+
+  {% set tier_meta = {
+    "vip": {"label": "VIP", "icon": "crown", "css": "is-vip"},
+    "gold": {"label": "Vàng", "icon": "star", "css": "is-gold"},
+    "silver": {"label": "Bạc", "icon": "gift", "css": "is-silver"},
+    "member": {"label": "Thành viên", "icon": "gift", "css": "is-member"},
+  } %}
+  {% set avatar_classes = ["avatar-a", "avatar-b", "avatar-c", "avatar-d", "avatar-e"] %}
+
+  <div class="legacy-customers-page" data-customers-root data-total-count="{{ customers|length }}">
+    <div class="legacy-customers-head">
+      <p class="legacy-customers-subtitle">{{ page_subtitle }}</p>
+      <button type="button" class="legacy-customers-add-btn" data-open-customer-modal>
+        {{ icon("plus", 16, "legacy-icon") }}
+        <span>Thêm khách hàng</span>
+      </button>
+    </div>
+
+    <div class="legacy-customers-metrics">
+      <article class="legacy-customers-metric metric-total">
+        <div class="legacy-customers-metric-value">{{ summary.total_customers }}</div>
+        <div class="legacy-customers-metric-label">Tổng khách hàng</div>
+      </article>
+      <article class="legacy-customers-metric metric-vip">
+        <div class="legacy-customers-metric-value">{{ summary.vip_customers }}</div>
+        <div class="legacy-customers-metric-label">Khách VIP</div>
+      </article>
+      <article class="legacy-customers-metric metric-gold">
+        <div class="legacy-customers-metric-value">{{ summary.gold_customers }}</div>
+        <div class="legacy-customers-metric-label">Khách Vàng</div>
+      </article>
+      <article class="legacy-customers-metric metric-new">
+        <div class="legacy-customers-metric-value">{{ summary.new_this_month }}</div>
+        <div class="legacy-customers-metric-label">Khách mới tháng</div>
+      </article>
+    </div>
+
+    <section class="legacy-customers-tools">
+      <label class="legacy-customers-search-wrap" for="legacy-customer-search">
+        {{ icon("search", 15, "legacy-search-icon") }}
+        <input
+          id="legacy-customer-search"
+          type="text"
+          class="legacy-customers-search"
+          placeholder="Tìm tên, số điện thoại..."
+          data-customer-search
+        >
+      </label>
+      <div class="legacy-customers-filters" role="tablist" aria-label="Bộ lọc hạng khách hàng">
+        {% for filter_name in tier_filters %}
+          <button
+            type="button"
+            class="legacy-customers-filter {% if loop.first %}is-active{% endif %}"
+            data-tier-filter="{{ filter_name }}"
+          >
+            {{ filter_name }}
+          </button>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="legacy-customers-grid" data-customers-grid>
+      {% for customer in customers %}
+        {% set tier = tier_meta.get(customer.tier, tier_meta.member) %}
+        {% set avatar_class = avatar_classes[loop.index0 % (avatar_classes|length)] %}
+        <article
+          class="legacy-customer-card"
+          data-customer-card
+          data-tier-label="{{ tier.label }}"
+          data-search="{{ (customer.name ~ ' ' ~ customer.phone ~ ' ' ~ customer.email)|lower|e }}"
+        >
+          <div class="legacy-customer-head">
+            <div class="legacy-customer-identify">
+              <div class="legacy-customer-avatar {{ avatar_class }}">{{ customer.name_initial }}</div>
+              <div class="legacy-customer-meta">
+                <div class="legacy-customer-name">{{ customer.name }}</div>
+                <div class="legacy-customer-phone">
+                  {{ icon("phone", 10, "legacy-inline-icon") }}
+                  <span>{{ customer.phone }}</span>
+                </div>
+              </div>
+            </div>
+            <span class="legacy-customer-tier {{ tier.css }}">
+              {{ icon(tier.icon, 10, "legacy-inline-icon") }}
+              <span>{{ tier.label }}</span>
+            </span>
+          </div>
+
+          <div class="legacy-customer-stats">
+            <div class="legacy-customer-stat-block">
+              <div class="legacy-customer-stat-value">{{ customer.visits }}</div>
+              <div class="legacy-customer-stat-label">Lượt visit</div>
+            </div>
+            <div class="legacy-customer-stat-block has-divider">
+              <div class="legacy-customer-spend">{{ customer.total_spent_display }}</div>
+              <div class="legacy-customer-stat-label">Tổng chi</div>
+            </div>
+            <div class="legacy-customer-stat-block">
+              <div class="legacy-customer-stars">
+                {% for _ in range(customer.rating) %}
+                  {{ icon("star", 10, "legacy-star-icon") }}
+                {% endfor %}
+              </div>
+              <div class="legacy-customer-stat-label">Đánh giá</div>
+            </div>
+          </div>
+
+          <div class="legacy-customer-visit-row">
+            <span>Gần nhất: {{ customer.last_visit }}</span>
+          </div>
+
+          <div class="legacy-customer-actions">
+            <button
+              type="button"
+              class="legacy-customer-action-secondary"
+              data-open-customer-history
+              data-customer-id="{{ customer.id }}"
+            >
+              Lịch sử
+            </button>
+            <button
+              type="button"
+              class="legacy-customer-action-primary"
+              data-open-customer-detail
+              data-customer-id="{{ customer.id }}"
+            >
+              Chi tiết
+            </button>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    <p class="legacy-customers-empty" data-customers-empty {% if customers %}hidden{% endif %}>
+      Không có khách hàng phù hợp.
+    </p>
+
+    <div class="legacy-customers-foot">
+      <span class="legacy-customers-foot-copy">
+        Hiển thị <span class="legacy-customers-foot-emphasis" data-visible-count>{{ [customers|length, 10]|min }}</span> / {{ customers|length }} khách hàng
+      </span>
+      <div class="legacy-customers-pagination">
+        <button type="button" class="legacy-page-btn" data-page-prev aria-label="Trang trước">{{ icon("chevron-left", 14, "legacy-inline-icon") }}</button>
+        <span class="legacy-customers-page-status" data-page-status>
+          {% if customers|length %}
+            Trang 1 / {{ (customers|length + 9) // 10 }}
+          {% else %}
+            Trang 0 / 0
+          {% endif %}
+        </span>
+        <button type="button" class="legacy-page-btn" data-page-next aria-label="Trang sau">{{ icon("chevron-right", 14, "legacy-inline-icon") }}</button>
+      </div>
+    </div>
+
+    <div class="legacy-customers-modal-backdrop" data-customer-modal hidden>
+      <div class="legacy-customers-modal" role="dialog" aria-modal="true" aria-label="Thêm khách hàng mới">
+        <div class="legacy-customers-modal-head">
+          <div>
+            <h3>Thêm khách hàng mới</h3>
+            <p>Điền đầy đủ thông tin</p>
+          </div>
+        </div>
+
+        <form method="post" action="{{ url_for('web.customers_create') }}" class="legacy-customers-modal-form">
+          <label>
+            <span>Họ và tên</span>
+            <input type="text" name="full_name" placeholder="Nhập họ và tên" required>
+          </label>
+          <label>
+            <span>Số điện thoại</span>
+            <input type="text" name="phone" placeholder="Nhập số điện thoại" required>
+          </label>
+          <label>
+            <span>Email</span>
+            <input type="email" name="email" placeholder="Nhập email">
+          </label>
+          <label>
+            <span>Ngày sinh</span>
+            <input type="date" name="dob">
+          </label>
+          <label>
+            <span>Ghi chú</span>
+            <textarea rows="2" name="note" placeholder="Thông tin thêm..."></textarea>
+          </label>
+
+          <div class="legacy-customers-modal-actions">
+            <button type="button" class="legacy-modal-btn-cancel" data-close-customer-modal>Hủy</button>
+            <button type="submit" class="legacy-modal-btn-save">Lưu</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="legacy-customers-modal-backdrop" data-customer-history-modal hidden>
+      <div class="legacy-customers-modal legacy-customer-info-modal" role="dialog" aria-modal="true" aria-label="Lịch sử khách hàng">
+        <div class="legacy-customers-modal-head">
+          <div>
+            <h3>Lịch sử khách hàng</h3>
+            <p>Gói hoặc dịch vụ đã sử dụng</p>
+          </div>
+        </div>
+
+        <div class="legacy-customer-history-list" data-customer-history-list></div>
+        <p class="legacy-customer-history-empty" data-customer-history-empty hidden>
+          Chưa có lịch sử giao dịch.
+        </p>
+
+        <div class="legacy-customers-modal-actions">
+          <button type="button" class="legacy-modal-btn-cancel" data-close-customer-history>Đóng</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="legacy-customers-modal-backdrop" data-customer-detail-modal hidden>
+      <div class="legacy-customers-modal legacy-customer-info-modal" role="dialog" aria-modal="true" aria-label="Chi tiết khách hàng">
+        <div class="legacy-customers-modal-head">
+          <div>
+            <h3>Chi tiết khách hàng</h3>
+            <p>Thông tin hồ sơ khách hàng</p>
+          </div>
+        </div>
+
+        <div class="legacy-customer-detail-grid">
+          <div class="legacy-customer-detail-item">
+            <span>Tên</span>
+            <strong data-detail-name>-</strong>
+          </div>
+          <div class="legacy-customer-detail-item">
+            <span>Ngày sinh</span>
+            <strong data-detail-dob>-</strong>
+          </div>
+          <div class="legacy-customer-detail-item">
+            <span>Số điện thoại</span>
+            <strong data-detail-phone>-</strong>
+          </div>
+          <div class="legacy-customer-detail-item">
+            <span>Email</span>
+            <strong data-detail-email>-</strong>
+          </div>
+          <div class="legacy-customer-detail-item is-note">
+            <span>Ghi chú</span>
+            <strong data-detail-note>-</strong>
+          </div>
+        </div>
+
+        <div class="legacy-customers-modal-actions">
+          <button type="button" class="legacy-modal-btn-cancel" data-close-customer-detail>Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script id="customer-history-map" type="application/json">{{ customer_history_map|tojson }}</script>
+  <script id="customer-detail-map" type="application/json">{{ customer_detail_map|tojson }}</script>
+
+  <script>
+    (function () {
+      var root = document.querySelector("[data-customers-root]");
+      if (!root) {
+        return;
+      }
+
+      var cards = Array.prototype.slice.call(root.querySelectorAll("[data-customer-card]"));
+      var filterButtons = Array.prototype.slice.call(root.querySelectorAll("[data-tier-filter]"));
+      var searchInput = root.querySelector("[data-customer-search]");
+      var visibleCount = root.querySelector("[data-visible-count]");
+      var emptyState = root.querySelector("[data-customers-empty]");
+      var prevButton = root.querySelector("[data-page-prev]");
+      var nextButton = root.querySelector("[data-page-next]");
+      var pageStatus = root.querySelector("[data-page-status]");
+      var pageSize = 10;
+      var currentPage = 1;
+      var activeTier = "Tất cả";
+
+      function applyFilters(resetPage) {
+        var query = ((searchInput && searchInput.value) || "").trim().toLowerCase();
+        var shouldResetPage = Boolean(resetPage);
+        var matchedCards = [];
+
+        cards.forEach(function (card) {
+          var searchText = (card.getAttribute("data-search") || "").toLowerCase();
+          var tierLabel = card.getAttribute("data-tier-label") || "";
+          var matchSearch = !query || searchText.indexOf(query) !== -1;
+          var matchTier = activeTier === "Tất cả" || tierLabel === activeTier;
+          var shouldShow = matchSearch && matchTier;
+
+          if (shouldShow) {
+            matchedCards.push(card);
+          }
+        });
+
+        var totalMatched = matchedCards.length;
+        var totalPages = totalMatched === 0 ? 0 : Math.ceil(totalMatched / pageSize);
+
+        if (shouldResetPage) {
+          currentPage = totalPages > 0 ? 1 : 0;
+        }
+        if (totalPages === 0) {
+          currentPage = 0;
+        } else {
+          if (currentPage < 1) {
+            currentPage = 1;
+          }
+          if (currentPage > totalPages) {
+            currentPage = totalPages;
+          }
+        }
+
+        var startIndex = currentPage > 0 ? (currentPage - 1) * pageSize : 0;
+        var endIndex = startIndex + pageSize;
+        var visible = 0;
+
+        cards.forEach(function (card) {
+          card.hidden = true;
+          card.classList.add("is-hidden");
+        });
+
+        matchedCards.forEach(function (card, index) {
+          var inCurrentPage = index >= startIndex && index < endIndex;
+          card.hidden = !inCurrentPage;
+          card.classList.toggle("is-hidden", !inCurrentPage);
+          if (inCurrentPage) {
+            visible += 1;
+          }
+        });
+
+        if (visibleCount) {
+          visibleCount.textContent = String(visible);
+        }
+        if (emptyState) {
+          emptyState.hidden = totalMatched !== 0;
+        }
+        if (pageStatus) {
+          pageStatus.textContent = totalPages === 0
+            ? "Trang 0 / 0"
+            : "Trang " + String(currentPage) + " / " + String(totalPages);
+        }
+        if (prevButton) {
+          prevButton.disabled = currentPage <= 1;
+        }
+        if (nextButton) {
+          nextButton.disabled = totalPages === 0 || currentPage >= totalPages;
+        }
+      }
+
+      filterButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          activeTier = button.getAttribute("data-tier-filter") || "Tất cả";
+          filterButtons.forEach(function (item) {
+            item.classList.toggle("is-active", item === button);
+          });
+          applyFilters(true);
+        });
+      });
+
+      if (searchInput) {
+        searchInput.addEventListener("input", function () {
+          applyFilters(true);
+        });
+      }
+
+      if (prevButton) {
+        prevButton.addEventListener("click", function () {
+          if (currentPage <= 1) {
+            return;
+          }
+          currentPage -= 1;
+          applyFilters(false);
+        });
+      }
+
+      if (nextButton) {
+        nextButton.addEventListener("click", function () {
+          currentPage += 1;
+          applyFilters(false);
+        });
+      }
+
+      applyFilters(true);
+
+      function parseJSONScript(id) {
+        var node = document.getElementById(id);
+        if (!node) {
+          return {};
+        }
+        try {
+          var parsed = JSON.parse(node.textContent || "{}");
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch (_error) {
+          return {};
+        }
+      }
+
+      var customerHistoryMap = parseJSONScript("customer-history-map");
+      var customerDetailMap = parseJSONScript("customer-detail-map");
+
+      var addModal = root.querySelector("[data-customer-modal]");
+      var historyModal = root.querySelector("[data-customer-history-modal]");
+      var detailModal = root.querySelector("[data-customer-detail-modal]");
+
+      var openAddButtons = Array.prototype.slice.call(root.querySelectorAll("[data-open-customer-modal]"));
+      var closeAddButtons = Array.prototype.slice.call(root.querySelectorAll("[data-close-customer-modal]"));
+      var openHistoryButtons = Array.prototype.slice.call(root.querySelectorAll("[data-open-customer-history]"));
+      var closeHistoryButtons = Array.prototype.slice.call(root.querySelectorAll("[data-close-customer-history]"));
+      var openDetailButtons = Array.prototype.slice.call(root.querySelectorAll("[data-open-customer-detail]"));
+      var closeDetailButtons = Array.prototype.slice.call(root.querySelectorAll("[data-close-customer-detail]"));
+
+      var historyList = root.querySelector("[data-customer-history-list]");
+      var historyEmpty = root.querySelector("[data-customer-history-empty]");
+      var detailName = root.querySelector("[data-detail-name]");
+      var detailDob = root.querySelector("[data-detail-dob]");
+      var detailPhone = root.querySelector("[data-detail-phone]");
+      var detailEmail = root.querySelector("[data-detail-email]");
+      var detailNote = root.querySelector("[data-detail-note]");
+
+      function syncBodyModalState() {
+        var hasOpenModal = false;
+        [addModal, historyModal, detailModal].forEach(function (modalNode) {
+          if (modalNode && !modalNode.hidden) {
+            hasOpenModal = true;
+          }
+        });
+        document.body.classList.toggle("legacy-modal-open", hasOpenModal);
+      }
+
+      function openModal(targetModal) {
+        [addModal, historyModal, detailModal].forEach(function (modalNode) {
+          if (!modalNode) {
+            return;
+          }
+          modalNode.hidden = modalNode !== targetModal;
+        });
+        syncBodyModalState();
+      }
+
+      function closeModal(targetModal, event) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        if (!targetModal) {
+          return;
+        }
+        targetModal.hidden = true;
+        syncBodyModalState();
+      }
+
+      function closeAllModals() {
+        [addModal, historyModal, detailModal].forEach(function (modalNode) {
+          if (modalNode) {
+            modalNode.hidden = true;
+          }
+        });
+        syncBodyModalState();
+      }
+
+      function setDetailField(node, value) {
+        if (node) {
+          node.textContent = value ? String(value) : "-";
+        }
+      }
+
+      function renderCustomerDetail(customerId) {
+        var payload = customerDetailMap[String(customerId)] || {};
+        setDetailField(detailName, payload.name || "-");
+        setDetailField(detailDob, payload.dob || "-");
+        setDetailField(detailPhone, payload.phone || "-");
+        setDetailField(detailEmail, payload.email || "-");
+        setDetailField(detailNote, payload.note || "-");
+      }
+
+      function renderCustomerHistory(customerId) {
+        if (!historyList) {
+          return;
+        }
+        var rows = customerHistoryMap[String(customerId)];
+        var items = Array.isArray(rows) ? rows : [];
+
+        historyList.innerHTML = "";
+        if (historyEmpty) {
+          historyEmpty.hidden = items.length !== 0;
+        }
+        if (!items.length) {
+          return;
+        }
+
+        items.forEach(function (item) {
+          var card = document.createElement("div");
+          card.className = "legacy-customer-history-item";
+
+          var topRow = document.createElement("div");
+          topRow.className = "legacy-customer-history-main";
+
+          var title = document.createElement("strong");
+          title.className = "legacy-customer-history-title";
+          title.textContent = String((item && item.title) || "-");
+
+          var price = document.createElement("span");
+          price.className = "legacy-customer-history-price";
+          price.textContent = String((item && item.price) || "-");
+
+          topRow.appendChild(title);
+          topRow.appendChild(price);
+
+          var time = document.createElement("div");
+          time.className = "legacy-customer-history-time";
+          time.textContent = String((item && item.time) || "-");
+
+          card.appendChild(topRow);
+          card.appendChild(time);
+          historyList.appendChild(card);
+        });
+      }
+
+      openAddButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          openModal(addModal);
+        });
+      });
+
+      closeAddButtons.forEach(function (button) {
+        button.addEventListener("click", function (event) {
+          closeModal(addModal, event);
+        });
+      });
+
+      openHistoryButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          var customerId = button.getAttribute("data-customer-id") || "";
+          renderCustomerHistory(customerId);
+          openModal(historyModal);
+        });
+      });
+
+      closeHistoryButtons.forEach(function (button) {
+        button.addEventListener("click", function (event) {
+          closeModal(historyModal, event);
+        });
+      });
+
+      openDetailButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          var customerId = button.getAttribute("data-customer-id") || "";
+          renderCustomerDetail(customerId);
+          openModal(detailModal);
+        });
+      });
+
+      closeDetailButtons.forEach(function (button) {
+        button.addEventListener("click", function (event) {
+          closeModal(detailModal, event);
+        });
+      });
+
+      [addModal, historyModal, detailModal].forEach(function (modalNode) {
+        if (!modalNode) {
+          return;
+        }
+        modalNode.addEventListener("click", function (event) {
+          if (event.target === modalNode) {
+            closeModal(modalNode);
+          }
+        });
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          closeAllModals();
+        }
+      });
+    })();
+  </script>
+{% endblock %}

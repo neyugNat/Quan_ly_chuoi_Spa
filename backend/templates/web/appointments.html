@@ -1,0 +1,603 @@
+{% extends "web/base.html" %}
+
+{% block title %}{{ page_title }} | Quản Lý Spa{% endblock %}
+
+{% block content %}
+  {% macro icon(name, size=16, css_class='') -%}
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="{{ size }}"
+      height="{{ size }}"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="{{ css_class }}"
+      aria-hidden="true"
+    >
+      {% if name == "search" %}
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      {% elif name == "plus" %}
+        <path d="M12 5v14"></path>
+        <path d="M5 12h14"></path>
+      {% elif name == "map-pin" %}
+        <path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"></path>
+        <circle cx="12" cy="11" r="2"></circle>
+      {% elif name == "user" %}
+        <path d="M20 21a8 8 0 1 0-16 0"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      {% elif name == "phone" %}
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.98.37 1.95.72 2.86a2 2 0 0 1-.45 2.11L8.1 10a16 16 0 0 0 6 6l1.31-1.28a2 2 0 0 1 2.11-.45c.91.35 1.88.59 2.86.72A2 2 0 0 1 22 16.92z"></path>
+      {% elif name == "filter" %}
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+      {% elif name == "x-circle" %}
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="m15 9-6 6"></path>
+        <path d="m9 9 6 6"></path>
+      {% elif name == "chevron-left" %}
+        <path d="m15 18-6-6 6-6"></path>
+      {% elif name == "chevron-right" %}
+        <path d="m9 18 6-6-6-6"></path>
+      {% endif %}
+    </svg>
+  {%- endmacro %}
+
+  <div
+    class="legacy-appointments-page"
+    data-appointments-root
+    data-total-count="{{ appointments|length }}"
+    data-modal-open="{{ '1' if appointment_form_state.open else '0' }}"
+  >
+    <div class="legacy-appointments-head">
+      <p class="legacy-appointments-subtitle">{{ page_subtitle }}</p>
+      <button type="button" class="legacy-appointments-add-btn" data-open-appointment-modal>
+        {{ icon("plus", 16, "legacy-icon") }}
+        <span>Thêm lịch hẹn</span>
+      </button>
+    </div>
+
+    <div class="legacy-appointments-metrics">
+      <article class="legacy-appointments-metric metric-total">
+        <div class="legacy-appointments-metric-value">{{ summary.total }}</div>
+        <div class="legacy-appointments-metric-label">Tổng lịch hẹn</div>
+      </article>
+      <article class="legacy-appointments-metric metric-confirmed">
+        <div class="legacy-appointments-metric-value">{{ summary.confirmed }}</div>
+        <div class="legacy-appointments-metric-label">Xác nhận</div>
+      </article>
+      <article class="legacy-appointments-metric metric-pending">
+        <div class="legacy-appointments-metric-value">{{ summary.pending }}</div>
+        <div class="legacy-appointments-metric-label">Chờ xử lý</div>
+      </article>
+      <article class="legacy-appointments-metric metric-cancelled">
+        <div class="legacy-appointments-metric-value">{{ summary.cancelled }}</div>
+        <div class="legacy-appointments-metric-label">Đã hủy</div>
+      </article>
+    </div>
+
+    <section class="legacy-appointments-tools">
+      <div class="legacy-appointments-search-row">
+        <label class="legacy-appointments-search-wrap" for="legacy-appointment-search">
+          {{ icon("search", 15, "legacy-search-icon") }}
+          <input
+            id="legacy-appointment-search"
+            type="text"
+            class="legacy-appointments-search"
+            placeholder="Tìm khách hàng, dịch vụ..."
+            data-appointment-search
+          >
+        </label>
+        <label class="legacy-appointments-branch-wrap" for="legacy-appointment-branch">
+          {{ icon("filter", 14, "legacy-filter-icon") }}
+          <select id="legacy-appointment-branch" class="legacy-appointments-branch" data-appointment-branch>
+            {% for option in branch_filters %}
+              <option value="{{ option }}">{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="legacy-appointments-filters" role="tablist" aria-label="Bộ lọc trạng thái lịch hẹn">
+        {% for filter_name in status_filters %}
+          <button
+            type="button"
+            class="legacy-appointments-filter {% if loop.first %}is-active{% endif %}"
+            data-status-filter="{{ filter_name }}"
+          >
+            {{ filter_name }}
+          </button>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="legacy-appointments-table-wrap">
+      <table class="legacy-appointments-table">
+        <thead>
+          <tr>
+            <th>Khách hàng</th>
+            <th class="hide-md">Dịch vụ</th>
+            <th>Thời gian</th>
+            <th class="hide-lg">Chi nhánh</th>
+            <th class="hide-xl">Nhân viên</th>
+            <th class="hide-md">Giá</th>
+            <th>Trạng thái</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody data-appointments-tbody>
+          {% for appointment in appointments %}
+            <tr
+              data-appointment-row
+              data-search="{{ appointment.search_text|e }}"
+              data-status-label="{{ appointment.status_label }}"
+              data-branch="{{ appointment.branch }}"
+            >
+              <td>
+                <div class="legacy-apt-customer">
+                  <div class="legacy-apt-avatar {{ appointment.avatar_class }}">{{ appointment.customer_initial }}</div>
+                  <div>
+                    <div class="legacy-apt-customer-name">{{ appointment.customer }}</div>
+                    <div class="legacy-apt-customer-phone">
+                      {{ icon("phone", 9, "legacy-inline-icon") }}
+                      <span>{{ appointment.phone }}</span>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td class="hide-md">
+                <div class="legacy-apt-service">{{ appointment.service }}</div>
+              </td>
+              <td>
+                <div class="legacy-apt-time">{{ appointment.time }}</div>
+                <div class="legacy-apt-date">{{ appointment.date }}</div>
+              </td>
+              <td class="hide-lg">
+                <span class="legacy-apt-inline">
+                  {{ icon("map-pin", 11, "legacy-inline-icon") }}
+                  <span>{{ appointment.branch }}</span>
+                </span>
+              </td>
+              <td class="hide-xl">
+                <span class="legacy-apt-inline">
+                  {{ icon("user", 11, "legacy-inline-icon") }}
+                  <span>{{ appointment.staff }}</span>
+                </span>
+              </td>
+              <td class="hide-md">
+                <div class="legacy-apt-price">{{ appointment.price_display }}</div>
+              </td>
+              <td>
+                <span class="legacy-apt-status status-{{ appointment.status_key }}">
+                  <i></i>
+                  <span>{{ appointment.status_label }}</span>
+                </span>
+              </td>
+              <td>
+                <button type="button" class="legacy-apt-detail-btn">Chi tiết</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="legacy-appointments-empty" data-appointments-empty {% if appointments %}hidden{% endif %}>
+      Không có lịch hẹn phù hợp.
+    </p>
+
+    <div class="legacy-appointments-foot">
+      <span class="legacy-appointments-foot-copy">
+        Hiển thị <span class="legacy-appointments-foot-emphasis" data-visible-count>{{ [appointments|length, 20]|min }}</span> / {{ appointments|length }} lịch hẹn
+      </span>
+      <div class="legacy-appointments-pagination">
+        <button type="button" class="legacy-page-btn" data-page-prev aria-label="Trang trước">{{ icon("chevron-left", 14, "legacy-inline-icon") }}</button>
+        <span class="legacy-customers-page-status" data-page-status>
+          {% if appointments|length %}
+            Trang 1 / {{ (appointments|length + 19) // 20 }}
+          {% else %}
+            Trang 0 / 0
+          {% endif %}
+        </span>
+        <button type="button" class="legacy-page-btn" data-page-next aria-label="Trang sau">{{ icon("chevron-right", 14, "legacy-inline-icon") }}</button>
+      </div>
+    </div>
+
+    <div class="legacy-appointments-modal-backdrop" data-appointment-modal hidden>
+      <div class="legacy-appointments-modal" role="dialog" aria-modal="true" aria-label="Thêm lịch hẹn mới">
+        <form method="post" action="{{ url_for('web.create_appointment_from_web') }}" class="legacy-appointments-modal-form" data-appointment-create-form>
+          <div class="legacy-appointments-modal-head">
+            <div>
+              <h3>Thêm lịch hẹn mới</h3>
+              <p>Điền thông tin bên dưới</p>
+            </div>
+          </div>
+
+          <label class="legacy-modal-field">
+            <span>Tên khách hàng</span>
+            <div class="legacy-autocomplete-wrap" data-customer-wrap>
+              <input type="hidden" name="customer_id" data-customer-id value="{{ appointment_form_state.customer_id }}">
+              <input
+                type="text"
+                name="customer_query"
+                placeholder="Nhập tên, năm sinh hoặc số điện thoại"
+                autocomplete="off"
+                data-customer-query
+                value="{{ appointment_form_state.customer_query }}"
+                required
+              >
+              <div class="legacy-autocomplete-list" data-customer-list hidden></div>
+            </div>
+          </label>
+
+          <label class="legacy-modal-field">
+            <span>Dịch vụ</span>
+            <div class="legacy-autocomplete-wrap" data-service-wrap>
+              <input type="hidden" name="service_id" data-service-id value="{{ appointment_form_state.service_id }}">
+              <input
+                type="text"
+                name="service_query"
+                placeholder="Nhập tên dịch vụ"
+                autocomplete="off"
+                data-service-query
+                value="{{ appointment_form_state.service_query }}"
+                required
+              >
+              <div class="legacy-autocomplete-list" data-service-list hidden></div>
+            </div>
+          </label>
+
+          <label class="legacy-modal-field">
+            <span>Thời gian</span>
+            <input
+              type="datetime-local"
+              name="start_at"
+              min="{{ min_start_at }}"
+              value="{{ appointment_form_state.start_at }}"
+              data-start-at
+              required
+            >
+          </label>
+
+          <div class="legacy-appointments-modal-actions">
+            <button type="button" class="legacy-modal-btn-cancel" data-close-appointment-modal>Hủy</button>
+            <button type="submit" class="legacy-modal-btn-save">Xác nhận</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script id="appointment-customer-options" type="application/json">{{ customer_options|tojson }}</script>
+  <script id="appointment-service-options" type="application/json">{{ service_options|tojson }}</script>
+
+  <script>
+    (function () {
+      var root = document.querySelector("[data-appointments-root]");
+      if (!root) {
+        return;
+      }
+
+      var rows = Array.prototype.slice.call(root.querySelectorAll("[data-appointment-row]"));
+      var filterButtons = Array.prototype.slice.call(root.querySelectorAll("[data-status-filter]"));
+      var searchInput = root.querySelector("[data-appointment-search]");
+      var branchSelect = root.querySelector("[data-appointment-branch]");
+      var visibleCount = root.querySelector("[data-visible-count]");
+      var emptyState = root.querySelector("[data-appointments-empty]");
+      var prevButton = root.querySelector("[data-page-prev]");
+      var nextButton = root.querySelector("[data-page-next]");
+      var pageStatus = root.querySelector("[data-page-status]");
+      var pageSize = 20;
+      var currentPage = 1;
+      var activeStatus = "Tất cả";
+
+      function applyFilters(resetPage) {
+        var query = ((searchInput && searchInput.value) || "").trim().toLowerCase();
+        var branch = (branchSelect && branchSelect.value) || "Tất cả chi nhánh";
+        var shouldResetPage = Boolean(resetPage);
+        var matchedRows = [];
+
+        rows.forEach(function (row) {
+          var text = (row.getAttribute("data-search") || "").toLowerCase();
+          var statusLabel = row.getAttribute("data-status-label") || "";
+          var branchLabel = row.getAttribute("data-branch") || "";
+
+          var matchSearch = !query || text.indexOf(query) !== -1;
+          var matchStatus = activeStatus === "Tất cả" || statusLabel === activeStatus;
+          var matchBranch = branch === "Tất cả chi nhánh" || branchLabel === branch;
+          var visibleRow = matchSearch && matchStatus && matchBranch;
+
+          if (visibleRow) {
+            matchedRows.push(row);
+          }
+        });
+
+        var totalMatched = matchedRows.length;
+        var totalPages = totalMatched === 0 ? 0 : Math.ceil(totalMatched / pageSize);
+
+        if (shouldResetPage) {
+          currentPage = totalPages > 0 ? 1 : 0;
+        }
+        if (totalPages === 0) {
+          currentPage = 0;
+        } else {
+          if (currentPage < 1) {
+            currentPage = 1;
+          }
+          if (currentPage > totalPages) {
+            currentPage = totalPages;
+          }
+        }
+
+        var startIndex = currentPage > 0 ? (currentPage - 1) * pageSize : 0;
+        var endIndex = startIndex + pageSize;
+        var visible = 0;
+
+        rows.forEach(function (row) {
+          row.hidden = true;
+        });
+
+        matchedRows.forEach(function (row, index) {
+          var inCurrentPage = index >= startIndex && index < endIndex;
+          row.hidden = !inCurrentPage;
+          if (inCurrentPage) {
+            visible += 1;
+          }
+        });
+
+        if (visibleCount) {
+          visibleCount.textContent = String(visible);
+        }
+        if (emptyState) {
+          emptyState.hidden = totalMatched !== 0;
+        }
+        if (pageStatus) {
+          pageStatus.textContent = totalPages === 0
+            ? "Trang 0 / 0"
+            : "Trang " + String(currentPage) + " / " + String(totalPages);
+        }
+        if (prevButton) {
+          prevButton.disabled = currentPage <= 1;
+        }
+        if (nextButton) {
+          nextButton.disabled = totalPages === 0 || currentPage >= totalPages;
+        }
+      }
+
+      filterButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          activeStatus = button.getAttribute("data-status-filter") || "Tất cả";
+          filterButtons.forEach(function (item) {
+            item.classList.toggle("is-active", item === button);
+          });
+          applyFilters(true);
+        });
+      });
+
+      if (searchInput) {
+        searchInput.addEventListener("input", function () {
+          applyFilters(true);
+        });
+      }
+      if (branchSelect) {
+        branchSelect.addEventListener("change", function () {
+          applyFilters(true);
+        });
+      }
+
+      if (prevButton) {
+        prevButton.addEventListener("click", function () {
+          if (currentPage <= 1) {
+            return;
+          }
+          currentPage -= 1;
+          applyFilters(false);
+        });
+      }
+
+      if (nextButton) {
+        nextButton.addEventListener("click", function () {
+          currentPage += 1;
+          applyFilters(false);
+        });
+      }
+
+      applyFilters(true);
+
+      var modal = root.querySelector("[data-appointment-modal]");
+      var openButtons = Array.prototype.slice.call(root.querySelectorAll("[data-open-appointment-modal]"));
+      var closeButtons = Array.prototype.slice.call(root.querySelectorAll("[data-close-appointment-modal]"));
+      var createForm = root.querySelector("[data-appointment-create-form]");
+      var modalOpenByState = root.getAttribute("data-modal-open") === "1";
+
+      function setModalOpen(isOpen) {
+        if (!modal) {
+          return;
+        }
+        modal.hidden = !isOpen;
+        document.body.classList.toggle("legacy-modal-open", isOpen);
+      }
+
+      openButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          setModalOpen(true);
+        });
+      });
+
+      closeButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          setModalOpen(false);
+        });
+      });
+
+      if (modal) {
+        modal.addEventListener("click", function (event) {
+          if (event.target === modal) {
+            setModalOpen(false);
+          }
+        });
+      }
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          setModalOpen(false);
+        }
+      });
+
+      function parseJSONScript(id) {
+        var node = document.getElementById(id);
+        if (!node) {
+          return [];
+        }
+        try {
+          var parsed = JSON.parse(node.textContent || "[]");
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (_error) {
+          return [];
+        }
+      }
+
+      function setupAutocomplete(config) {
+        var wrap = config.wrap;
+        var input = config.input;
+        var hidden = config.hidden;
+        var list = config.list;
+        var options = config.options || [];
+        if (!wrap || !input || !hidden || !list) {
+          return;
+        }
+
+        function normalize(text) {
+          return String(text || "").trim().toLowerCase();
+        }
+
+        function filteredOptions(query) {
+          var normalizedQuery = normalize(query);
+          if (!normalizedQuery) {
+            return options;
+          }
+          return options.filter(function (item) {
+            return normalize(item.search || item.display).indexOf(normalizedQuery) !== -1;
+          });
+        }
+
+        function renderList(query) {
+          var items = filteredOptions(query);
+          list.innerHTML = "";
+
+          if (!items.length) {
+            var empty = document.createElement("div");
+            empty.className = "legacy-autocomplete-empty";
+            empty.textContent = "Không có dữ liệu phù hợp";
+            list.appendChild(empty);
+            return;
+          }
+
+          items.forEach(function (item) {
+            var button = document.createElement("button");
+            button.type = "button";
+            button.className = "legacy-autocomplete-item";
+            button.textContent = item.display || "";
+            button.dataset.optionId = String(item.id || "");
+            button.addEventListener("mousedown", function (event) {
+              event.preventDefault();
+              hidden.value = String(item.id || "");
+              input.value = item.display || "";
+              list.hidden = true;
+            });
+            list.appendChild(button);
+          });
+        }
+
+        input.addEventListener("focus", function () {
+          renderList(input.value);
+          list.hidden = false;
+        });
+
+        input.addEventListener("input", function () {
+          hidden.value = "";
+          renderList(input.value);
+          list.hidden = false;
+        });
+
+        input.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            list.hidden = true;
+          }
+        });
+
+        document.addEventListener("click", function (event) {
+          if (!wrap.contains(event.target)) {
+            list.hidden = true;
+          }
+        });
+
+        if (!input.value && hidden.value) {
+          var matched = options.find(function (item) {
+            return String(item.id) === String(hidden.value);
+          });
+          if (matched) {
+            input.value = matched.display || "";
+          }
+        }
+      }
+
+      var customerOptions = parseJSONScript("appointment-customer-options");
+      var serviceOptions = parseJSONScript("appointment-service-options");
+
+      setupAutocomplete({
+        wrap: root.querySelector("[data-customer-wrap]"),
+        input: root.querySelector("[data-customer-query]"),
+        hidden: root.querySelector("[data-customer-id]"),
+        list: root.querySelector("[data-customer-list]"),
+        options: customerOptions,
+      });
+
+      setupAutocomplete({
+        wrap: root.querySelector("[data-service-wrap]"),
+        input: root.querySelector("[data-service-query]"),
+        hidden: root.querySelector("[data-service-id]"),
+        list: root.querySelector("[data-service-list]"),
+        options: serviceOptions,
+      });
+
+      if (createForm) {
+        createForm.addEventListener("submit", function (event) {
+          var customerId = createForm.querySelector("[data-customer-id]");
+          var serviceId = createForm.querySelector("[data-service-id]");
+          var startAt = createForm.querySelector("[data-start-at]");
+
+          if (!customerId || !customerId.value) {
+            event.preventDefault();
+            alert("Vui lòng chọn khách hàng từ danh sách gợi ý.");
+            return;
+          }
+          if (!serviceId || !serviceId.value) {
+            event.preventDefault();
+            alert("Vui lòng chọn dịch vụ từ danh sách gợi ý.");
+            return;
+          }
+          if (!startAt || !startAt.value) {
+            event.preventDefault();
+            alert("Vui lòng chọn thời gian lịch hẹn.");
+            return;
+          }
+
+          var picked = new Date(startAt.value);
+          var today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (picked < today) {
+            event.preventDefault();
+            alert("Không thể chọn ngày cũ hơn hôm nay.");
+          }
+        });
+      }
+
+      if (modalOpenByState) {
+        setModalOpen(true);
+      }
+    })();
+  </script>
+{% endblock %}

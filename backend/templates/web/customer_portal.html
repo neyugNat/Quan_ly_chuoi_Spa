@@ -1,0 +1,99 @@
+{% extends "web/base.html" %}
+
+{% block title %}Khách hàng | Lotus Spa{% endblock %}
+
+{% block auth_content %}
+  <div class="login-bg"></div>
+  <div class="login-overlay"></div>
+
+  <div class="login-page">
+    <div class="login-panel portal-card">
+      <div class="portal-head">
+        <div>
+          <h1>Xin chào {{ customer.full_name }}</h1>
+          <p class="muted">{{ account.email }}{% if customer.phone %} - {{ customer.phone }}{% endif %}</p>
+        </div>
+        <form method="post" action="{{ url_for('web.customer_logout') }}">
+          <button class="btn" type="submit">Dang xuat</button>
+        </form>
+      </div>
+
+      <div class="cards-grid portal-metrics">
+        <div class="card metric-card">
+          <div class="metric-icon">L</div>
+          <div>
+            <div class="metric-value">{{ upcoming_items|length }}</div>
+            <div class="metric-title">Tổng lịch sắp tới</div>
+          </div>
+        </div>
+        <div class="card metric-card">
+          <div class="metric-icon">H</div>
+          <div>
+            <div class="metric-value">{{ history_items|length }}</div>
+            <div class="metric-title">Tổng lịch gần đây</div>
+          </div>
+        </div>
+      </div>
+
+      <section class="section">
+        <h2>Lịch hẹn sắp tới</h2>
+        {% if upcoming_items %}
+          <div class="table-wrap">
+            <table class="table dense">
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th>Dịch vụ</th>
+                  <th>Chi nhánh</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in upcoming_items %}
+                  <tr>
+                    <td>{{ row.time }}</td>
+                    <td>{{ row.service }}</td>
+                    <td>{{ row.branch }}</td>
+                    <td>{{ row.status }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="muted">Chưa có lịch hẹn sắp tới.</p>
+        {% endif %}
+      </section>
+
+      <section class="section">
+        <h2>Lịch sử gần đây</h2>
+        {% if history_items %}
+          <div class="table-wrap">
+            <table class="table dense">
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th>Dịch vụ</th>
+                  <th>Chi nhánh</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in history_items %}
+                  <tr>
+                    <td>{{ row.time }}</td>
+                    <td>{{ row.service }}</td>
+                    <td>{{ row.branch }}</td>
+                    <td>{{ row.status }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="muted">Chưa có dữ liệu lịch sử.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+{% endblock %}
