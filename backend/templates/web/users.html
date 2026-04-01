@@ -1,0 +1,387 @@
+﻿{% extends "web/base.html" %}
+{% block title %}{{ page_title }} | Quản Lý Spa{% endblock %}
+{% block content %}
+  {% macro icon(name, size=16, cls='') -%}
+    <svg xmlns="http://www.w3.org/2000/svg" width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ cls }}" aria-hidden="true">
+      {% if name == "search" %}
+        <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+      {% elif name == "plus" %}
+        <path d="M12 5v14"></path><path d="M5 12h14"></path>
+      {% elif name == "eye" %}
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>
+      {% elif name == "x" %}
+        <circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6"></path><path d="m9 9 6 6"></path>
+      {% elif name == "check" %}
+        <path d="M20 6 9 17l-5-5"></path>
+      {% elif name == "minus" %}
+        <path d="M5 12h14"></path>
+      {% elif name == "chevron-left" %}
+        <path d="m15 18-6-6 6-6"></path>
+      {% elif name == "chevron-right" %}
+        <path d="m9 18 6-6-6-6"></path>
+      {% elif name == "shield" %}
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+      {% endif %}
+    </svg>
+  {%- endmacro %}
+
+  {% set role_meta = {
+    "super_admin": {"class": "is-super-admin"},
+    "branch_manager": {"class": "is-branch-manager"},
+    "reception": {"class": "is-reception"},
+    "cashier": {"class": "is-cashier"},
+    "technician": {"class": "is-technician"},
+    "warehouse": {"class": "is-warehouse"},
+  } %}
+
+  <div class="accounts-v2-page" data-accounts-root data-page-size="20" data-perm-save-url="{{ url_for('web.users_permissions_save') }}" data-can-edit-perm="{{ 1 if can_edit_permissions else 0 }}">
+    <div class="accounts-v2-head">
+      <p class="accounts-v2-subtitle">{{ page_subtitle }}</p>
+      <button type="button" class="accounts-v2-add-btn" aria-disabled="true">
+        {{ icon("plus", 15, "accounts-v2-inline-icon") }}<span>Thêm tài khoản</span>
+      </button>
+    </div>
+
+    <div class="accounts-v2-metrics">
+      <article class="accounts-v2-metric is-total"><span class="accounts-v2-metric-icon">👥</span><div><div class="accounts-v2-metric-value">{{ summary.total_users }}</div><div class="accounts-v2-metric-label">Tổng tài khoản</div></div></article>
+      <article class="accounts-v2-metric is-active"><span class="accounts-v2-metric-icon">✅</span><div><div class="accounts-v2-metric-value">{{ summary.active_users }}</div><div class="accounts-v2-metric-label">Đang hoạt động</div></div></article>
+      <article class="accounts-v2-metric is-locked"><span class="accounts-v2-metric-icon">🔒</span><div><div class="accounts-v2-metric-value">{{ summary.locked_users }}</div><div class="accounts-v2-metric-label">Bị khóa</div></div></article>
+      <article class="accounts-v2-metric is-admin"><span class="accounts-v2-metric-icon">🛡️</span><div><div class="accounts-v2-metric-value">{{ summary.admin_users }}</div><div class="accounts-v2-metric-label">Quản trị viên</div></div></article>
+    </div>
+
+    <div class="accounts-v2-tabs" role="tablist" aria-label="Tab tài khoản">
+      <button type="button" class="accounts-v2-tab is-active" data-accounts-tab="list">Danh sách tài khoản</button>
+      <button type="button" class="accounts-v2-tab" data-accounts-tab="permissions">Ma trận phân quyền</button>
+    </div>
+
+    <section class="accounts-v2-panel" data-accounts-panel="list">
+      <div class="accounts-v2-tools">
+        <div class="accounts-v2-search-row">
+          <label class="accounts-v2-search-wrap" for="accounts-search">{{ icon("search", 14, "accounts-v2-search-icon") }}<input id="accounts-search" type="text" class="accounts-v2-search" placeholder="Tìm tên, username..." data-accounts-search></label>
+          <label class="accounts-v2-status-wrap" for="accounts-status"><select id="accounts-status" class="accounts-v2-status" data-accounts-status><option value="Tất cả">Tất cả trạng thái</option><option value="Hoạt động">Hoạt động</option><option value="Không HĐ">Không HĐ</option></select></label>
+        </div>
+        <div class="accounts-v2-role-filters" role="tablist" aria-label="Lọc vai trò">
+          {% for role_name in role_filters %}<button type="button" class="accounts-v2-role-filter {% if loop.first %}is-active{% endif %}" data-role-filter="{{ role_name }}">{{ role_name }}</button>{% endfor %}
+        </div>
+      </div>
+
+      <div class="accounts-v2-table-wrap">
+        <table class="accounts-v2-table">
+          <thead><tr><th>Tài khoản</th><th class="accounts-v2-hide-md">Username</th><th>Vai trò</th><th class="accounts-v2-hide-lg">Chi nhánh</th><th>Trạng thái</th><th class="accounts-v2-hide-xl">Ngày tạo</th><th class="accounts-v2-hide-sm">2FA</th><th></th></tr></thead>
+          <tbody>
+            {% for user in users %}
+              {% set meta = role_meta.get(user.role_key, {"class": "is-default"}) %}
+              <tr data-account-row data-account-id="{{ user.id }}" data-search="{{ user.search_text|e }}" data-role-label="{{ user.role_label }}" data-status-label="{{ user.status_label }}">
+                <td><div class="accounts-v2-account-cell"><div class="accounts-v2-avatar">{{ user.avatar }}</div><div><div class="accounts-v2-name">{{ user.name }}</div><div class="accounts-v2-id">ID: {{ user.id }}</div></div></div></td>
+                <td class="accounts-v2-hide-md"><span class="accounts-v2-username">{{ user.username }}</span></td>
+                <td><span class="accounts-v2-role-badge {{ meta['class'] }}">{{ icon("shield", 11, "accounts-v2-inline-icon") }}<span>{{ user.role_label }}</span></span></td>
+                <td class="accounts-v2-hide-lg">{{ user.branch_text }}</td>
+                <td><span class="accounts-v2-status-badge status-{{ user.status_key }}"><i></i><span>{{ user.status_label }}</span></span></td>
+                <td class="accounts-v2-hide-xl">{{ user.created_at }}</td>
+                <td class="accounts-v2-hide-sm"><span class="accounts-v2-twofa {{ 'is-on' if user.two_fa else 'is-off' }}">{{ '✓ Bật' if user.two_fa else 'Tắt' }}</span></td>
+                <td><button type="button" class="accounts-v2-action-btn" data-open-account-detail data-account-id="{{ user.id }}">{{ icon("eye", 13, "accounts-v2-inline-icon") }}</button></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <p class="accounts-v2-empty" data-accounts-empty {% if users %}hidden{% endif %}>Không có tài khoản phù hợp.</p>
+
+      <div class="accounts-v2-foot">
+        <span class="accounts-v2-foot-copy">Hiển thị <span class="accounts-v2-foot-emphasis" data-visible-count>{{ [users|length, 20]|min }}</span> / {{ users|length }} tài khoản</span>
+        <div class="accounts-v2-pagination">
+          <button type="button" class="accounts-v2-page-btn" data-page-prev aria-label="Trang trước">{{ icon("chevron-left", 14, "accounts-v2-inline-icon") }}</button>
+          <span class="accounts-v2-page-status" data-page-status>{% if users|length %}Trang 1 / {{ (users|length + 19) // 20 }}{% else %}Trang 0 / 0{% endif %}</span>
+          <button type="button" class="accounts-v2-page-btn" data-page-next aria-label="Trang sau">{{ icon("chevron-right", 14, "accounts-v2-inline-icon") }}</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="accounts-v2-panel" data-accounts-panel="permissions" hidden>
+      <div class="accounts-v2-perm-wrap">
+        <div class="accounts-v2-perm-head">
+          <div><h3>Ma trận phân quyền hệ thống</h3><p>Quyền truy cập theo vai trò</p></div>
+          {% if can_edit_permissions %}
+            <div class="accounts-v2-perm-actions">
+              <button type="button" class="accounts-v2-perm-btn is-edit" data-perm-edit-toggle>Chỉnh sửa</button>
+              <button type="button" class="accounts-v2-perm-btn is-cancel" data-perm-cancel hidden>Hủy</button>
+              <button type="button" class="accounts-v2-perm-btn is-save" data-perm-save hidden>Lưu thay đổi</button>
+            </div>
+          {% endif %}
+        </div>
+        <p class="accounts-v2-perm-feedback" data-perm-feedback hidden></p>
+        <div class="accounts-v2-perm-table-wrap">
+          <table class="accounts-v2-perm-table">
+            <thead>
+              <tr>
+                <th>Chức năng</th>
+                {% for role_name in permission_roles %}
+                  {% set permission_role_meta = role_meta.get(role_name, {'class':'is-default'}) %}
+                  <th><span class="accounts-v2-role-badge {{ permission_role_meta['class'] }}">{{ icon("shield", 11, "accounts-v2-inline-icon") }}<span>{{ role_aliases.get(role_name, role_name) }}</span></span></th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for perm_key, perm_label in permission_labels.items() %}
+                <tr>
+                  <td>{{ perm_label }}</td>
+                  {% for role_name in permission_roles %}
+                    {% set allowed = permission_matrix.get(role_name, {}).get(perm_key, false) %}
+                    <td>
+                      <button type="button" class="accounts-v2-perm-cell {{ 'is-allowed' if allowed else 'is-denied' }}" data-perm-cell data-role-name="{{ role_name }}" data-perm-key="{{ perm_key }}" aria-pressed="{{ 'true' if allowed else 'false' }}" {% if not can_edit_permissions %}disabled{% endif %}>
+                        <span class="accounts-v2-perm-ok">{{ icon("check", 12, "accounts-v2-inline-icon") }}</span>
+                        <span class="accounts-v2-perm-no">{{ icon("x", 12, "accounts-v2-inline-icon") }}</span>
+                      </button>
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <div class="accounts-v2-modal-backdrop" data-account-detail-modal hidden>
+      <div class="accounts-v2-modal" role="dialog" aria-modal="true" aria-label="Chi tiết tài khoản">
+        <div class="accounts-v2-modal-head"><h3>Chi tiết tài khoản</h3><button type="button" class="accounts-v2-modal-close" data-close-account-detail>{{ icon("x", 18, "accounts-v2-inline-icon") }}</button></div>
+        <div class="accounts-v2-modal-body">
+          <div class="accounts-v2-modal-profile"><div class="accounts-v2-modal-avatar" data-detail-avatar>U</div><div><div class="accounts-v2-modal-name" data-detail-name>-</div><div class="accounts-v2-modal-username" data-detail-username>-</div><div class="accounts-v2-modal-role" data-detail-role>-</div></div></div>
+          <div class="accounts-v2-modal-grid">
+            <div><span>ID</span><strong data-detail-id>-</strong></div><div><span>Chi nhánh</span><strong data-detail-branch>-</strong></div><div><span>Trạng thái</span><strong data-detail-status>-</strong></div><div><span>Ngày tạo</span><strong data-detail-created>-</strong></div><div><span>Email</span><strong data-detail-email>-</strong></div><div><span>Số điện thoại</span><strong data-detail-phone>-</strong></div>
+          </div>
+        </div>
+        <div class="accounts-v2-modal-actions"><button type="button" class="accounts-v2-modal-btn" data-close-account-detail>Đóng</button></div>
+      </div>
+    </div>
+  </div>
+
+  <script id="accounts-users-json" type="application/json">{{ users|tojson }}</script>
+  <script id="accounts-permissions-json" type="application/json">{{ permission_matrix|tojson }}</script>
+  <script>
+    (function () {
+      var root = document.querySelector('[data-accounts-root]');
+      if (!root) return;
+
+      function parseJSON(id, fallback) {
+        var node = document.getElementById(id);
+        if (!node) return fallback;
+        try { return JSON.parse(node.textContent || 'null') || fallback; } catch (_error) { return fallback; }
+      }
+      function clone(v) { try { return JSON.parse(JSON.stringify(v)); } catch (_error) { return {}; } }
+
+      var users = parseJSON('accounts-users-json', []);
+      var usersById = {};
+      users.forEach(function (u) { var id = String((u && u.id) || ''); if (id) usersById[id] = u; });
+
+      var tabs = Array.prototype.slice.call(root.querySelectorAll('[data-accounts-tab]'));
+      var panels = Array.prototype.slice.call(root.querySelectorAll('[data-accounts-panel]'));
+      tabs.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var tab = btn.getAttribute('data-accounts-tab') || 'list';
+          tabs.forEach(function (x) { x.classList.toggle('is-active', x === btn); });
+          panels.forEach(function (p) { p.hidden = p.getAttribute('data-accounts-panel') !== tab; });
+        });
+      });
+
+      var rows = Array.prototype.slice.call(root.querySelectorAll('[data-account-row]'));
+      var roleBtns = Array.prototype.slice.call(root.querySelectorAll('[data-role-filter]'));
+      var search = root.querySelector('[data-accounts-search]');
+      var status = root.querySelector('[data-accounts-status]');
+      var visibleCount = root.querySelector('[data-visible-count]');
+      var emptyNode = root.querySelector('[data-accounts-empty]');
+      var prev = root.querySelector('[data-page-prev]');
+      var next = root.querySelector('[data-page-next]');
+      var pageNode = root.querySelector('[data-page-status]');
+      var pageSize = Number(root.getAttribute('data-page-size') || '20') || 20;
+      var page = 1;
+      var activeRole = 'Tất cả';
+
+      function renderRows(resetPage) {
+        var q = ((search && search.value) || '').trim().toLowerCase();
+        var st = (status && status.value) || 'Tất cả';
+        var matched = [];
+
+        rows.forEach(function (row) {
+          var matchSearch = !q || (row.getAttribute('data-search') || '').toLowerCase().indexOf(q) !== -1;
+          var matchRole = activeRole === 'Tất cả' || (row.getAttribute('data-role-label') || '') === activeRole;
+          var matchStatus = st === 'Tất cả' || (row.getAttribute('data-status-label') || '') === st;
+          if (matchSearch && matchRole && matchStatus) matched.push(row);
+        });
+
+        var total = matched.length;
+        var totalPages = total ? Math.ceil(total / pageSize) : 0;
+        if (resetPage) page = totalPages ? 1 : 0;
+        if (!totalPages) page = 0;
+        if (page > totalPages) page = totalPages;
+        if (page < 1 && totalPages) page = 1;
+
+        rows.forEach(function (r) { r.hidden = true; });
+        var start = page > 0 ? (page - 1) * pageSize : 0;
+        var end = start + pageSize;
+        var visible = 0;
+        matched.forEach(function (r, idx) {
+          var show = idx >= start && idx < end;
+          r.hidden = !show;
+          if (show) visible += 1;
+        });
+
+        if (visibleCount) visibleCount.textContent = String(visible);
+        if (emptyNode) emptyNode.hidden = total !== 0;
+        if (pageNode) pageNode.textContent = totalPages ? ('Trang ' + page + ' / ' + totalPages) : 'Trang 0 / 0';
+        if (prev) prev.disabled = page <= 1;
+        if (next) next.disabled = !totalPages || page >= totalPages;
+      }
+
+      roleBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          activeRole = btn.getAttribute('data-role-filter') || 'Tất cả';
+          roleBtns.forEach(function (x) { x.classList.toggle('is-active', x === btn); });
+          renderRows(true);
+        });
+      });
+      if (search) search.addEventListener('input', function () { renderRows(true); });
+      if (status) status.addEventListener('change', function () { renderRows(true); });
+      if (prev) prev.addEventListener('click', function () { if (page > 1) { page -= 1; renderRows(false); } });
+      if (next) next.addEventListener('click', function () { page += 1; renderRows(false); });
+      renderRows(true);
+
+      var modal = root.querySelector('[data-account-detail-modal]');
+      var openDetailBtns = Array.prototype.slice.call(root.querySelectorAll('[data-open-account-detail]'));
+      var closeDetailBtns = Array.prototype.slice.call(root.querySelectorAll('[data-close-account-detail]'));
+      var detailMap = {
+        avatar: root.querySelector('[data-detail-avatar]'),
+        name: root.querySelector('[data-detail-name]'),
+        username: root.querySelector('[data-detail-username]'),
+        role: root.querySelector('[data-detail-role]'),
+        id: root.querySelector('[data-detail-id]'),
+        branch: root.querySelector('[data-detail-branch]'),
+        status: root.querySelector('[data-detail-status]'),
+        created: root.querySelector('[data-detail-created]'),
+        email: root.querySelector('[data-detail-email]'),
+        phone: root.querySelector('[data-detail-phone]')
+      };
+
+      function setText(node, value) { if (node) node.textContent = value ? String(value) : '-'; }
+      function openModal(open) {
+        if (!modal) return;
+        modal.hidden = !open;
+        document.body.classList.toggle('accounts-v2-modal-open', open);
+      }
+      function fillDetail(userId) {
+        var u = usersById[String(userId)] || null;
+        if (!u) return;
+        setText(detailMap.avatar, u.avatar || 'U');
+        setText(detailMap.name, u.name || '-');
+        setText(detailMap.username, '@' + String(u.username || '-'));
+        setText(detailMap.role, u.role_label || '-');
+        setText(detailMap.id, u.id || '-');
+        setText(detailMap.branch, u.branch_text || '-');
+        setText(detailMap.status, u.status_label || '-');
+        setText(detailMap.created, u.created_at || '-');
+        setText(detailMap.email, u.email || '-');
+        setText(detailMap.phone, u.phone || '-');
+        openModal(true);
+      }
+
+      openDetailBtns.forEach(function (btn) { btn.addEventListener('click', function () { fillDetail(btn.getAttribute('data-account-id') || ''); }); });
+      closeDetailBtns.forEach(function (btn) { btn.addEventListener('click', function () { openModal(false); }); });
+      if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) openModal(false); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') openModal(false); });
+
+      var canEdit = root.getAttribute('data-can-edit-perm') === '1';
+      var saveUrl = root.getAttribute('data-perm-save-url') || '';
+      var cells = Array.prototype.slice.call(root.querySelectorAll('[data-perm-cell]'));
+      var editBtn = root.querySelector('[data-perm-edit-toggle]');
+      var cancelBtn = root.querySelector('[data-perm-cancel]');
+      var saveBtn = root.querySelector('[data-perm-save]');
+      var feedback = root.querySelector('[data-perm-feedback]');
+      var initial = clone(parseJSON('accounts-permissions-json', {}));
+      var working = clone(initial);
+      var editing = false;
+      var saving = false;
+
+      function msg(text, ok) {
+        if (!feedback) return;
+        if (!text) {
+          feedback.hidden = true;
+          feedback.textContent = '';
+          feedback.classList.remove('is-success', 'is-error');
+          return;
+        }
+        feedback.hidden = false;
+        feedback.textContent = text;
+        feedback.classList.toggle('is-success', !!ok);
+        feedback.classList.toggle('is-error', !ok);
+      }
+
+      function value(role, perm) { return !!(working && working[role] && working[role][perm]); }
+      function drawCells() {
+        cells.forEach(function (cell) {
+          var role = cell.getAttribute('data-role-name') || '';
+          var perm = cell.getAttribute('data-perm-key') || '';
+          var ok = value(role, perm);
+          cell.classList.toggle('is-allowed', ok);
+          cell.classList.toggle('is-denied', !ok);
+          cell.setAttribute('aria-pressed', ok ? 'true' : 'false');
+        });
+      }
+      function setEditing(next) {
+        editing = !!(next && canEdit);
+        root.classList.toggle('perm-editing', editing);
+        if (editBtn) editBtn.hidden = editing;
+        if (cancelBtn) { cancelBtn.hidden = !editing; cancelBtn.disabled = saving; }
+        if (saveBtn) { saveBtn.hidden = !editing; saveBtn.disabled = saving; }
+        cells.forEach(function (cell) { cell.disabled = !editing || saving || !canEdit; });
+      }
+
+      cells.forEach(function (cell) {
+        cell.addEventListener('click', function () {
+          if (!editing || saving) return;
+          var role = cell.getAttribute('data-role-name') || '';
+          var perm = cell.getAttribute('data-perm-key') || '';
+          if (!role || !perm) return;
+          if (!working[role]) working[role] = {};
+          working[role][perm] = !value(role, perm);
+          drawCells();
+        });
+      });
+
+      if (editBtn) editBtn.addEventListener('click', function () { msg('', true); working = clone(initial); drawCells(); setEditing(true); });
+      if (cancelBtn) cancelBtn.addEventListener('click', function () { working = clone(initial); drawCells(); setEditing(false); msg('Đã hủy thay đổi.', true); });
+      if (saveBtn) {
+        saveBtn.addEventListener('click', function () {
+          if (!canEdit || saving) return;
+          saving = true;
+          setEditing(true);
+          msg('Đang lưu ma trận phân quyền...', true);
+          fetch(saveUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: JSON.stringify({ matrix: working }) })
+            .then(function (res) {
+              return res.json().catch(function () { return { ok: false, message: 'Phản hồi không hợp lệ từ máy chủ.' }; }).then(function (payload) { return { res: res, payload: payload }; });
+            })
+            .then(function (result) {
+              var payload = result.payload || {};
+              if (!result.res.ok || payload.ok !== true) throw new Error(payload.message || 'Không thể lưu ma trận phân quyền.');
+              initial = clone(payload.matrix || working);
+              working = clone(initial);
+              drawCells();
+              setEditing(false);
+              msg(payload.message || 'Đã lưu ma trận phân quyền.', true);
+            })
+            .catch(function (err) {
+              msg((err && err.message) || 'Lưu ma trận phân quyền thất bại.', false);
+              setEditing(true);
+            })
+            .finally(function () {
+              saving = false;
+              setEditing(editing);
+            });
+        });
+      }
+
+      drawCells();
+      setEditing(false);
+    })();
+  </script>
+{% endblock %}

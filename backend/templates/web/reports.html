@@ -1,0 +1,384 @@
+{% extends "web/base.html" %}
+
+{% block title %}{{ page_title }} | QuanLySpa{% endblock %}
+
+{% block content %}
+  <div class="legacy-reports-page mirror-5173-reports">
+    <div class="legacy-reports-head">
+      <p class="legacy-reports-subtitle">{{ page_subtitle }}</p>
+      <div class="legacy-reports-head-actions">
+        <div class="legacy-reports-periods">
+          {% for period in period_options %}
+            <a
+              href="{{ url_for('web.reports', period=period.key) }}"
+              class="legacy-reports-period {% if period.key == period_key %}is-active{% endif %}"
+            >
+              {{ period.label }}
+            </a>
+          {% endfor %}
+        </div>
+        <button type="button" class="legacy-reports-export">⬇ Xuất báo cáo</button>
+      </div>
+    </div>
+
+    <div class="legacy-reports-kpi-grid">
+      <article class="legacy-reports-kpi kpi-revenue">
+        <div class="legacy-reports-kpi-top">
+          <div class="legacy-reports-kpi-icon">₫</div>
+          <span class="legacy-reports-kpi-change is-up">↗ +0.0%</span>
+        </div>
+        <div class="legacy-reports-kpi-value">{{ summary.revenue_total_m }}</div>
+        <div class="legacy-reports-kpi-label">Tổng doanh thu</div>
+        <div class="legacy-reports-kpi-sub">{{ summary.revenue_total_display }}</div>
+      </article>
+      <article class="legacy-reports-kpi kpi-profit">
+        <div class="legacy-reports-kpi-top">
+          <div class="legacy-reports-kpi-icon">↗</div>
+          <span class="legacy-reports-kpi-change is-up">↗ N/A</span>
+        </div>
+        <div class="legacy-reports-kpi-value">N/A</div>
+        <div class="legacy-reports-kpi-label">Tổng lợi nhuận</div>
+        <div class="legacy-reports-kpi-sub">Thiếu dữ liệu chi phí</div>
+      </article>
+      <article class="legacy-reports-kpi kpi-customers">
+        <div class="legacy-reports-kpi-top">
+          <div class="legacy-reports-kpi-icon">👥</div>
+          <span class="legacy-reports-kpi-change is-up">↗ +0.0%</span>
+        </div>
+        <div class="legacy-reports-kpi-value">{{ summary.customers_served }}</div>
+        <div class="legacy-reports-kpi-label">Khách hàng phục vụ</div>
+        <div class="legacy-reports-kpi-sub">Theo kỳ {{ period_label }}</div>
+      </article>
+      <article class="legacy-reports-kpi kpi-appointments">
+        <div class="legacy-reports-kpi-top">
+          <div class="legacy-reports-kpi-icon">📅</div>
+          <span class="legacy-reports-kpi-change is-up">↗ +0.0%</span>
+        </div>
+        <div class="legacy-reports-kpi-value">{{ summary.appointments_total }}</div>
+        <div class="legacy-reports-kpi-label">Tổng lịch hẹn</div>
+        <div class="legacy-reports-kpi-sub">Theo kỳ {{ period_label }}</div>
+      </article>
+    </div>
+
+    <section class="legacy-reports-section">
+      <div class="legacy-reports-section-head">
+        <h3>Doanh thu theo tháng</h3>
+        <p>Đơn vị: Triệu đồng</p>
+      </div>
+      <div class="legacy-reports-legends">
+        <span><i class="legend-revenue"></i>Doanh thu</span>
+        <span><i class="legend-expense"></i>Chi phí</span>
+        <span><i class="legend-profit"></i>Lợi nhuận</span>
+      </div>
+      <div class="legacy-revenue-bars">
+        {% for row in monthly_rows %}
+          <div class="legacy-revenue-bar-row">
+            <span class="legacy-revenue-month">{{ row.month_label }}</span>
+            <div class="legacy-revenue-track triple">
+              <div class="legacy-revenue-fill bar-revenue" data-width="{{ row.revenue_percent }}"></div>
+              <div class="legacy-revenue-fill bar-expense" style="width: 0%"></div>
+              <div class="legacy-revenue-fill bar-profit" data-width="{{ row.revenue_percent }}"></div>
+            </div>
+            <span class="legacy-revenue-value">{{ row.revenue_m }} tr</span>
+            <span class="legacy-revenue-appointments">{{ row.appointments }} lịch</span>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="legacy-reports-two-col">
+      <section class="legacy-reports-section">
+        <div class="legacy-reports-section-head">
+          <h3>Doanh thu theo chi nhánh</h3>
+          <p>Theo kỳ {{ period_label }}</p>
+        </div>
+        <div class="legacy-branch-bars">
+          {% if branch_revenue_rows %}
+            {% for row in branch_revenue_rows %}
+              <div class="legacy-branch-bar-row">
+                <div class="legacy-branch-bar-head">
+                  <span>{{ row.name }}</span>
+                  <strong>{{ row.revenue_m }} tr</strong>
+                </div>
+                <div class="legacy-branch-track">
+                  <div class="legacy-branch-fill" data-width="{{ row.percent }}"></div>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="legacy-reports-empty">Không có dữ liệu doanh thu chi nhánh.</p>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="legacy-reports-section">
+        <div class="legacy-reports-section-head">
+          <h3>Doanh thu theo dịch vụ</h3>
+          <p>Phân bổ % theo kỳ</p>
+        </div>
+        <div class="legacy-service-split-combo">
+          <div class="legacy-service-pie" data-service-pie data-percentages='{{ service_split_rows|map(attribute="percent")|list|tojson }}'></div>
+          <div class="legacy-service-split">
+            {% if service_split_rows %}
+              {% for row in service_split_rows %}
+                <div class="legacy-service-split-row">
+                  <div class="legacy-service-split-head">
+                    <span><i class="legacy-service-dot dot-{{ loop.index0 + 1 }}"></i>{{ row.name }}</span>
+                    <strong>{{ row.percent }}%</strong>
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="legacy-reports-empty">Chưa có dữ liệu doanh thu dịch vụ.</p>
+            {% endif %}
+          </div>
+        </div>
+        <div class="legacy-service-revenue-list">
+          {% if service_split_rows %}
+            {% for row in service_split_rows %}
+              <div class="legacy-service-revenue-item">
+                <span>{{ row.name }}</span>
+                <strong>{{ row.revenue_display }}</strong>
+                <div class="legacy-service-split-track">
+                  <div class="legacy-service-split-fill dot-{{ loop.index0 + 1 }}" data-width="{{ row.percent }}"></div>
+                </div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </section>
+    </div>
+
+    <section class="legacy-reports-section">
+      <div class="legacy-reports-section-head">
+        <h3>Lượt khách - Mới vs Quay lại</h3>
+        <p>6 tháng gần đây</p>
+      </div>
+      <div class="legacy-reports-legends">
+        <span><i class="legend-revenue"></i>Khách mới</span>
+        <span><i class="legend-expense"></i>Quay lại</span>
+      </div>
+      {% if customer_growth_rows %}
+        <div class="legacy-growth-chart" data-growth-chart data-growth='{{ customer_growth_rows|tojson }}'>
+          <svg viewBox="0 0 620 210" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="legacyGrowthNew" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stop-color="#1d4ed8" stop-opacity="0.15"></stop>
+                <stop offset="95%" stop-color="#1d4ed8" stop-opacity="0"></stop>
+              </linearGradient>
+              <linearGradient id="legacyGrowthRet" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stop-color="#93c5fd" stop-opacity="0.2"></stop>
+                <stop offset="95%" stop-color="#93c5fd" stop-opacity="0"></stop>
+              </linearGradient>
+            </defs>
+            <path class="legacy-growth-area-ret" data-growth-area-ret></path>
+            <path class="legacy-growth-area-new" data-growth-area-new></path>
+            <path class="legacy-growth-line-ret" data-growth-line-ret></path>
+            <path class="legacy-growth-line-new" data-growth-line-new></path>
+            <g data-growth-dots></g>
+          </svg>
+          <div class="legacy-growth-labels" data-growth-labels></div>
+        </div>
+      {% else %}
+        <p class="legacy-reports-empty">Không có dữ liệu tăng trưởng khách hàng.</p>
+      {% endif %}
+    </section>
+
+    <section class="legacy-reports-section">
+      <div class="legacy-reports-section-head">
+        <h3>Top dịch vụ theo doanh thu</h3>
+        <p>Theo kỳ {{ period_label }}</p>
+      </div>
+      <div class="legacy-top-service-wrap">
+        <table class="legacy-top-service-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Dịch vụ</th>
+              <th class="legacy-col-hide-md">Lượt đặt</th>
+              <th>Doanh thu</th>
+              <th class="legacy-col-hide-md">Tăng trưởng</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if top_service_rows %}
+              {% for row in top_service_rows %}
+                <tr>
+                  <td><span class="legacy-rank-badge rank-{{ row.rank }}">{{ row.rank }}</span></td>
+                  <td>{{ row.name }}</td>
+                  <td class="legacy-col-hide-md">{{ row.bookings }}</td>
+                  <td>{{ row.revenue_display }}</td>
+                  <td class="legacy-col-hide-md"><span class="legacy-growth-pill">↗ {{ row.growth }}</span></td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" class="legacy-reports-empty-cell">Không có dịch vụ phát sinh doanh thu.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      Array.prototype.forEach.call(document.querySelectorAll("[data-width]"), function (node) {
+        var value = Number(node.getAttribute("data-width") || 0);
+        if (!Number.isFinite(value)) {
+          value = 0;
+        }
+        if (value < 0) {
+          value = 0;
+        }
+        if (value > 100) {
+          value = 100;
+        }
+        node.style.width = value + "%";
+      });
+
+      var pie = document.querySelector("[data-service-pie]");
+      if (pie) {
+        var raw = pie.getAttribute("data-percentages") || "[]";
+        var values = [];
+        try {
+          values = JSON.parse(raw);
+        } catch (_e) {
+          values = [];
+        }
+        if (!Array.isArray(values) || values.length === 0) {
+          pie.style.background = "conic-gradient(#e2e8f0 0 100%)";
+        } else {
+          var colors = ["#1d4ed8", "#4f46e5", "#0891b2", "#0369a1", "#1e40af"];
+          var total = values.reduce(function (sum, val) {
+            return sum + Number(val || 0);
+          }, 0);
+          if (total <= 0) {
+            pie.style.background = "conic-gradient(#e2e8f0 0 100%)";
+          } else {
+            var start = 0;
+            var gradients = [];
+            values.forEach(function (val, idx) {
+              var pct = (Number(val || 0) / total) * 100;
+              var end = start + pct;
+              gradients.push(colors[idx % colors.length] + " " + start.toFixed(2) + "% " + end.toFixed(2) + "%");
+              start = end;
+            });
+            pie.style.background = "conic-gradient(" + gradients.join(", ") + ")";
+          }
+        }
+      }
+
+      var growthRoot = document.querySelector("[data-growth-chart]");
+      if (!growthRoot) {
+        return;
+      }
+
+      var growthRaw = growthRoot.getAttribute("data-growth") || "[]";
+      var growthRows = [];
+      try {
+        growthRows = JSON.parse(growthRaw);
+      } catch (_e2) {
+        growthRows = [];
+      }
+      if (!Array.isArray(growthRows) || growthRows.length === 0) {
+        return;
+      }
+
+      var areaRet = growthRoot.querySelector("[data-growth-area-ret]");
+      var areaNew = growthRoot.querySelector("[data-growth-area-new]");
+      var lineRet = growthRoot.querySelector("[data-growth-line-ret]");
+      var lineNew = growthRoot.querySelector("[data-growth-line-new]");
+      var dotsLayer = growthRoot.querySelector("[data-growth-dots]");
+      var labelsNode = growthRoot.querySelector("[data-growth-labels]");
+
+      if (!areaRet || !areaNew || !lineRet || !lineNew || !dotsLayer || !labelsNode) {
+        return;
+      }
+
+      var chartWidth = 620;
+      var chartHeight = 210;
+      var padX = 20;
+      var padTop = 18;
+      var padBottom = 34;
+      var plotHeight = chartHeight - padTop - padBottom;
+      var plotWidth = chartWidth - padX * 2;
+      var maxValue = 1;
+
+      growthRows.forEach(function (row) {
+        maxValue = Math.max(maxValue, Number(row.new || 0), Number(row.returning || 0));
+      });
+
+      var step = growthRows.length > 1 ? plotWidth / (growthRows.length - 1) : 0;
+
+      function toPoint(index, value) {
+        var x = padX + step * index;
+        var normalized = Number(value || 0) / maxValue;
+        var y = padTop + (1 - normalized) * plotHeight;
+        return { x: x, y: y };
+      }
+
+      function buildLine(points) {
+        if (!points.length) {
+          return "";
+        }
+        return points.reduce(function (path, point, index) {
+          var cmd = index === 0 ? "M" : "L";
+          return path + cmd + point.x.toFixed(2) + " " + point.y.toFixed(2) + " ";
+        }, "").trim();
+      }
+
+      function buildArea(points) {
+        if (!points.length) {
+          return "";
+        }
+        var baseline = padTop + plotHeight;
+        var line = buildLine(points);
+        var first = points[0];
+        var last = points[points.length - 1];
+        return (
+          "M" + first.x.toFixed(2) + " " + baseline.toFixed(2) +
+          " L" + first.x.toFixed(2) + " " + first.y.toFixed(2) +
+          " " + line.slice(1) +
+          " L" + last.x.toFixed(2) + " " + baseline.toFixed(2) +
+          " Z"
+        );
+      }
+
+      var retPoints = [];
+      var newPoints = [];
+      growthRows.forEach(function (row, index) {
+        retPoints.push(toPoint(index, row.returning || 0));
+        newPoints.push(toPoint(index, row.new || 0));
+      });
+
+      areaRet.setAttribute("d", buildArea(retPoints));
+      areaNew.setAttribute("d", buildArea(newPoints));
+      lineRet.setAttribute("d", buildLine(retPoints));
+      lineNew.setAttribute("d", buildLine(newPoints));
+
+      dotsLayer.innerHTML = "";
+      function appendDots(points, cssClass) {
+        points.forEach(function (point) {
+          var dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          dot.setAttribute("cx", point.x.toFixed(2));
+          dot.setAttribute("cy", point.y.toFixed(2));
+          dot.setAttribute("r", "3");
+          dot.setAttribute("class", cssClass);
+          dotsLayer.appendChild(dot);
+        });
+      }
+
+      appendDots(retPoints, "legacy-growth-dot-ret");
+      appendDots(newPoints, "legacy-growth-dot-new");
+
+      labelsNode.innerHTML = "";
+      growthRows.forEach(function (row) {
+        var label = document.createElement("span");
+        label.textContent = String(row.month_label || row.month || "-");
+        labelsNode.appendChild(label);
+      });
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,299 @@
+{% extends "web/base.html" %}
+
+{% block title %}{{ page_title }} | QuanLySpa{% endblock %}
+
+{% block content %}
+  <div class="legacy-hr-page mirror-5173-hr" data-hr-root data-total-count="{{ staff_items|length }}">
+    <div class="legacy-hr-head">
+      <p class="legacy-hr-subtitle">{{ page_subtitle }}</p>
+      <div class="legacy-hr-head-actions">
+        <div class="legacy-hr-view-toggle" role="tablist" aria-label="Chế độ hiển thị">
+          <button type="button" class="legacy-hr-view-btn is-active" data-hr-view="grid">Lưới</button>
+          <button type="button" class="legacy-hr-view-btn" data-hr-view="table">Bảng</button>
+        </div>
+        <button type="button" class="legacy-hr-add-btn" data-open-hr-modal>
+          <span class="legacy-hr-add-icon">+</span>
+          <span>Thêm nhân viên</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="legacy-hr-metrics">
+      <article class="legacy-hr-metric metric-total">
+        <div class="legacy-hr-metric-value">{{ summary.total_staff }}</div>
+        <div class="legacy-hr-metric-label">Tổng nhân viên</div>
+      </article>
+      <article class="legacy-hr-metric metric-active">
+        <div class="legacy-hr-metric-value">{{ summary.active_staff }}</div>
+        <div class="legacy-hr-metric-label">Đang làm việc</div>
+      </article>
+      <article class="legacy-hr-metric metric-off">
+        <div class="legacy-hr-metric-value">{{ summary.off_staff }}</div>
+        <div class="legacy-hr-metric-label">Nghỉ phép</div>
+      </article>
+      <article class="legacy-hr-metric metric-rating">
+        <div class="legacy-hr-metric-value">{{ summary.avg_rating }} ★</div>
+        <div class="legacy-hr-metric-label">Đánh giá TB</div>
+      </article>
+    </div>
+
+    <section class="legacy-hr-tools">
+      <label class="legacy-hr-search-wrap" for="legacy-hr-search">
+        <span class="legacy-search-icon" aria-hidden="true">⌕</span>
+        <input id="legacy-hr-search" type="text" class="legacy-hr-search" placeholder="Tìm nhân viên, vai trò..." data-hr-search>
+      </label>
+      <select class="legacy-hr-branch" data-hr-branch>
+        {% for branch_name in branch_filters %}
+          <option value="{{ branch_name }}">{{ branch_name }}</option>
+        {% endfor %}
+      </select>
+    </section>
+
+    <div class="legacy-hr-grid" data-hr-grid>
+      {% set role_meta = {
+        "Senior Therapist": "role-senior",
+        "Therapist": "role-therapist",
+        "Junior Therapist": "role-junior",
+        "Skin Specialist": "role-skin",
+        "Nail Technician": "role-nail"
+      } %}
+      {% set avatar_classes = ["avatar-a", "avatar-b", "avatar-c", "avatar-d", "avatar-e", "avatar-f"] %}
+      {% for staff in staff_items %}
+        {% set role_class = role_meta.get(staff.role, "role-default") %}
+        {% set avatar_class = avatar_classes[loop.index0 % (avatar_classes|length)] %}
+        <article
+          class="legacy-hr-card"
+          data-hr-card
+          data-search="{{ staff.search_text|e }}"
+          data-branch="{{ staff.branch }}"
+        >
+          <div class="legacy-hr-card-head">
+            <div class="legacy-hr-person">
+              <div class="legacy-hr-avatar {{ avatar_class }}">{{ staff.name_initial }}</div>
+              <div>
+                <div class="legacy-hr-name">{{ staff.name }}</div>
+                <span class="legacy-hr-role {{ role_class }}">{{ staff.role }}</span>
+              </div>
+            </div>
+            <span class="legacy-hr-status status-{{ staff.status }} legacy-hr-status-chip">
+              {{ "● Đang làm" if staff.status == "active" else "○ Nghỉ" }}
+            </span>
+          </div>
+
+          <div class="legacy-hr-meta legacy-hr-meta-box">
+            <div><span class="legacy-hr-meta-icon">☎</span><span>{{ staff.phone }}</span></div>
+            <div><span class="legacy-hr-meta-icon">⌂</span><span>Chi nhánh {{ staff.branch }}</span></div>
+            <div><span class="legacy-hr-meta-icon">⌛</span><span>Từ {{ staff.joined }}</span></div>
+          </div>
+
+          <div class="legacy-hr-tags">
+            {% for skill in staff.specialties %}
+              <span>{{ skill }}</span>
+            {% endfor %}
+          </div>
+
+          <div class="legacy-hr-foot">
+            <span class="legacy-hr-rating-copy">★ <strong>{{ "%.1f"|format(staff.rating) }}</strong> <small>({{ staff.appointments }} buổi)</small></span>
+            <div class="legacy-hr-foot-actions">
+              <button type="button" class="legacy-hr-icon-btn" aria-label="Sửa">✎</button>
+              <button type="button" class="legacy-hr-schedule-btn">Lịch làm</button>
+            </div>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+
+    <div class="legacy-hr-table-wrap" data-hr-table-wrap hidden>
+      <table class="legacy-hr-table">
+        <thead>
+          <tr>
+            <th>Nhân viên</th>
+            <th class="legacy-col-hide-md">Vai trò</th>
+            <th class="legacy-col-hide-lg">Chi nhánh</th>
+            <th class="legacy-col-hide-md">Đánh giá</th>
+            <th class="legacy-col-hide-lg">Buổi phục vụ</th>
+            <th>Trạng thái</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody data-hr-tbody>
+          {% for staff in staff_items %}
+            {% set role_class = role_meta.get(staff.role, 'role-default') %}
+            {% set avatar_class = avatar_classes[loop.index0 % (avatar_classes|length)] %}
+            <tr data-hr-row data-search="{{ staff.search_text|e }}" data-branch="{{ staff.branch }}">
+              <td>
+                <div class="legacy-hr-table-person">
+                  <div class="legacy-hr-avatar legacy-hr-avatar-sm {{ avatar_class }}">{{ staff.name_initial }}</div>
+                  <div>
+                    <strong>{{ staff.name }}</strong>
+                    <span>{{ staff.phone }}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="legacy-col-hide-md"><span class="legacy-hr-role {{ role_class }}">{{ staff.role }}</span></td>
+              <td class="legacy-col-hide-lg">{{ staff.branch }}</td>
+              <td class="legacy-col-hide-md"><span class="legacy-hr-rating-mini">★ {{ "%.1f"|format(staff.rating) }}</span></td>
+              <td class="legacy-col-hide-lg">{{ staff.appointments }}</td>
+              <td>
+                <span class="legacy-hr-status status-{{ staff.status }} legacy-hr-status-chip">
+                  {{ "Đang làm" if staff.status == "active" else "Nghỉ phép" }}
+                </span>
+              </td>
+              <td><button type="button" class="legacy-hr-icon-btn" aria-label="Sửa">✎</button></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="legacy-hr-table-foot">
+        <span>Hiển thị <strong data-hr-visible-table>{{ staff_items|length }}</strong> / {{ staff_items|length }} nhân viên</span>
+        <div class="legacy-hr-table-paging">
+          <button type="button" class="legacy-page-btn" aria-label="Trang trước">‹</button>
+          <button type="button" class="legacy-page-btn is-active">1</button>
+          <button type="button" class="legacy-page-btn" aria-label="Trang sau">›</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="legacy-hr-empty" data-hr-empty {% if staff_items %}hidden{% endif %}>Không có nhân viên phù hợp.</p>
+
+    <div class="legacy-hr-foot-copy">
+      Hiển thị <span data-hr-visible>{{ staff_items|length }}</span> / {{ staff_items|length }} nhân viên
+    </div>
+
+    <div class="legacy-customers-modal-backdrop" data-hr-modal hidden>
+      <div class="legacy-customers-modal legacy-hr-modal" role="dialog" aria-modal="true" aria-label="Thêm nhân viên">
+        <div class="legacy-customers-modal-head">
+          <div>
+            <h3>Thêm nhân viên mới</h3>
+            <p>Điền thông tin nhân viên</p>
+          </div>
+          <button type="button" class="legacy-hr-modal-close" data-close-hr-modal aria-label="Đóng">×</button>
+        </div>
+        <div class="legacy-customers-modal-form">
+          <label><span>Họ và tên</span><input type="text" placeholder="Nhập họ và tên" readonly></label>
+          <label><span>Số điện thoại</span><input type="text" placeholder="Nhập số điện thoại" readonly></label>
+          <label><span>Email</span><input type="text" placeholder="Nhập email" readonly></label>
+        </div>
+        <div class="legacy-customers-modal-actions">
+          <button type="button" class="legacy-modal-btn-cancel" data-close-hr-modal>Hủy</button>
+          <button type="button" class="legacy-modal-btn-save" data-close-hr-modal>Lưu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var root = document.querySelector("[data-hr-root]");
+      if (!root) {
+        return;
+      }
+
+      var searchInput = root.querySelector("[data-hr-search]");
+      var branchSelect = root.querySelector("[data-hr-branch]");
+      var cards = Array.prototype.slice.call(root.querySelectorAll("[data-hr-card]"));
+      var rows = Array.prototype.slice.call(root.querySelectorAll("[data-hr-row]"));
+      var emptyState = root.querySelector("[data-hr-empty]");
+      var visibleNode = root.querySelector("[data-hr-visible]");
+      var visibleTableNode = root.querySelector("[data-hr-visible-table]");
+      var viewButtons = Array.prototype.slice.call(root.querySelectorAll("[data-hr-view]"));
+      var grid = root.querySelector("[data-hr-grid]");
+      var tableWrap = root.querySelector("[data-hr-table-wrap]");
+      var currentView = "grid";
+
+      function setView(viewName) {
+        currentView = viewName;
+        viewButtons.forEach(function (btn) {
+          btn.classList.toggle("is-active", btn.getAttribute("data-hr-view") === viewName);
+        });
+        if (grid) {
+          grid.hidden = viewName !== "grid";
+        }
+        if (tableWrap) {
+          tableWrap.hidden = viewName !== "table";
+        }
+      }
+
+      function applyFilters() {
+        var q = ((searchInput && searchInput.value) || "").trim().toLowerCase();
+        var selectedBranch = (branchSelect && branchSelect.value) || "Tất cả chi nhánh";
+        var matched = 0;
+
+        function checkMatch(node) {
+          var searchText = (node.getAttribute("data-search") || "").toLowerCase();
+          var branchLabel = node.getAttribute("data-branch") || "";
+          var matchSearch = !q || searchText.indexOf(q) !== -1;
+          var matchBranch = selectedBranch === "Tất cả chi nhánh" || selectedBranch === branchLabel;
+          return matchSearch && matchBranch;
+        }
+
+        cards.forEach(function (card) {
+          var ok = checkMatch(card);
+          card.hidden = !ok;
+          if (ok) {
+            matched += 1;
+          }
+        });
+        rows.forEach(function (row) {
+          row.hidden = !checkMatch(row);
+        });
+
+        if (visibleNode) {
+          visibleNode.textContent = String(matched);
+        }
+        if (visibleTableNode) {
+          visibleTableNode.textContent = String(matched);
+        }
+        if (emptyState) {
+          emptyState.hidden = matched !== 0;
+        }
+      }
+
+      viewButtons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          setView(btn.getAttribute("data-hr-view") || "grid");
+        });
+      });
+
+      if (searchInput) {
+        searchInput.addEventListener("input", applyFilters);
+      }
+      if (branchSelect) {
+        branchSelect.addEventListener("change", applyFilters);
+      }
+
+      var modal = root.querySelector("[data-hr-modal]");
+      var openButtons = Array.prototype.slice.call(root.querySelectorAll("[data-open-hr-modal]"));
+      var closeButtons = Array.prototype.slice.call(root.querySelectorAll("[data-close-hr-modal]"));
+
+      function setModalOpen(isOpen) {
+        if (!modal) {
+          return;
+        }
+        modal.hidden = !isOpen;
+        document.body.classList.toggle("legacy-modal-open", isOpen);
+      }
+
+      openButtons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          setModalOpen(true);
+        });
+      });
+      closeButtons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          setModalOpen(false);
+        });
+      });
+      if (modal) {
+        modal.addEventListener("click", function (event) {
+          if (event.target === modal) {
+            setModalOpen(false);
+          }
+        });
+      }
+
+      setView("grid");
+      applyFilters();
+    })();
+  </script>
+{% endblock %}

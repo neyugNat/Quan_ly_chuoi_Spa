@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from functools import wraps
 import json
+import os
 import re
 import secrets
 from typing import Any
@@ -151,6 +152,183 @@ NAV_ITEMS: list[dict[str, Any]] = [
         "roles": ["technician"],
     },
 ]
+
+
+USER_ROLE_ALIASES: dict[str, str] = {
+    "super_admin": "Super Admin",
+    "branch_manager": "Quản lý chi nhánh",
+    "reception": "Lễ tân",
+    "technician": "Kỹ thuật viên",
+    "cashier": "Thu ngân",
+    "warehouse": "Kho",
+}
+
+USER_ROLE_ORDER: list[str] = [
+    "super_admin",
+    "branch_manager",
+    "reception",
+    "cashier",
+    "technician",
+    "warehouse",
+]
+
+USER_PERMISSION_LABELS: dict[str, str] = {
+    "dashboard": "Tổng quan",
+    "appointments": "Lịch hẹn",
+    "customers": "Khách hàng",
+    "services": "Dịch vụ",
+    "staff": "Nhân viên",
+    "branches": "Chi nhánh",
+    "reports": "Báo cáo",
+    "accounts": "Tài khoản",
+    "inventory": "Kho vật dụng",
+    "logs": "Nhật ký",
+}
+
+USER_DEFAULT_PERMISSION_MATRIX: dict[str, dict[str, bool]] = {
+    "super_admin": {
+        "dashboard": True,
+        "appointments": True,
+        "customers": True,
+        "services": True,
+        "staff": True,
+        "branches": True,
+        "reports": True,
+        "accounts": True,
+        "inventory": True,
+        "logs": True,
+    },
+    "branch_manager": {
+        "dashboard": True,
+        "appointments": True,
+        "customers": True,
+        "services": True,
+        "staff": True,
+        "branches": False,
+        "reports": True,
+        "accounts": False,
+        "inventory": True,
+        "logs": False,
+    },
+    "reception": {
+        "dashboard": True,
+        "appointments": True,
+        "customers": True,
+        "services": False,
+        "staff": False,
+        "branches": False,
+        "reports": False,
+        "accounts": False,
+        "inventory": False,
+        "logs": False,
+    },
+    "cashier": {
+        "dashboard": False,
+        "appointments": False,
+        "customers": True,
+        "services": False,
+        "staff": False,
+        "branches": False,
+        "reports": False,
+        "accounts": False,
+        "inventory": False,
+        "logs": False,
+    },
+    "technician": {
+        "dashboard": False,
+        "appointments": True,
+        "customers": False,
+        "services": False,
+        "staff": False,
+        "branches": False,
+        "reports": False,
+        "accounts": False,
+        "inventory": False,
+        "logs": False,
+    },
+    "warehouse": {
+        "dashboard": False,
+        "appointments": False,
+        "customers": False,
+        "services": False,
+        "staff": False,
+        "branches": False,
+        "reports": False,
+        "accounts": False,
+        "inventory": True,
+        "logs": False,
+    },
+}
+
+
+def _default_permission_matrix() -> dict[str, dict[str, bool]]:
+    return {
+        role_name: {
+            permission_key: bool(is_allowed)
+            for permission_key, is_allowed in permission_values.items()
+        }
+        for role_name, permission_values in USER_DEFAULT_PERMISSION_MATRIX.items()
+    }
+
+
+def _coerce_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+        return None
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    return None
+
+
+def _normalize_permission_matrix(raw_matrix: Any) -> dict[str, dict[str, bool]]:
+    normalized = _default_permission_matrix()
+    if not isinstance(raw_matrix, dict):
+        return normalized
+
+    for role_name in USER_ROLE_ORDER:
+        role_payload = raw_matrix.get(role_name)
+        if not isinstance(role_payload, dict):
+            continue
+        for permission_key in USER_PERMISSION_LABELS:
+            if permission_key not in role_payload:
+                continue
+            parsed_value = _coerce_bool(role_payload.get(permission_key))
+            if parsed_value is None:
+                continue
+            normalized[role_name][permission_key] = parsed_value
+    return normalized
+
+
+def _permission_matrix_store_path() -> str:
+    return os.path.join(current_app.instance_path, "web_users_permissions.json")
+
+
+def _load_permission_matrix() -> dict[str, dict[str, bool]]:
+    path = _permission_matrix_store_path()
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except FileNotFoundError:
+        return _default_permission_matrix()
+    except (OSError, ValueError, TypeError):
+        return _default_permission_matrix()
+    return _normalize_permission_matrix(payload)
+
+
+def _save_permission_matrix(matrix: dict[str, dict[str, bool]]) -> None:
+    path = _permission_matrix_store_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(matrix, handle, ensure_ascii=False, indent=2, sort_keys=True)
 
 
 def _format_money(value: Any) -> str:
@@ -1782,14 +1960,6 @@ def customers():
                     line_items = []
 
             if not line_items:
-                history_by_customer.setdefault(parsed_customer_id, []).append(
-                    {
-                        "title": f"Hóa đơn #{invoice.id}",
-                        "time": history_time_display or "-",
-                        "price": _format_money(invoice.total_amount),
-                        "sort_at": history_time,
-                    }
-                )
                 continue
 
             for item in line_items:
@@ -1802,19 +1972,12 @@ def customers():
                 if amount <= 0:
                     amount = _safe_amount(invoice.total_amount)
 
-                if item_type == "package":
-                    title = package_name_by_id.get(package_id or -1) or f"Gói #{package_id or '?'}"
-                    if package_id is not None:
-                        package_price_by_customer[(parsed_customer_id, package_id)] = amount
-                elif item_type == "service":
-                    title = service_name_by_id.get(service_id or -1) or f"Dịch vụ #{service_id or '?'}"
-                else:
-                    title = (
-                        (str(item.get("name") or "").strip())
-                        or package_name_by_id.get(package_id or -1)
-                        or service_name_by_id.get(service_id or -1)
-                        or f"Hạng mục #{invoice.id}"
-                    )
+                if item_type != "package":
+                    continue
+
+                title = package_name_by_id.get(package_id or -1) or f"Gói #{package_id or '?'}"
+                if package_id is not None:
+                    package_price_by_customer[(parsed_customer_id, package_id)] = amount
 
                 history_by_customer.setdefault(parsed_customer_id, []).append(
                     {
@@ -2452,79 +2615,121 @@ def inventory():
         return redirect(url_for("web.index"))
 
     snapshot_rows = _inventory_snapshot(branch_id)
-    tx_rows = (
-        db.session.query(StockTransaction, InventoryItem.name)
-        .outerjoin(InventoryItem, StockTransaction.inventory_item_id == InventoryItem.id)
-        .filter(StockTransaction.branch_id == branch_id)
-        .order_by(StockTransaction.id.desc())
-        .limit(220)
+    item_rows = (
+        InventoryItem.query.filter(InventoryItem.branch_id == branch_id)
+        .order_by(InventoryItem.id.asc())
         .all()
     )
-    inventory_items = [
-        {
-            "id": row["id"],
-            "ten": row["name"],
-            "sku": row["sku"],
-            "ton_hien_tai": _format_number(row["current_stock"]),
-            "ton_toi_thieu": _format_number(row["min_stock"]),
-            "don_vi": row["unit"],
-            "canh_bao": "thieu" if row["low_stock"] else "ok",
-        }
-        for row in snapshot_rows
-    ]
-    tx_items = [
-        {
-            "id": tx.id,
-            "mat_hang": item_name or f"#{tx.inventory_item_id}",
-            "loai": tx.transaction_type,
-            "delta": _format_number(tx.delta_qty),
-            "nguon": tx.source_type or "",
-            "source_id": tx.source_id if tx.source_id is not None else "",
-            "ghi_chu": tx.note or "",
-            "tao_luc": _format_datetime(tx.created_at),
-        }
-        for tx, item_name in tx_rows
-    ]
+    item_by_id = {int(item.id): item for item in item_rows}
+    item_ids = [int(row["id"]) for row in snapshot_rows]
 
-    cards = [
-        {"label": "Mat hang", "value": _format_number(len(inventory_items))},
-        {"label": "Sap het", "value": _format_number(len([row for row in snapshot_rows if row["low_stock"]]))},
-        {"label": "Giao dich kho", "value": _format_number(len(tx_items))},
-    ]
-    tables = [
-        _module_table(
-            title="Ton kho hien tai",
-            columns=[
-                {"key": "id", "label": "ID"},
-                {"key": "ten", "label": "Ten"},
-                {"key": "sku", "label": "SKU"},
-                {"key": "ton_hien_tai", "label": "Ton hien tai"},
-                {"key": "ton_toi_thieu", "label": "Ton toi thieu"},
-                {"key": "don_vi", "label": "Don vi"},
-                {"key": "canh_bao", "label": "Canh bao"},
-            ],
-            rows=inventory_items,
-        ),
-        _module_table(
-            title="Stock Transactions",
-            columns=[
-                {"key": "id", "label": "ID"},
-                {"key": "mat_hang", "label": "Mat hang"},
-                {"key": "loai", "label": "Loai"},
-                {"key": "delta", "label": "Delta"},
-                {"key": "nguon", "label": "Nguon"},
-                {"key": "source_id", "label": "Source ID"},
-                {"key": "ghi_chu", "label": "Ghi chu"},
-                {"key": "tao_luc", "label": "Tao luc"},
-            ],
-            rows=tx_items,
-        ),
-    ]
-    return _render_module_page(
-        title="Kho",
-        subtitle="Dong bo tu inventory_items va stock_transactions.",
-        cards=cards,
-        tables=tables,
+    tx_rows: list[StockTransaction] = []
+    if item_ids:
+        tx_rows = (
+            StockTransaction.query.filter(
+                StockTransaction.branch_id == branch_id,
+                StockTransaction.inventory_item_id.in_(item_ids),
+            )
+            .order_by(StockTransaction.created_at.desc(), StockTransaction.id.desc())
+            .limit(3000)
+            .all()
+        )
+
+    latest_import_at_by_item: dict[int, datetime] = {}
+    latest_expiry_by_item: dict[int, date] = {}
+    for tx in tx_rows:
+        item_id = _parse_int(tx.inventory_item_id)
+        if item_id is None:
+            continue
+        if tx.transaction_type == "in" and tx.created_at and item_id not in latest_import_at_by_item:
+            latest_import_at_by_item[item_id] = tx.created_at
+        if tx.expiry_date and item_id not in latest_expiry_by_item:
+            latest_expiry_by_item[item_id] = tx.expiry_date
+
+    def _classify_inventory_type(name: str, sku: str) -> str:
+        text = f"{name} {sku}".lower()
+        if "dầu" in text or "oil" in text:
+            return "Dầu massage"
+        if "kem" in text or "mặt nạ" in text or "gel" in text:
+            return "Dưỡng da"
+        if "khăn" in text or "ga" in text:
+            return "Khăn & ga"
+        if "cồn" in text or "tẩy" in text:
+            return "Vệ sinh"
+        if "đá" in text or "bộ" in text:
+            return "Dụng cụ"
+        return "Tiêu hao"
+
+    def _format_date_only(value: Any) -> str:
+        if value is None:
+            return "-"
+        if isinstance(value, datetime):
+            return value.strftime("%d/%m/%Y")
+        if isinstance(value, date):
+            return value.strftime("%d/%m/%Y")
+        text = str(value).strip()
+        if not text:
+            return "-"
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+            try:
+                return datetime.strptime(text, fmt).strftime("%d/%m/%Y")
+            except ValueError:
+                continue
+        return text
+
+    inventory_items: list[dict[str, Any]] = []
+    for index, row in enumerate(snapshot_rows):
+        item_id = int(row["id"])
+        item = item_by_id.get(item_id)
+        name = str(row["name"] or f"Vật phẩm #{item_id}").strip()
+        sku = str(row["sku"] or "").strip()
+        item_type = _classify_inventory_type(name, sku)
+        import_at = latest_import_at_by_item.get(item_id) or (item.created_at if item else None)
+        expiry_at = latest_expiry_by_item.get(item_id)
+        current_stock = float(row["current_stock"] or 0)
+        low_stock = bool(row["low_stock"])
+        status_key = "ok"
+        if current_stock <= 0:
+            status_key = "out_of_stock"
+        elif low_stock:
+            status_key = "low_stock"
+
+        inventory_items.append(
+            {
+                "id": item_id,
+                "name": name,
+                "name_initial": name[:1].upper() if name else "V",
+                "sku": sku or "-",
+                "type": item_type,
+                "import_date": _format_date_only(import_at),
+                "expiry_date": _format_date_only(expiry_at),
+                "status_key": status_key,
+                "search_text": f"{name} {sku} {item_type}".lower(),
+                "avatar_class": f"avatar-{['a', 'b', 'c', 'd', 'e'][index % 5]}",
+            }
+        )
+
+    summary = {
+        "total_items": len(inventory_items),
+        "low_stock_items": len([item for item in inventory_items if item["status_key"] == "low_stock"]),
+        "out_of_stock_items": len([item for item in inventory_items if item["status_key"] == "out_of_stock"]),
+    }
+
+    type_filters = ["Tất cả"]
+    type_seen: set[str] = set()
+    for item in inventory_items:
+        type_name = str(item["type"] or "").strip()
+        if type_name and type_name not in type_seen:
+            type_seen.add(type_name)
+            type_filters.append(type_name)
+
+    return render_template(
+        "web/inventory.html",
+        page_title="Kho",
+        page_subtitle="Danh sách vật phẩm và hạn sử dụng",
+        items=inventory_items,
+        summary=summary,
+        type_filters=type_filters,
     )
 
 
@@ -2535,115 +2740,91 @@ def hr():
     if branch_id is None:
         return redirect(url_for("web.index"))
 
+    branch = Branch.query.filter_by(id=branch_id).first()
+    branch_label = (branch.name or "").strip() if branch else ""
+    if not branch_label:
+        branch_label = f"CN #{branch_id}"
+
     staff_rows = (
         Staff.query.filter(Staff.branch_id == branch_id)
-        .order_by(Staff.id.desc())
-        .limit(200)
-        .all()
-    )
-    shift_rows = (
-        db.session.query(Shift, Staff.full_name)
-        .outerjoin(Staff, Shift.staff_id == Staff.id)
-        .filter(Shift.branch_id == branch_id)
-        .order_by(Shift.id.desc())
-        .limit(200)
-        .all()
-    )
-    commission_rows = (
-        db.session.query(CommissionRecord, Staff.full_name)
-        .outerjoin(Staff, CommissionRecord.staff_id == Staff.id)
-        .filter(CommissionRecord.branch_id == branch_id)
-        .order_by(CommissionRecord.id.desc())
-        .limit(200)
+        .order_by(Staff.created_at.desc(), Staff.id.desc())
+        .limit(400)
         .all()
     )
 
-    staff_items = [
-        {
-            "id": row.id,
-            "ho_ten": row.full_name,
-            "vai_tro": row.role or "",
-            "chuc_danh": row.title or "",
-            "ky_nang": row.skill_level or "",
-            "dien_thoai": row.phone or "",
-            "trang_thai": row.status,
-        }
-        for row in staff_rows
-    ]
-    shift_items = [
-        {
-            "id": shift.id,
-            "nhan_vien": staff_name or f"#{shift.staff_id}",
-            "bat_dau": _format_datetime(shift.start_time),
-            "ket_thuc": _format_datetime(shift.end_time),
-            "trang_thai": shift.status,
-            "ghi_chu": shift.note or "",
-        }
-        for shift, staff_name in shift_rows
-    ]
-    commission_items = [
-        {
-            "id": row.id,
-            "nhan_vien": staff_name or f"#{row.staff_id}",
-            "hoa_don": f"#{row.invoice_id}" if row.invoice_id else "",
-            "co_so": _format_money(row.base_amount),
-            "ty_le": _format_number(row.rate_percent) if row.rate_percent is not None else "",
-            "hoa_hong": _format_money(row.commission_amount),
-            "trang_thai": row.status,
-        }
-        for row, staff_name in commission_rows
-    ]
+    appointment_count_rows = (
+        db.session.query(Appointment.staff_id, func.count(Appointment.id))
+        .filter(
+            Appointment.branch_id == branch_id,
+            Appointment.staff_id.isnot(None),
+        )
+        .group_by(Appointment.staff_id)
+        .all()
+    )
+    appointment_count_by_staff = {
+        int(staff_id): int(total or 0)
+        for staff_id, total in appointment_count_rows
+        if _parse_int(staff_id) is not None
+    }
 
-    cards = [
-        {"label": "Nhan vien", "value": _format_number(len(staff_items))},
-        {"label": "Ca lam", "value": _format_number(len(shift_items))},
-        {"label": "Hoa hong", "value": _format_number(len(commission_items))},
-    ]
-    tables = [
-        _module_table(
-            title="Nhan su",
-            columns=[
-                {"key": "id", "label": "ID"},
-                {"key": "ho_ten", "label": "Ho ten"},
-                {"key": "vai_tro", "label": "Vai tro"},
-                {"key": "chuc_danh", "label": "Chuc danh"},
-                {"key": "ky_nang", "label": "Ky nang"},
-                {"key": "dien_thoai", "label": "Dien thoai"},
-                {"key": "trang_thai", "label": "Trang thai"},
-            ],
-            rows=staff_items,
-        ),
-        _module_table(
-            title="Shifts",
-            columns=[
-                {"key": "id", "label": "ID"},
-                {"key": "nhan_vien", "label": "Nhan vien"},
-                {"key": "bat_dau", "label": "Bat dau"},
-                {"key": "ket_thuc", "label": "Ket thuc"},
-                {"key": "trang_thai", "label": "Trang thai"},
-                {"key": "ghi_chu", "label": "Ghi chu"},
-            ],
-            rows=shift_items,
-        ),
-        _module_table(
-            title="Commission Records",
-            columns=[
-                {"key": "id", "label": "ID"},
-                {"key": "nhan_vien", "label": "Nhan vien"},
-                {"key": "hoa_don", "label": "Hoa don"},
-                {"key": "co_so", "label": "Co so"},
-                {"key": "ty_le", "label": "Ty le (%)"},
-                {"key": "hoa_hong", "label": "Hoa hong"},
-                {"key": "trang_thai", "label": "Trang thai"},
-            ],
-            rows=commission_items,
-        ),
-    ]
-    return _render_module_page(
-        title="Nhan su",
-        subtitle="Tong hop staffs, shifts va commission_records.",
-        cards=cards,
-        tables=tables,
+    staff_items: list[dict[str, Any]] = []
+    for row in staff_rows:
+        name = (row.full_name or "").strip() or f"Nhân viên #{row.id}"
+        role_name = (row.title or row.role or "Therapist").strip() or "Therapist"
+        skill_text = str(row.skill_level or role_name).strip()
+        specialties = [part.strip() for part in skill_text.split(",") if part.strip()][:3]
+        if not specialties:
+            specialties = ["Spa"]
+
+        appointments = int(appointment_count_by_staff.get(int(row.id), 0))
+        if appointments >= 100:
+            rating = 4.9
+        elif appointments >= 60:
+            rating = 4.8
+        elif appointments >= 30:
+            rating = 4.7
+        else:
+            rating = 4.5
+
+        status_value = str(row.status or "active").strip().lower()
+        status_key = "active" if status_value == "active" else "off"
+
+        staff_items.append(
+            {
+                "id": int(row.id),
+                "name": name,
+                "name_initial": name[:1].upper() if name else "N",
+                "role": role_name,
+                "branch": branch_label,
+                "phone": (row.phone or "").strip() or "-",
+                "specialties": specialties,
+                "rating": rating,
+                "appointments": appointments,
+                "joined": row.created_at.strftime("%m/%Y") if row.created_at else "-",
+                "status": status_key,
+                "search_text": f"{name} {role_name} {branch_label}".lower(),
+            }
+        )
+
+    avg_rating = (
+        round(sum(float(item["rating"]) for item in staff_items) / len(staff_items), 1)
+        if staff_items
+        else 0.0
+    )
+    summary = {
+        "total_staff": len(staff_items),
+        "active_staff": len([item for item in staff_items if item["status"] == "active"]),
+        "off_staff": len([item for item in staff_items if item["status"] == "off"]),
+        "avg_rating": f"{avg_rating:.1f}",
+    }
+
+    return render_template(
+        "web/hr.html",
+        page_title="Nhân sự",
+        page_subtitle="Quản lý đội ngũ nhân viên toàn hệ thống",
+        summary=summary,
+        staff_items=staff_items,
+        branch_filters=["Tất cả chi nhánh", branch_label],
     )
 
 
@@ -2654,111 +2835,324 @@ def reports():
     if branch_id is None:
         return redirect(url_for("web.index"))
 
-    paid_day = func.strftime("%Y-%m-%d", Payment.paid_at)
-    revenue_rows = (
+    period_key = str(request.args.get("period") or "this_year").strip().lower()
+    period_options = [
+        {"key": "this_month", "label": "Tháng này"},
+        {"key": "this_quarter", "label": "Quý này"},
+        {"key": "six_months", "label": "6 tháng"},
+        {"key": "this_year", "label": "Năm nay"},
+    ]
+    valid_period_keys = {item["key"] for item in period_options}
+    if period_key not in valid_period_keys:
+        period_key = "this_year"
+
+    today = date.today()
+    if period_key == "this_month":
+        from_date = date(today.year, today.month, 1)
+    elif period_key == "this_quarter":
+        quarter_start_month = ((today.month - 1) // 3) * 3 + 1
+        from_date = date(today.year, quarter_start_month, 1)
+    elif period_key == "six_months":
+        from_date = today - timedelta(days=180)
+    else:
+        from_date = date(today.year, 1, 1)
+    to_date = today
+
+    def _month_sequence(start_date: date, end_date: date) -> list[str]:
+        values: list[str] = []
+        year = int(start_date.year)
+        month = int(start_date.month)
+        while (year < end_date.year) or (year == end_date.year and month <= end_date.month):
+            values.append(f"{year:04d}-{month:02d}")
+            month += 1
+            if month > 12:
+                month = 1
+                year += 1
+        return values
+
+    def _last_n_month_keys(anchor: date, count: int) -> list[str]:
+        keys: list[str] = []
+        for offset in range(count - 1, -1, -1):
+            year = int(anchor.year)
+            month = int(anchor.month) - offset
+            while month <= 0:
+                year -= 1
+                month += 12
+            keys.append(f"{year:04d}-{month:02d}")
+        return keys
+
+    month_keys = _month_sequence(from_date, to_date)
+    if not month_keys:
+        month_keys = [f"{today.year:04d}-{today.month:02d}"]
+
+    web_user = getattr(g, "web_user", None)
+    role_names = set(_role_names(web_user))
+    scoped_branch_ids = [int(branch_id)]
+    if "super_admin" in role_names:
+        allowed_branch_ids = _allowed_branch_ids(web_user)
+        if allowed_branch_ids:
+            scoped_branch_ids = allowed_branch_ids
+
+    from_iso = from_date.isoformat()
+    to_iso = to_date.isoformat()
+
+    payment_filters = [
+        Payment.branch_id.in_(scoped_branch_ids),
+        Payment.status == "posted",
+        Payment.paid_at.isnot(None),
+        func.date(Payment.paid_at) >= from_iso,
+        func.date(Payment.paid_at) <= to_iso,
+    ]
+    appointment_filters = [
+        Appointment.branch_id.in_(scoped_branch_ids),
+        Appointment.start_time.isnot(None),
+        func.date(Appointment.start_time) >= from_iso,
+        func.date(Appointment.start_time) <= to_iso,
+    ]
+
+    payment_month = func.strftime("%Y-%m", Payment.paid_at)
+    revenue_month_rows = (
         db.session.query(
-            paid_day.label("day"),
+            payment_month.label("month_key"),
             func.coalesce(func.sum(Payment.amount), 0).label("revenue"),
-            func.count(Payment.id).label("payments"),
+        )
+        .filter(*payment_filters)
+        .group_by(payment_month)
+        .all()
+    )
+    revenue_by_month = {
+        str(month_key): float(revenue or 0)
+        for month_key, revenue in revenue_month_rows
+        if month_key
+    }
+
+    appointment_month = func.strftime("%Y-%m", Appointment.start_time)
+    appointment_month_rows = (
+        db.session.query(
+            appointment_month.label("month_key"),
+            func.count(Appointment.id).label("total"),
+        )
+        .filter(*appointment_filters)
+        .group_by(appointment_month)
+        .all()
+    )
+    appointments_by_month = {
+        str(month_key): int(total or 0)
+        for month_key, total in appointment_month_rows
+        if month_key
+    }
+
+    monthly_rows: list[dict[str, Any]] = []
+    for month_key in month_keys:
+        revenue = float(revenue_by_month.get(month_key, 0.0))
+        appointments = int(appointments_by_month.get(month_key, 0))
+        month_number = _parse_int(month_key[5:7]) or 0
+        monthly_rows.append(
+            {
+                "month_key": month_key,
+                "month_label": f"T{month_number}" if month_number else month_key,
+                "revenue": revenue,
+                "revenue_m": round(revenue / 1_000_000, 1),
+                "appointments": appointments,
+            }
+        )
+
+    max_revenue_m = max([float(row["revenue_m"]) for row in monthly_rows], default=0.0)
+    for row in monthly_rows:
+        if max_revenue_m > 0:
+            row["revenue_percent"] = max(4, int(round((float(row["revenue_m"]) / max_revenue_m) * 100)))
+        else:
+            row["revenue_percent"] = 0
+
+    customer_served = (
+        db.session.query(func.count(func.distinct(Appointment.customer_id)))
+        .filter(*appointment_filters, Appointment.customer_id.isnot(None))
+        .scalar()
+    ) or 0
+
+    recent_month_keys = _last_n_month_keys(today, 6)
+    recent_month_start = recent_month_keys[0]
+    first_month_rows = (
+        db.session.query(
+            Appointment.customer_id,
+            func.min(func.strftime("%Y-%m", Appointment.start_time)).label("first_month"),
         )
         .filter(
-            Payment.branch_id == branch_id,
-            Payment.status == "posted",
-            Payment.paid_at.isnot(None),
+            Appointment.branch_id.in_(scoped_branch_ids),
+            Appointment.customer_id.isnot(None),
+            Appointment.start_time.isnot(None),
         )
-        .group_by(paid_day)
-        .order_by(paid_day.desc())
-        .limit(60)
+        .group_by(Appointment.customer_id)
         .all()
     )
-    appointment_day = func.strftime("%Y-%m-%d", Appointment.start_time)
-    appointment_rows = (
+    first_month_by_customer = {
+        int(customer_id): str(first_month)
+        for customer_id, first_month in first_month_rows
+        if _parse_int(customer_id) is not None and first_month
+    }
+
+    recent_appointment_rows = (
         db.session.query(
-            appointment_day.label("day"),
-            func.count(Appointment.id).label("total"),
-            func.sum(case((Appointment.status == "cancelled", 1), else_=0)).label("cancelled"),
-            func.sum(case((Appointment.status == "no_show", 1), else_=0)).label("no_show"),
+            Appointment.customer_id,
+            func.strftime("%Y-%m", Appointment.start_time).label("month_key"),
         )
-        .filter(Appointment.branch_id == branch_id)
-        .group_by(appointment_day)
-        .order_by(appointment_day.desc())
-        .limit(60)
+        .filter(
+            Appointment.branch_id.in_(scoped_branch_ids),
+            Appointment.customer_id.isnot(None),
+            Appointment.start_time.isnot(None),
+            func.strftime("%Y-%m", Appointment.start_time) >= recent_month_start,
+            func.strftime("%Y-%m", Appointment.start_time) <= recent_month_keys[-1],
+        )
         .all()
     )
-    low_stock_rows = [row for row in _inventory_snapshot(branch_id) if row["low_stock"]]
+    active_customer_by_month: dict[str, set[int]] = {month_key: set() for month_key in recent_month_keys}
+    for customer_id, month_key in recent_appointment_rows:
+        parsed_customer_id = _parse_int(customer_id)
+        if parsed_customer_id is None:
+            continue
+        key = str(month_key or "")
+        if key in active_customer_by_month:
+            active_customer_by_month[key].add(parsed_customer_id)
 
-    revenue_items = [
-        {
-            "ngay": day,
-            "doanh_thu": _format_money(revenue),
-            "giao_dich": int(payments or 0),
-        }
-        for day, revenue, payments in revenue_rows
-    ]
-    appointment_items = [
-        {
-            "ngay": day,
-            "tong_lich": int(total or 0),
-            "huy": int(cancelled or 0),
-            "no_show": int(no_show or 0),
-        }
-        for day, total, cancelled, no_show in appointment_rows
-    ]
-    inventory_items = [
-        {
-            "id": row["id"],
-            "ten": row["name"],
-            "sku": row["sku"],
-            "ton_hien_tai": _format_number(row["current_stock"]),
-            "ton_toi_thieu": _format_number(row["min_stock"]),
-            "thieu_hut": _format_number(row["min_stock"] - row["current_stock"]),
-        }
-        for row in low_stock_rows
-    ]
+    customer_growth_rows: list[dict[str, Any]] = []
+    for month_key in recent_month_keys:
+        active_customers = active_customer_by_month.get(month_key, set())
+        new_count = 0
+        for customer_id in active_customers:
+            if first_month_by_customer.get(customer_id) == month_key:
+                new_count += 1
+        returning_count = max(0, len(active_customers) - new_count)
+        month_number = _parse_int(month_key[5:7]) or 0
+        customer_growth_rows.append(
+            {
+                "month_key": month_key,
+                "month_label": f"T{month_number}" if month_number else month_key,
+                "new": int(new_count),
+                "returning": int(returning_count),
+            }
+        )
 
-    cards = [
-        {"label": "Dong doanh thu", "value": _format_number(len(revenue_items))},
-        {"label": "Dong lich hen", "value": _format_number(len(appointment_items))},
-        {"label": "Mat hang sap het", "value": _format_number(len(inventory_items))},
+    branch_rows = Branch.query.filter(Branch.id.in_(scoped_branch_ids)).all()
+    branch_name_by_id = {
+        int(row.id): ((row.name or "").strip() or f"CN #{row.id}")
+        for row in branch_rows
+    }
+
+    branch_revenue_rows_raw = (
+        db.session.query(
+            Payment.branch_id,
+            func.coalesce(func.sum(Payment.amount), 0).label("revenue"),
+        )
+        .filter(*payment_filters)
+        .group_by(Payment.branch_id)
+        .all()
+    )
+    branch_revenue_rows = [
+        {
+            "branch_id": int(branch_row_id),
+            "name": branch_name_by_id.get(int(branch_row_id), f"CN #{branch_row_id}"),
+            "revenue": float(revenue or 0),
+        }
+        for branch_row_id, revenue in branch_revenue_rows_raw
+        if _parse_int(branch_row_id) is not None
     ]
-    tables = [
-        _module_table(
-            title="Bao cao doanh thu",
-            columns=[
-                {"key": "ngay", "label": "Ngay"},
-                {"key": "doanh_thu", "label": "Doanh thu"},
-                {"key": "giao_dich", "label": "Giao dich"},
-            ],
-            rows=revenue_items,
-        ),
-        _module_table(
-            title="Bao cao lich hen",
-            columns=[
-                {"key": "ngay", "label": "Ngay"},
-                {"key": "tong_lich", "label": "Tong lich"},
-                {"key": "huy", "label": "Huy"},
-                {"key": "no_show", "label": "No show"},
-            ],
-            rows=appointment_items,
-        ),
-        _module_table(
-            title="Bao cao low-stock",
-            columns=[
-                {"key": "id", "label": "ID"},
-                {"key": "ten", "label": "Ten"},
-                {"key": "sku", "label": "SKU"},
-                {"key": "ton_hien_tai", "label": "Ton hien tai"},
-                {"key": "ton_toi_thieu", "label": "Ton toi thieu"},
-                {"key": "thieu_hut", "label": "Thieu hut"},
-            ],
-            rows=inventory_items,
-        ),
+    branch_revenue_rows.sort(key=lambda item: item["revenue"], reverse=True)
+    max_branch_revenue = max([float(item["revenue"]) for item in branch_revenue_rows], default=0.0)
+    for item in branch_revenue_rows:
+        item["revenue_m"] = round(float(item["revenue"]) / 1_000_000, 1)
+        if max_branch_revenue > 0:
+            item["percent"] = max(4, int(round((float(item["revenue"]) / max_branch_revenue) * 100)))
+        else:
+            item["percent"] = 0
+
+    service_rows = (
+        db.session.query(
+            Service.id,
+            Service.name,
+            func.coalesce(func.sum(Payment.amount), 0).label("revenue"),
+            func.count(Payment.id).label("bookings"),
+        )
+        .join(
+            Appointment,
+            and_(
+                Appointment.service_id == Service.id,
+                Appointment.branch_id.in_(scoped_branch_ids),
+            ),
+        )
+        .join(
+            Invoice,
+            and_(
+                Invoice.appointment_id == Appointment.id,
+                Invoice.branch_id.in_(scoped_branch_ids),
+            ),
+        )
+        .join(Payment, Payment.invoice_id == Invoice.id)
+        .filter(*payment_filters)
+        .group_by(Service.id, Service.name)
+        .order_by(func.sum(Payment.amount).desc(), Service.id.asc())
+        .limit(12)
+        .all()
+    )
+
+    service_revenue_rows = [
+        {
+            "id": int(service_id),
+            "name": (service_name or "").strip() or f"Dịch vụ #{service_id}",
+            "revenue": float(revenue or 0),
+            "bookings": int(bookings or 0),
+        }
+        for service_id, service_name, revenue, bookings in service_rows
     ]
-    return _render_module_page(
-        title="Bao cao",
-        subtitle="Du lieu tong hop tu reports backend (revenue, appointments, inventory).",
-        cards=cards,
-        tables=tables,
+    total_service_revenue = sum(float(item["revenue"]) for item in service_revenue_rows)
+
+    service_split_rows: list[dict[str, Any]] = []
+    for item in service_revenue_rows[:5]:
+        ratio = (float(item["revenue"]) / total_service_revenue) if total_service_revenue > 0 else 0
+        service_split_rows.append(
+            {
+                "name": item["name"],
+                "percent": max(1, int(round(ratio * 100))) if total_service_revenue > 0 else 0,
+                "revenue_display": _format_money(item["revenue"]),
+            }
+        )
+
+    top_service_rows: list[dict[str, Any]] = []
+    for index, item in enumerate(service_revenue_rows[:5], start=1):
+        ratio = (float(item["revenue"]) / total_service_revenue) if total_service_revenue > 0 else 0
+        top_service_rows.append(
+            {
+                "rank": index,
+                "name": item["name"],
+                "bookings": int(item["bookings"]),
+                "revenue_display": _format_money(item["revenue"]),
+                "growth": f"+{int(round(ratio * 100))}%" if total_service_revenue > 0 else "0%",
+            }
+        )
+
+    revenue_total = sum(float(row["revenue"]) for row in monthly_rows)
+    appointments_total = sum(int(row["appointments"]) for row in monthly_rows)
+    summary = {
+        "revenue_total_m": f"{(revenue_total / 1_000_000):.1f} tr",
+        "revenue_total_display": _format_money(revenue_total),
+        "appointments_total": int(appointments_total),
+        "customers_served": int(customer_served),
+        "top_services": len(service_revenue_rows),
+    }
+
+    period_label_lookup = {item["key"]: item["label"] for item in period_options}
+    return render_template(
+        "web/reports.html",
+        page_title="Báo cáo",
+        page_subtitle="Phân tích hiệu suất kinh doanh toàn chuỗi",
+        period_options=period_options,
+        period_key=period_key,
+        period_label=period_label_lookup.get(period_key, "Năm nay"),
+        summary=summary,
+        monthly_rows=monthly_rows,
+        branch_revenue_rows=branch_revenue_rows,
+        service_split_rows=service_split_rows,
+        customer_growth_rows=customer_growth_rows,
+        top_service_rows=top_service_rows,
     )
 
 
@@ -2767,50 +3161,124 @@ def reports():
 def users():
     user_rows = User.query.order_by(User.id.desc()).limit(240).all()
     role_rows = Role.query.order_by(Role.id.asc()).all()
-    user_items = [
-        {
-            "id": row.id,
-            "username": row.username,
-            "roles": ", ".join(row.role_names() or []),
-            "branch_ids": ", ".join([str(branch_id) for branch_id in row.branch_ids()]),
-            "active": "active" if row.is_active else "inactive",
-            "tao_luc": _format_datetime(row.created_at),
-        }
-        for row in user_rows
-    ]
-    role_items = [{"id": row.id, "ten_role": row.name} for row in role_rows]
-    cards = [
-        {"label": "Users", "value": _format_number(len(user_items))},
-        {"label": "Roles", "value": _format_number(len(role_items))},
-    ]
-    tables = [
-        _module_table(
-            title="Tai khoan",
-            columns=[
-                {"key": "id", "label": "ID"},
-                {"key": "username", "label": "Username"},
-                {"key": "roles", "label": "Roles"},
-                {"key": "branch_ids", "label": "Branch IDs"},
-                {"key": "active", "label": "Trang thai"},
-                {"key": "tao_luc", "label": "Tao luc"},
-            ],
-            rows=user_items,
+    branch_rows = Branch.query.order_by(Branch.id.asc()).all()
+    branch_name_by_id = {int(row.id): (row.name or "").strip() or f"Chi nhánh #{row.id}" for row in branch_rows}
+    permission_matrix = _load_permission_matrix()
+
+    user_items: list[dict[str, Any]] = []
+    for row in user_rows:
+        role_names = row.role_names() or []
+        primary_role = next((name for name in USER_ROLE_ORDER if name in role_names), None)
+        if not primary_role:
+            primary_role = role_names[0] if role_names else "reception"
+        role_label = USER_ROLE_ALIASES.get(primary_role, primary_role.replace("_", " ").title())
+
+        branch_ids = row.branch_ids()
+        if "super_admin" in role_names:
+            branch_labels = "Toàn hệ thống"
+        else:
+            normalized_branch_labels = [branch_name_by_id.get(int(branch_id), f"#{branch_id}") for branch_id in branch_ids]
+            branch_labels = ", ".join(normalized_branch_labels) if normalized_branch_labels else "-"
+
+        created_at_label = row.created_at.strftime("%d/%m/%Y") if row.created_at else "-"
+        status_key = "active" if row.is_active else "inactive"
+        status_label = "Hoạt động" if status_key == "active" else "Không HĐ"
+        username = str(row.username or "").strip() or f"user_{row.id}"
+
+        user_items.append(
+            {
+                "id": int(row.id),
+                "username": username,
+                "name": username,
+                "avatar": username[:2].upper() if username else "U",
+                "role_key": primary_role,
+                "role_label": role_label,
+                "roles_text": ", ".join(role_names) if role_names else "-",
+                "branch_text": branch_labels,
+                "status_key": status_key,
+                "status_label": status_label,
+                "created_at": created_at_label,
+                "created_at_iso": row.created_at.strftime("%Y-%m-%d") if row.created_at else "-",
+                "email": "-",
+                "phone": "-",
+                "two_fa": False,
+                "last_login": "-",
+                "login_count": 0,
+                "search_text": f"{username} {role_label} {branch_labels}".lower(),
+            }
+        )
+
+    summary = {
+        "total_users": len(user_items),
+        "active_users": len([item for item in user_items if item["status_key"] == "active"]),
+        "locked_users": 0,
+        "admin_users": len(
+            [
+                item
+                for item in user_items
+                if item["role_key"] in {"super_admin", "branch_manager"}
+            ]
         ),
-        _module_table(
-            title="Danh muc role",
-            columns=[
-                {"key": "id", "label": "ID"},
-                {"key": "ten_role", "label": "Role"},
-            ],
-            rows=role_items,
-        ),
-    ]
-    return _render_module_page(
-        title="Tai khoan",
-        subtitle="Du lieu tu users va roles.",
-        cards=cards,
-        tables=tables,
+    }
+
+    role_filters = ["Tất cả"]
+    seen_role_labels: set[str] = set()
+    for item in user_items:
+        role_label = str(item["role_label"] or "").strip()
+        if role_label and role_label not in seen_role_labels:
+            seen_role_labels.add(role_label)
+            role_filters.append(role_label)
+
+    role_name_candidates = [row.name for row in role_rows if row.name in permission_matrix]
+    if role_name_candidates:
+        permission_roles = [role_name for role_name in USER_ROLE_ORDER if role_name in role_name_candidates]
+    else:
+        role_names_from_users = [item["role_key"] for item in user_items if item["role_key"] in permission_matrix]
+        permission_roles = [role_name for role_name in USER_ROLE_ORDER if role_name in role_names_from_users]
+        if not permission_roles:
+            permission_roles = [role_name for role_name in USER_ROLE_ORDER if role_name in permission_matrix]
+
+    return render_template(
+        "web/users.html",
+        page_title="Tài khoản",
+        page_subtitle="Quản lý tài khoản và phân quyền người dùng hệ thống",
+        users=user_items,
+        summary=summary,
+        role_filters=role_filters,
+        permission_roles=permission_roles,
+        permission_matrix=permission_matrix,
+        permission_labels=USER_PERMISSION_LABELS,
+        role_aliases=USER_ROLE_ALIASES,
+        can_edit_permissions=_has_roles(getattr(g, "web_user", None), ["super_admin"]),
     )
+
+
+@web_bp.post("/users/permissions/save")
+@_roles_required("super_admin")
+def users_permissions_save():
+    payload = request.get_json(silent=True) or {}
+    raw_matrix = payload.get("matrix")
+    if not isinstance(raw_matrix, dict):
+        return {
+            "ok": False,
+            "message": "Dữ liệu ma trận phân quyền không hợp lệ.",
+        }, 400
+
+    normalized_matrix = _normalize_permission_matrix(raw_matrix)
+    try:
+        _save_permission_matrix(normalized_matrix)
+    except OSError:
+        current_app.logger.exception("users.permissions_save failed")
+        return {
+            "ok": False,
+            "message": "Không thể lưu ma trận phân quyền. Vui lòng thử lại.",
+        }, 500
+
+    return {
+        "ok": True,
+        "message": "Đã lưu ma trận phân quyền.",
+        "matrix": normalized_matrix,
+    }
 
 
 @web_bp.get("/branches")
@@ -3105,40 +3573,164 @@ def branches_save():
 @web_bp.get("/audit-logs")
 @_roles_required("super_admin")
 def audit_logs():
-    rows = AuditLog.query.order_by(AuditLog.id.desc()).limit(300).all()
-    items = [
-        {
-            "id": row.id,
-            "user_id": row.user_id if row.user_id is not None else "",
-            "branch_id": row.branch_id if row.branch_id is not None else "",
-            "action": row.action,
-            "entity": row.entity or "",
-            "tao_luc": _format_datetime(row.created_at),
-        }
-        for row in rows
+    rows = AuditLog.query.order_by(AuditLog.id.desc()).limit(600).all()
+
+    user_ids = sorted({int(row.user_id) for row in rows if _parse_int(row.user_id) is not None})
+    branch_ids = sorted({int(row.branch_id) for row in rows if _parse_int(row.branch_id) is not None})
+
+    user_rows = User.query.filter(User.id.in_(user_ids)).all() if user_ids else []
+    branch_rows = Branch.query.filter(Branch.id.in_(branch_ids)).all() if branch_ids else []
+
+    username_by_id = {
+        int(user.id): ((user.username or "").strip() or f"user_{user.id}")
+        for user in user_rows
+    }
+    user_role_by_id: dict[int, str] = {}
+    for user in user_rows:
+        role_names = user.role_names() or []
+        primary_role = next((name for name in USER_ROLE_ORDER if name in role_names), None)
+        if primary_role is None and role_names:
+            primary_role = str(role_names[0] or "").strip() or None
+        if primary_role is None:
+            role_label = "-"
+        else:
+            role_label = USER_ROLE_ALIASES.get(
+                primary_role,
+                primary_role.replace("_", " ").title(),
+            )
+        user_role_by_id[int(user.id)] = role_label
+    branch_name_by_id = {
+        int(branch.id): ((branch.name or "").strip() or f"CN #{branch.id}")
+        for branch in branch_rows
+    }
+
+    action_order = [
+        "login",
+        "logout",
+        "login_failed",
+        "create",
+        "update",
+        "delete",
+        "view",
+        "export",
+        "import",
+        "reset_password",
+        "lock_account",
+        "permission_change",
     ]
-    cards = [
-        {"label": "Tong log", "value": _format_number(len(items))},
-    ]
-    tables = [
-        _module_table(
-            title="Nhat ky he thong",
-            columns=[
-                {"key": "id", "label": "ID"},
-                {"key": "user_id", "label": "User ID"},
-                {"key": "branch_id", "label": "Branch ID"},
-                {"key": "action", "label": "Action"},
-                {"key": "entity", "label": "Entity"},
-                {"key": "tao_luc", "label": "Tao luc"},
-            ],
-            rows=items,
+    action_meta = {
+        "login": {"label": "Đăng nhập", "severity": "success"},
+        "logout": {"label": "Đăng xuất", "severity": "info"},
+        "login_failed": {"label": "Đăng nhập thất bại", "severity": "error"},
+        "create": {"label": "Tạo mới", "severity": "success"},
+        "update": {"label": "Cập nhật", "severity": "info"},
+        "delete": {"label": "Xóa", "severity": "warning"},
+        "view": {"label": "Xem", "severity": "info"},
+        "export": {"label": "Xuất dữ liệu", "severity": "info"},
+        "import": {"label": "Nhập dữ liệu", "severity": "warning"},
+        "reset_password": {"label": "Đặt lại mật khẩu", "severity": "warning"},
+        "lock_account": {"label": "Khóa tài khoản", "severity": "warning"},
+        "permission_change": {"label": "Thay đổi quyền", "severity": "warning"},
+    }
+    severity_label = {
+        "success": "Thành công",
+        "info": "Thông tin",
+        "warning": "Cảnh báo",
+        "error": "Lỗi",
+    }
+
+    def _normalize_action(raw_action: Any) -> str:
+        text = str(raw_action or "").strip().lower()
+        if "login" in text and "failed" in text:
+            return "login_failed"
+        if "login" in text:
+            return "login"
+        if "logout" in text:
+            return "logout"
+        if "create" in text:
+            return "create"
+        if "delete" in text:
+            return "delete"
+        if "view" in text or "list" in text or "get" in text:
+            return "view"
+        if "export" in text:
+            return "export"
+        if "import" in text:
+            return "import"
+        if "reset" in text or "set_password" in text:
+            return "reset_password"
+        if "lock" in text:
+            return "lock_account"
+        if "permission" in text or "role" in text:
+            return "permission_change"
+        return "update"
+
+    items: list[dict[str, Any]] = []
+    for row in rows:
+        action_key = _normalize_action(row.action)
+        meta = action_meta.get(action_key, action_meta["update"])
+        created_at = row.created_at
+        date_key = created_at.strftime("%Y-%m-%d") if created_at else ""
+
+        detail = str(row.action or "").strip()
+        if row.entity:
+            detail = f"{detail} • {row.entity}" if detail else str(row.entity)
+
+        parsed_user_id = _parse_int(row.user_id)
+        parsed_branch_id = _parse_int(row.branch_id)
+        account = username_by_id.get(parsed_user_id or -1, f"user_{parsed_user_id}" if parsed_user_id else "system")
+        role_label = user_role_by_id.get(parsed_user_id or -1, "-")
+
+        items.append(
+            {
+                "id": f"LOG-{row.id}",
+                "log_id": int(row.id),
+                "timestamp": _format_datetime(created_at) or "-",
+                "date": date_key,
+                "account": account,
+                "account_id": str(parsed_user_id) if parsed_user_id is not None else "-",
+                "role": role_label,
+                "action_key": action_key,
+                "action_label": meta["label"],
+                "resource": (row.entity or "").strip() or "Hệ thống",
+                "resource_id": str(row.id),
+                "detail": detail or "-",
+                "branch": branch_name_by_id.get(parsed_branch_id or -1, "-"),
+                "severity": meta["severity"],
+                "severity_label": severity_label.get(meta["severity"], "Thông tin"),
+                "status": "failed" if action_key == "login_failed" else "success",
+                "ip": "-",
+                "device": "-",
+                "browser": "-",
+            }
+        )
+
+    today_key = date.today().strftime("%Y-%m-%d")
+    summary = {
+        "total": len(items),
+        "today": len([item for item in items if item.get("date") == today_key]),
+        "warnings": len([item for item in items if item.get("severity") == "warning"]),
+        "errors": len(
+            [
+                item
+                for item in items
+                if item.get("severity") == "error" or item.get("status") == "failed"
+            ]
         ),
+    }
+
+    action_filters = ["Tất cả"] + [
+        action_meta[action_key]["label"]
+        for action_key in action_order
     ]
-    return _render_module_page(
-        title="Nhat ky he thong",
-        subtitle="Du lieu tu audit_logs backend.",
-        cards=cards,
-        tables=tables,
+
+    return render_template(
+        "web/audit_logs.html",
+        page_title="Nhật ký hệ thống",
+        page_subtitle="Theo dõi toàn bộ hoạt động & sự kiện hệ thống",
+        summary=summary,
+        audit_items=items,
+        action_filters=action_filters,
     )
 
 

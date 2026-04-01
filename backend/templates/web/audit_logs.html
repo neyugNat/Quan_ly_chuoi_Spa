@@ -1,0 +1,526 @@
+{% extends "web/base.html" %}
+
+{% block title %}{{ page_title }} | QuanLySpa{% endblock %}
+
+{% block content %}
+  <div class="legacy-audit-page mirror-5173-logs" data-audit-root>
+    <div class="legacy-audit-head">
+      <p class="legacy-audit-subtitle">{{ page_subtitle }}</p>
+      <div class="legacy-audit-head-actions">
+        <button type="button" class="legacy-audit-btn" data-audit-refresh>↻ Làm mới</button>
+        <button type="button" class="legacy-audit-btn is-primary">⬇ Xuất log</button>
+      </div>
+    </div>
+
+    <div class="legacy-audit-kpi-grid">
+      <article class="legacy-audit-kpi kpi-total">
+        <div class="legacy-audit-kpi-icon">◉</div>
+        <div><div class="legacy-audit-kpi-value">{{ summary.total }}</div><div class="legacy-audit-kpi-label">Tổng sự kiện</div></div>
+      </article>
+      <article class="legacy-audit-kpi kpi-today">
+        <div class="legacy-audit-kpi-icon">⏱</div>
+        <div><div class="legacy-audit-kpi-value">{{ summary.today }}</div><div class="legacy-audit-kpi-label">Hôm nay</div></div>
+      </article>
+      <article class="legacy-audit-kpi kpi-warning">
+        <div class="legacy-audit-kpi-icon">⚠</div>
+        <div><div class="legacy-audit-kpi-value">{{ summary.warnings }}</div><div class="legacy-audit-kpi-label">Cảnh báo</div></div>
+      </article>
+      <article class="legacy-audit-kpi kpi-error">
+        <div class="legacy-audit-kpi-icon">⨯</div>
+        <div><div class="legacy-audit-kpi-value">{{ summary.errors }}</div><div class="legacy-audit-kpi-label">Lỗi / Thất bại</div></div>
+      </article>
+    </div>
+
+    <section class="legacy-audit-filters">
+      <div class="legacy-audit-filter-row">
+        <label class="legacy-audit-search-wrap" for="legacy-audit-search">
+          <span class="legacy-search-icon" aria-hidden="true">⌕</span>
+          <input id="legacy-audit-search" type="text" class="legacy-audit-search" placeholder="Tìm theo ID, tài khoản, chi tiết..." data-audit-search>
+        </label>
+
+        <select class="legacy-audit-select" data-audit-severity>
+          <option value="Tất cả">Tất cả mức độ</option>
+          <option value="Thành công">Thành công</option>
+          <option value="Thông tin">Thông tin</option>
+          <option value="Cảnh báo">Cảnh báo</option>
+          <option value="Lỗi">Lỗi</option>
+        </select>
+
+        <select class="legacy-audit-select" data-audit-date>
+          <option value="Tất cả">Tất cả thời gian</option>
+          <option value="Hôm nay">Hôm nay</option>
+          <option value="Hôm qua">Hôm qua</option>
+        </select>
+      </div>
+
+      <div class="legacy-audit-action-filters" data-audit-action-filters>
+        {% for action_label in action_filters %}
+          <button type="button" class="legacy-audit-action-filter {% if loop.first %}is-active{% endif %}" data-audit-action="{{ action_label }}">{{ action_label }}</button>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="legacy-audit-table-wrap">
+      <div class="legacy-audit-table-head">
+        <strong>Nhật ký hệ thống</strong>
+        <span>Tìm thấy <strong data-audit-found>{{ audit_items|length }}</strong> sự kiện</span>
+      </div>
+
+      <div class="legacy-audit-table-scroll">
+        <table class="legacy-audit-table">
+          <thead>
+            <tr>
+              <th>Mức độ</th>
+              <th class="col-log-id">Mã log</th>
+              <th>Thời gian</th>
+              <th>Tài khoản</th>
+              <th>Hành động</th>
+              <th class="col-resource">Tài nguyên</th>
+              <th class="col-detail">Chi tiết</th>
+              <th class="col-device">IP / Thiết bị</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody data-audit-tbody></tbody>
+        </table>
+      </div>
+
+      <div class="legacy-audit-foot">
+        <span>Trang <strong data-audit-page>1</strong> / <span data-audit-total-pages>1</span> · <span data-audit-count>{{ audit_items|length }}</span> sự kiện</span>
+        <div class="legacy-audit-pagination">
+          <button type="button" class="legacy-page-btn" data-audit-prev>‹</button>
+          <div class="legacy-audit-page-list" data-audit-page-list></div>
+          <button type="button" class="legacy-page-btn" data-audit-next>›</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="legacy-customers-modal-backdrop" data-audit-detail-modal hidden>
+      <div class="legacy-customers-modal legacy-audit-detail-modal" role="dialog" aria-modal="true" aria-label="Chi tiết nhật ký">
+        <div class="legacy-customers-modal-head">
+          <div>
+            <h3>Chi tiết nhật ký</h3>
+            <p data-audit-detail-id>-</p>
+          </div>
+          <button type="button" class="legacy-hr-modal-close" data-close-audit-detail aria-label="Đóng">×</button>
+        </div>
+        <div class="legacy-audit-detail-banner" data-audit-detail-banner>
+          <span data-audit-detail-banner-icon>i</span>
+          <div>
+            <strong data-audit-detail-banner-label>Thông tin</strong>
+            <small data-audit-detail-banner-status>✅ Thực hiện thành công</small>
+          </div>
+        </div>
+        <div class="legacy-audit-detail-grid">
+          <div><span>Thời gian</span><strong data-audit-detail-time>-</strong></div>
+          <div><span>Tài khoản</span><strong data-audit-detail-account>-</strong></div>
+          <div><span>Hành động</span><strong data-audit-detail-action>-</strong></div>
+          <div><span>Tài nguyên</span><strong data-audit-detail-resource>-</strong></div>
+          <div><span>Mức độ</span><strong data-audit-detail-severity>-</strong></div>
+          <div><span>Chi nhánh</span><strong data-audit-detail-branch>-</strong></div>
+          <div><span>Địa chỉ IP</span><strong data-audit-detail-ip>-</strong></div>
+          <div><span>Thiết bị</span><strong data-audit-detail-device>-</strong></div>
+          <div class="is-wide"><span>Chi tiết</span><strong data-audit-detail-text>-</strong></div>
+        </div>
+        <div class="legacy-customers-modal-actions">
+          <button type="button" class="legacy-modal-btn-save" data-close-audit-detail>Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script id="audit-items-json" type="application/json">{{ audit_items|tojson }}</script>
+  <script>
+    (function () {
+      var root = document.querySelector("[data-audit-root]");
+      if (!root) {
+        return;
+      }
+
+      function parseJSONScript(id) {
+        var node = document.getElementById(id);
+        if (!node) {
+          return [];
+        }
+        try {
+          var parsed = JSON.parse(node.textContent || "[]");
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (_error) {
+          return [];
+        }
+      }
+
+      var items = parseJSONScript("audit-items-json");
+      var searchInput = root.querySelector("[data-audit-search]");
+      var severitySelect = root.querySelector("[data-audit-severity]");
+      var dateSelect = root.querySelector("[data-audit-date]");
+      var actionButtons = Array.prototype.slice.call(root.querySelectorAll("[data-audit-action]"));
+      var tbody = root.querySelector("[data-audit-tbody]");
+      var foundNode = root.querySelector("[data-audit-found]");
+      var countNode = root.querySelector("[data-audit-count]");
+      var pageNode = root.querySelector("[data-audit-page]");
+      var totalPagesNode = root.querySelector("[data-audit-total-pages]");
+      var pageListNode = root.querySelector("[data-audit-page-list]");
+      var prevButton = root.querySelector("[data-audit-prev]");
+      var nextButton = root.querySelector("[data-audit-next]");
+      var refreshButton = root.querySelector("[data-audit-refresh]");
+
+      var detailModal = root.querySelector("[data-audit-detail-modal]");
+      var closeDetailButtons = Array.prototype.slice.call(root.querySelectorAll("[data-close-audit-detail]"));
+      var detailId = root.querySelector("[data-audit-detail-id]");
+      var detailTime = root.querySelector("[data-audit-detail-time]");
+      var detailAccount = root.querySelector("[data-audit-detail-account]");
+      var detailAction = root.querySelector("[data-audit-detail-action]");
+      var detailResource = root.querySelector("[data-audit-detail-resource]");
+      var detailSeverity = root.querySelector("[data-audit-detail-severity]");
+      var detailBranch = root.querySelector("[data-audit-detail-branch]");
+      var detailIp = root.querySelector("[data-audit-detail-ip]");
+      var detailDevice = root.querySelector("[data-audit-detail-device]");
+      var detailText = root.querySelector("[data-audit-detail-text]");
+      var detailBanner = root.querySelector("[data-audit-detail-banner]");
+      var detailBannerIcon = root.querySelector("[data-audit-detail-banner-icon]");
+      var detailBannerLabel = root.querySelector("[data-audit-detail-banner-label]");
+      var detailBannerStatus = root.querySelector("[data-audit-detail-banner-status]");
+
+      var page = 1;
+      var pageSize = 10;
+      var activeAction = "Tất cả";
+
+      function setText(node, value) {
+        if (node) {
+          node.textContent = value ? String(value) : "-";
+        }
+      }
+
+      function formatSeverityClass(item) {
+        var severity = String((item && item.severity) || "");
+        if (severity === "error") {
+          return "is-error";
+        }
+        if (severity === "warning") {
+          return "is-warning";
+        }
+        if (severity === "success") {
+          return "is-success";
+        }
+        return "is-info";
+      }
+
+      function severityIcon(item) {
+        var severity = String((item && item.severity) || "");
+        if (severity === "error") {
+          return "⨯";
+        }
+        if (severity === "warning") {
+          return "⚠";
+        }
+        if (severity === "success") {
+          return "✓";
+        }
+        return "i";
+      }
+
+      function actionClass(item) {
+        var action = String((item && item.action_key) || "update");
+        if (action === "login" || action === "create") {
+          return "is-success";
+        }
+        if (action === "delete" || action === "login_failed" || action === "lock_account") {
+          return "is-danger";
+        }
+        if (action === "permission_change" || action === "reset_password") {
+          return "is-warning";
+        }
+        if (action === "export") {
+          return "is-violet";
+        }
+        return "is-neutral";
+      }
+
+      function actionIcon(item) {
+        var action = String((item && item.action_key) || "update");
+        if (action === "login") {
+          return "→";
+        }
+        if (action === "logout") {
+          return "←";
+        }
+        if (action === "create") {
+          return "+";
+        }
+        if (action === "delete") {
+          return "−";
+        }
+        if (action === "view") {
+          return "◌";
+        }
+        if (action === "export") {
+          return "⇩";
+        }
+        if (action === "import") {
+          return "⇧";
+        }
+        if (action === "login_failed") {
+          return "⨯";
+        }
+        return "✎";
+      }
+
+      function renderPageButtons(totalPages) {
+        if (!pageListNode) {
+          return;
+        }
+        pageListNode.innerHTML = "";
+        var visible = Math.min(totalPages, 5);
+        for (var i = 1; i <= visible; i += 1) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "legacy-page-btn" + (i === page ? " is-active" : "");
+          button.textContent = String(i);
+          (function (nextPage) {
+            button.addEventListener("click", function () {
+              page = nextPage;
+              applyFilters(false);
+            });
+          })(i);
+          pageListNode.appendChild(button);
+        }
+      }
+
+      function openDetail(item) {
+        if (!detailModal || !item) {
+          return;
+        }
+        setText(detailId, item.id || "-");
+        setText(detailTime, item.timestamp || "-");
+        setText(detailAccount, (item.account || "-") + " (" + (item.role || "-") + ")");
+        setText(detailAction, item.action_label || "-");
+        setText(detailResource, (item.resource || "-") + " #" + (item.resource_id || "-"));
+        setText(detailSeverity, item.severity_label || "-");
+        setText(detailBranch, item.branch || "-");
+        setText(detailIp, item.ip || "-");
+        setText(detailDevice, item.device || "-");
+        setText(detailText, item.detail || "-");
+
+        if (detailBanner) {
+          var bannerClass = "legacy-audit-detail-banner " + formatSeverityClass(item);
+          detailBanner.className = bannerClass;
+        }
+        setText(detailBannerIcon, severityIcon(item));
+        setText(detailBannerLabel, item.severity_label || "Thông tin");
+        setText(
+          detailBannerStatus,
+          item.status === "failed" ? "❌ Thực hiện thất bại" : "✅ Thực hiện thành công"
+        );
+
+        detailModal.hidden = false;
+        document.body.classList.add("legacy-modal-open");
+      }
+
+      function closeDetail() {
+        if (!detailModal) {
+          return;
+        }
+        detailModal.hidden = true;
+        document.body.classList.remove("legacy-modal-open");
+      }
+
+      function matchesDate(itemDate, filterLabel) {
+        if (filterLabel === "Tất cả") {
+          return true;
+        }
+        var now = new Date();
+        var todayKey = now.toISOString().slice(0, 10);
+        var yesterday = new Date(now.getTime());
+        yesterday.setDate(yesterday.getDate() - 1);
+        var yesterdayKey = yesterday.toISOString().slice(0, 10);
+        if (filterLabel === "Hôm nay") {
+          return itemDate === todayKey;
+        }
+        if (filterLabel === "Hôm qua") {
+          return itemDate === yesterdayKey;
+        }
+        return true;
+      }
+
+      function applyFilters(resetPage) {
+        var q = ((searchInput && searchInput.value) || "").trim().toLowerCase();
+        var severity = (severitySelect && severitySelect.value) || "Tất cả";
+        var dateValue = (dateSelect && dateSelect.value) || "Tất cả";
+
+        var filtered = items.filter(function (item) {
+          var searchable = [item.id, item.account, item.role, item.resource, item.detail, item.branch, item.ip].join(" ").toLowerCase();
+          var matchQ = !q || searchable.indexOf(q) !== -1;
+          var matchAction = activeAction === "Tất cả" || String(item.action_label || "") === activeAction;
+          var matchSeverity = severity === "Tất cả" || String(item.severity_label || "") === severity;
+          var matchDate = matchesDate(String(item.date || ""), dateValue);
+          return matchQ && matchAction && matchSeverity && matchDate;
+        });
+
+        var totalPages = filtered.length === 0 ? 1 : Math.ceil(filtered.length / pageSize);
+        if (resetPage) {
+          page = 1;
+        }
+        if (page > totalPages) {
+          page = totalPages;
+        }
+        if (page < 1) {
+          page = 1;
+        }
+
+        var start = (page - 1) * pageSize;
+        var paged = filtered.slice(start, start + pageSize);
+
+        if (tbody) {
+          tbody.innerHTML = "";
+          paged.forEach(function (item) {
+            var tr = document.createElement("tr");
+            tr.className = "legacy-audit-row";
+            tr.addEventListener("click", function () {
+              openDetail(item);
+            });
+
+            var severityTd = document.createElement("td");
+            var severityPill = document.createElement("span");
+            severityPill.className = "legacy-audit-severity " + formatSeverityClass(item);
+            severityPill.textContent = severityIcon(item);
+            severityTd.appendChild(severityPill);
+
+            var idTd = document.createElement("td");
+            idTd.className = "col-log-id";
+            idTd.textContent = String(item.id || "-");
+
+            var timeTd = document.createElement("td");
+            timeTd.textContent = String(item.timestamp || "-");
+
+            var accountTd = document.createElement("td");
+            accountTd.className = "legacy-audit-account";
+            accountTd.innerHTML = "<span class='legacy-audit-avatar'>" + String((item.account || "u")).charAt(0).toUpperCase() + "</span>"
+              + "<span><strong>" + String(item.account || "-") + "</strong><small>" + String(item.role || "-") + "</small></span>";
+
+            var actionTd = document.createElement("td");
+            actionTd.innerHTML = "<span class='legacy-audit-action " + actionClass(item) + "'>"
+              + "<i>" + actionIcon(item) + "</i>"
+              + String(item.action_label || "-")
+              + "</span>";
+
+            var resourceTd = document.createElement("td");
+            resourceTd.className = "col-resource";
+            resourceTd.innerHTML = "<strong>" + String(item.resource || "-") + "</strong><small>#" + String(item.resource_id || "-") + "</small>";
+
+            var detailTd = document.createElement("td");
+            detailTd.className = "col-detail";
+            detailTd.textContent = String(item.detail || "-");
+
+            var deviceTd = document.createElement("td");
+            deviceTd.className = "col-device";
+            deviceTd.innerHTML = "<small>IP: " + String(item.ip || "-") + "</small><small>" + String(item.device || "-") + "</small>";
+
+            var btnTd = document.createElement("td");
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "legacy-audit-detail-btn";
+            btn.textContent = "Chi tiết";
+            btn.addEventListener("click", function (event) {
+              event.stopPropagation();
+              openDetail(item);
+            });
+            btnTd.appendChild(btn);
+
+            tr.appendChild(severityTd);
+            tr.appendChild(idTd);
+            tr.appendChild(timeTd);
+            tr.appendChild(accountTd);
+            tr.appendChild(actionTd);
+            tr.appendChild(resourceTd);
+            tr.appendChild(detailTd);
+            tr.appendChild(deviceTd);
+            tr.appendChild(btnTd);
+            tbody.appendChild(tr);
+          });
+        }
+
+        if (foundNode) {
+          foundNode.textContent = String(filtered.length);
+        }
+        if (countNode) {
+          countNode.textContent = String(filtered.length);
+        }
+        if (pageNode) {
+          pageNode.textContent = String(page);
+        }
+        if (totalPagesNode) {
+          totalPagesNode.textContent = String(totalPages);
+        }
+        renderPageButtons(totalPages);
+        if (prevButton) {
+          prevButton.disabled = page <= 1;
+        }
+        if (nextButton) {
+          nextButton.disabled = page >= totalPages;
+        }
+      }
+
+      actionButtons.forEach(function (button) {
+        button.addEventListener("click", function () {
+          activeAction = button.getAttribute("data-audit-action") || "Tất cả";
+          actionButtons.forEach(function (item) {
+            item.classList.toggle("is-active", item === button);
+          });
+          applyFilters(true);
+        });
+      });
+
+      if (searchInput) {
+        searchInput.addEventListener("input", function () {
+          applyFilters(true);
+        });
+      }
+      if (severitySelect) {
+        severitySelect.addEventListener("change", function () {
+          applyFilters(true);
+        });
+      }
+      if (dateSelect) {
+        dateSelect.addEventListener("change", function () {
+          applyFilters(true);
+        });
+      }
+      if (prevButton) {
+        prevButton.addEventListener("click", function () {
+          page -= 1;
+          applyFilters(false);
+        });
+      }
+      if (nextButton) {
+        nextButton.addEventListener("click", function () {
+          page += 1;
+          applyFilters(false);
+        });
+      }
+      if (refreshButton) {
+        refreshButton.addEventListener("click", function () {
+          window.location.reload();
+        });
+      }
+
+      closeDetailButtons.forEach(function (button) {
+        button.addEventListener("click", closeDetail);
+      });
+      if (detailModal) {
+        detailModal.addEventListener("click", function (event) {
+          if (event.target === detailModal) {
+            closeDetail();
+          }
+        });
+      }
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          closeDetail();
+        }
+      });
+
+      applyFilters(true);
+    })();
+  </script>
+{% endblock %}
