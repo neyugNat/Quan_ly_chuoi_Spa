@@ -1,354 +1,151 @@
 {% extends "web/base.html" %}
-
-{% block title %}Tong quan | QuanLySpa{% endblock %}
-
 {% block content %}
-  {% macro legacy_icon(name, size=16) -%}
-    <svg
-      class="legacy-svg-icon"
-      viewBox="0 0 24 24"
-      width="{{ size }}"
-      height="{{ size }}"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      {% if name == "money" %}
-        <line x1="12" y1="1" x2="12" y2="23"></line>
-        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-      {% elif name == "calendar" %}
-        <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-        <line x1="8" y1="2" x2="8" y2="6"></line>
-        <line x1="16" y1="2" x2="16" y2="6"></line>
-        <line x1="3" y1="10" x2="21" y2="10"></line>
-      {% elif name == "users" %}
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-        <circle cx="9" cy="7" r="3"></circle>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-      {% elif name == "alert" %}
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="12"></line>
-        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-      {% elif name == "clock" %}
-        <circle cx="12" cy="12" r="10"></circle>
-        <polyline points="12 6 12 12 16 14"></polyline>
-      {% elif name == "map" %}
-        <path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"></path>
-        <circle cx="12" cy="11" r="2"></circle>
-      {% elif name == "check" %}
-        <circle cx="12" cy="12" r="10"></circle>
-        <polyline points="9 12 11 14 15 10"></polyline>
-      {% elif name == "x" %}
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="15" y1="9" x2="9" y2="15"></line>
-        <line x1="9" y1="9" x2="15" y2="15"></line>
-      {% elif name == "activity" %}
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-      {% elif name == "trending" %}
-        <polyline points="22 7 13 16 9 12 2 19"></polyline>
-        <polyline points="16 7 22 7 22 13"></polyline>
-      {% else %}
-        <circle cx="12" cy="12" r="10"></circle>
-      {% endif %}
-    </svg>
-  {%- endmacro %}
+  <style>
+    .dashboard-kpi-row {
+      margin-bottom: 12px;
+    }
+  </style>
 
-  <div class="legacy-dashboard">
-    <section class="legacy-kpi-grid">
-      {% for stat in stats %}
-        <article class="legacy-card legacy-kpi-card">
-          <div class="legacy-kpi-head">
-            <span class="legacy-kpi-icon {{ stat.icon_class }}">{{ legacy_icon(stat.icon, 20) }}</span>
-            <span class="legacy-kpi-badge {{ 'up' if stat.trend_up else 'down' }}">
-              <span class="legacy-kpi-arrow">{{ '+' if stat.trend_up else '-' }}</span>
-              {{ stat.trend_text }}
-            </span>
-          </div>
-          <div class="legacy-kpi-value">{{ stat.value }}</div>
-          <div class="legacy-kpi-label">{{ stat.label }}</div>
-        </article>
-      {% endfor %}
-    </section>
-
-    <section class="legacy-grid legacy-grid-top">
-      <article class="legacy-card legacy-panel legacy-chart-panel">
-        <div class="legacy-panel-head">
-          <div>
-            <h2>Doanh thu theo nam (12 thang)</h2>
-            <p>Don vi: Trieu dong</p>
-          </div>
-          <div class="legacy-legend">
-            <span><i class="dot actual"></i>Thuc te</span>
-            <span><i class="dot target"></i>Muc tieu</span>
-          </div>
-        </div>
-
-        <div class="legacy-chart-wrap" data-revenue-chart>
-          <svg class="legacy-chart-svg" viewBox="0 0 760 240" preserveAspectRatio="none" aria-label="Revenue chart">
-            <defs>
-              <linearGradient id="revFillLegacy" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stop-color="#1d4ed8" stop-opacity="0.15"></stop>
-                <stop offset="95%" stop-color="#1d4ed8" stop-opacity="0.00"></stop>
-              </linearGradient>
-              <linearGradient id="targetFillLegacy" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stop-color="#93c5fd" stop-opacity="0.10"></stop>
-                <stop offset="95%" stop-color="#93c5fd" stop-opacity="0.00"></stop>
-              </linearGradient>
-            </defs>
-
-            {% for row in revenue_chart_grid %}
-              <line x1="32" y1="{{ row.y }}" x2="744" y2="{{ row.y }}" class="legacy-grid-line"></line>
-              <text x="4" y="{{ row.y + 4 }}" class="legacy-axis-y">{{ row.label }}</text>
-            {% endfor %}
-
-            {% if target_area_points %}
-              <polygon points="{{ target_area_points }}" class="legacy-target-area"></polygon>
-            {% endif %}
-            {% if revenue_area_points %}
-              <polygon points="{{ revenue_area_points }}" class="legacy-actual-area"></polygon>
-            {% endif %}
-
-            {% if target_polyline_points %}
-              <polyline points="{{ target_polyline_points }}" class="legacy-target-line"></polyline>
-            {% endif %}
-            {% if revenue_polyline_points %}
-              <polyline points="{{ revenue_polyline_points }}" class="legacy-actual-line"></polyline>
-            {% endif %}
-
-            {% for row in revenue_chart_data %}
-              <circle class="legacy-dot-point target" cx="{{ row.x }}" cy="{{ row.target_y }}" r="2.5"></circle>
-              <circle class="legacy-dot-point actual" cx="{{ row.x }}" cy="{{ row.actual_y }}" r="3"></circle>
-              <rect
-                class="chart-hitbox"
-                x="{{ (row.x - (chart_hit_width / 2))|round(1) }}"
-                y="18"
-                width="{{ chart_hit_width|round(1) }}"
-                height="184"
-                data-month="{{ row.month }}"
-                data-actual="{{ row.revenue }}"
-                data-target="{{ row.target }}"
-                data-x="{{ row.x }}"
-                data-actual-y="{{ row.actual_y }}"
-              ></rect>
-            {% endfor %}
-
-            <line class="chart-hover-line" x1="0" y1="18" x2="0" y2="202"></line>
-            <circle class="chart-active-dot" r="5" cx="0" cy="0"></circle>
-
-            {% for row in revenue_month_labels %}
-              <text x="{{ row.x }}" y="224" class="legacy-axis-x">{{ row.label }}</text>
-            {% endfor %}
-          </svg>
-
-          <div class="chart-tooltip" hidden>
-            <div class="chart-tooltip-month">T1</div>
-            <div class="chart-tooltip-row">
-              <span class="dot actual"></span>
-              <span>Thuc te</span>
-              <strong class="chart-tooltip-actual">0 tr</strong>
-            </div>
-            <div class="chart-tooltip-row">
-              <span class="dot target"></span>
-              <span>Muc tieu</span>
-              <strong class="chart-tooltip-target">0 tr</strong>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <article class="legacy-card legacy-panel legacy-donut-panel">
-        <div class="legacy-panel-head">
-          <div>
-            <h2>Phan bo dich vu</h2>
-            <p>Theo du lieu backend</p>
-          </div>
-        </div>
-
-        <div class="legacy-donut" style="--donut-gradient: {{ service_donut_gradient }};"></div>
-
-        <ul class="legacy-donut-legend">
-          {% for row in service_distribution %}
-            <li>
-              <span class="name">
-                <i class="swatch" style="background: {{ row.color }};"></i>
-                {{ row.name }}
-              </span>
-              <strong>{{ row.pct_text }}</strong>
-            </li>
+  <section class="panel">
+    <h2>Flawless day, flawless skin!</h2>
+    <p class="muted">{{ today_label_vi }}</p>
+    {% if web_user.is_super_admin %}
+      <form method="get" class="inline filter-row">
+        <select name="branch_id" onchange="this.form.submit()">
+          <option value="" {% if not selected_branch_id %}selected{% endif %}>Tất cả chi nhánh</option>
+          {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
           {% endfor %}
-        </ul>
+        </select>
+        <noscript><button type="submit" class="secondary">Xem</button></noscript>
+      </form>
+    {% endif %}
+  </section>
+
+  <section class="grid-4 dashboard-kpi-row">
+    <article class="kpi">
+      <div class="label">Chi nhánh hoạt động</div>
+      <div class="value">{{ branch_count }}</div>
+    </article>
+    <article class="kpi">
+      <div class="label">Nhân sự</div>
+      <div class="value">{{ staff_count }}</div>
+    </article>
+    <article class="kpi">
+      <div class="label">Dịch vụ</div>
+      <div class="value">{{ service_count }}</div>
+    </article>
+    <article class="kpi">
+      <div class="label">Hàng sắp hết</div>
+      <div class="value">{{ low_stock_count }}</div>
+    </article>
+  </section>
+
+  <section class="grid-4 dashboard-kpi-row">
+    <article class="kpi">
+      <div class="label">Hóa đơn hôm nay</div>
+      <div class="value">{{ today_invoice_count }}</div>
+    </article>
+    <article class="kpi">
+      <div class="label">Doanh thu hôm nay</div>
+      <div class="value">{{ fmt_money(today_revenue) }}</div>
+    </article>
+    <article class="kpi">
+      <div class="label">Hóa đơn tháng này</div>
+      <div class="value">{{ month_invoice_count }}</div>
+    </article>
+    <article class="kpi">
+      <div class="label">Doanh thu tháng</div>
+      <div class="value">{{ fmt_money(month_revenue) }}</div>
+    </article>
+  </section>
+
+  <section class="grid-4 dashboard-kpi-row">
+    {% if web_user.is_super_admin and not selected_branch_id %}
+      <article class="kpi">
+        <div class="label">Chi nhánh doanh thu cao nhất</div>
+        <div class="value">{{ top_branch_name }}</div>
       </article>
-    </section>
-
-    <section class="legacy-grid legacy-grid-bottom">
-      <article class="legacy-card legacy-panel">
-        <div class="legacy-panel-head">
-          <div>
-            <h2>Hieu suat chi nhanh</h2>
-            <p>Doanh thu (trieu dong)</p>
-          </div>
-        </div>
-
-        <div class="legacy-branch-list">
-          {% for row in branch_chart %}
-            <div class="legacy-branch-row">
-              <span class="legacy-branch-name">{{ row.branch }}</span>
-              <div class="legacy-branch-track">
-                <span class="legacy-branch-fill" style="width: {{ row.pct }}%;"></span>
-              </div>
-              <strong class="legacy-branch-value">{{ row.revenue_m }} tr</strong>
-            </div>
-          {% endfor %}
-        </div>
+      <article class="kpi">
+        <div class="label">Chi nhánh doanh thu thấp nhất</div>
+        <div class="value">{{ weak_branch_name }}</div>
       </article>
+    {% endif %}
+  </section>
 
-      <article class="legacy-card legacy-panel">
-        <div class="legacy-panel-head with-action">
-          <div>
-            <h2>Lich hen hom nay</h2>
-            <p>{{ today_label }} • {{ today_report_count }} lich hen</p>
-          </div>
-          <a class="legacy-view-all" href="{{ url_for('web.appointments') }}">Xem tat ca</a>
-        </div>
+  <section class="panel">
+    <h3>Hóa đơn gần nhất</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Mã</th>
+          <th>Chi nhánh</th>
+          <th>Khách</th>
+          <th>Doanh thu ghi nhận</th>
+          <th>Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in recent_invoices %}
+          <tr>
+            <td>{{ row.code }}</td>
+            <td>{{ row.branch.name if row.branch else '-' }}</td>
+            <td>{{ row.customer_name or '-' }}</td>
+            <td>{{ fmt_money(row.paid_amount) }}</td>
+            <td><span class="status status-{{ row.status }}">{{ invoice_status_labels.get(row.status, row.status) }}</span></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5">Không có dữ liệu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
 
-        <div class="legacy-appointment-list">
-          {% if today_appointments %}
-            {% for row in today_appointments %}
-              <article class="legacy-appointment-item">
-                <span class="legacy-avatar">{{ (row.customer or '?')[:1]|upper }}</span>
-                <div class="legacy-appointment-main">
-                  <div class="legacy-appointment-name">{{ row.customer }}</div>
-                  <div class="legacy-appointment-service">{{ row.service }}</div>
-                  <div class="legacy-appointment-meta">
-                    <span>{{ legacy_icon("clock", 10) }}{{ row.time }}</span>
-                    <span>{{ legacy_icon("map", 10) }}{{ row.branch }}</span>
-                  </div>
-                </div>
-                <span class="legacy-apt-status {{ row.status_key|replace('_', '-') }}">
-                  {{ legacy_icon(row.status_icon, 10) }}
-                  <span>{{ row.status_label }}</span>
-                </span>
-              </article>
-            {% endfor %}
-          {% else %}
-            <div class="legacy-empty-state">Chua co lich hen nao trong hom nay.</div>
-          {% endif %}
-        </div>
-      </article>
-    </section>
+  <section class="panel">
+    <h3>Cảnh báo tồn kho thấp</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Chi nhánh</th>
+          <th>Sản phẩm</th>
+          <th>Tồn hiện tại</th>
+          <th>Mức tối thiểu</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for branch_name, item_name, qty, min_stock in low_stock_rows %}
+          <tr>
+            <td>{{ branch_name }}</td>
+            <td>{{ item_name }}</td>
+            <td>{{ qty|int }}</td>
+            <td>{{ min_stock|int }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">Không có cảnh báo tồn kho thấp.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
 
-    <section class="legacy-summary-grid">
-      {% for row in quick_stats %}
-        <article class="legacy-card legacy-summary-card">
-          <span class="legacy-summary-icon {{ row.icon }}">
-            {% if row.icon == "branches" %}
-              {{ legacy_icon("map", 18) }}
-            {% elif row.icon == "staff" %}
-              {{ legacy_icon("users", 18) }}
-            {% elif row.icon == "services" %}
-              {{ legacy_icon("trending", 18) }}
-            {% else %}
-              {{ legacy_icon("activity", 18) }}
-            {% endif %}
-          </span>
-          <div class="legacy-summary-copy">
-            <strong>{{ row.value }}</strong>
-            <span class="label">{{ row.label }}</span>
-            <span class="sub">{{ row.sub }}</span>
-          </div>
-        </article>
-      {% endfor %}
-    </section>
-  </div>
-
-  <script>
-    (function () {
-      const chartRoot = document.querySelector("[data-revenue-chart]");
-      if (!chartRoot) {
-        return;
-      }
-
-      const svg = chartRoot.querySelector("svg");
-      const tooltip = chartRoot.querySelector(".chart-tooltip");
-      const monthNode = tooltip ? tooltip.querySelector(".chart-tooltip-month") : null;
-      const actualNode = tooltip ? tooltip.querySelector(".chart-tooltip-actual") : null;
-      const targetNode = tooltip ? tooltip.querySelector(".chart-tooltip-target") : null;
-      const hoverLine = svg ? svg.querySelector(".chart-hover-line") : null;
-      const activeDot = svg ? svg.querySelector(".chart-active-dot") : null;
-      const hitboxes = svg ? Array.from(svg.querySelectorAll(".chart-hitbox")) : [];
-
-      if (!svg || !tooltip || !monthNode || !actualNode || !targetNode || !hoverLine || !activeDot || !hitboxes.length) {
-        return;
-      }
-
-      const clamp = function (value, min, max) {
-        return Math.max(min, Math.min(max, value));
-      };
-
-      const formatTr = function (rawValue) {
-        const value = Number(rawValue || 0);
-        if (!Number.isFinite(value)) {
-          return "0 tr";
-        }
-        if (Math.abs(value - Math.round(value)) < 0.001) {
-          return Math.round(value) + " tr";
-        }
-        return value.toFixed(1).replace(".0", "") + " tr";
-      };
-
-      const placeTooltip = function (event) {
-        const wrapRect = chartRoot.getBoundingClientRect();
-        const tooltipRect = tooltip.getBoundingClientRect();
-        let left = event.clientX - wrapRect.left + 12;
-        let top = event.clientY - wrapRect.top - tooltipRect.height - 12;
-
-        left = clamp(left, 8, wrapRect.width - tooltipRect.width - 8);
-        top = clamp(top, 8, wrapRect.height - tooltipRect.height - 8);
-        tooltip.style.transform = "translate(" + left + "px, " + top + "px)";
-      };
-
-      const hideHover = function () {
-        tooltip.hidden = true;
-        hoverLine.style.display = "none";
-        activeDot.style.display = "none";
-      };
-
-      const showHover = function (hitbox, event) {
-        monthNode.textContent = hitbox.dataset.month || "";
-        actualNode.textContent = formatTr(hitbox.dataset.actual);
-        targetNode.textContent = formatTr(hitbox.dataset.target);
-
-        const x = Number(hitbox.dataset.x || 0);
-        const y = Number(hitbox.dataset.actualY || 0);
-
-        hoverLine.setAttribute("x1", String(x));
-        hoverLine.setAttribute("x2", String(x));
-        hoverLine.style.display = "block";
-
-        activeDot.setAttribute("cx", String(x));
-        activeDot.setAttribute("cy", String(y));
-        activeDot.style.display = "block";
-
-        tooltip.hidden = false;
-        placeTooltip(event);
-      };
-
-      hitboxes.forEach(function (hitbox) {
-        hitbox.addEventListener("mouseenter", function (event) {
-          showHover(hitbox, event);
-        });
-        hitbox.addEventListener("mousemove", function (event) {
-          showHover(hitbox, event);
-        });
-        hitbox.addEventListener("mouseleave", hideHover);
-      });
-
-      chartRoot.addEventListener("mouseleave", hideHover);
-    })();
-  </script>
+  <section class="panel">
+    <h3>Top 5 dịch vụ bán chạy trong tháng</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Dịch vụ</th>
+          <th>Số lượng</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for name, qty in top_service_rows %}
+          <tr>
+            <td>{{ name }}</td>
+            <td>{{ qty }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="2">Không có dữ liệu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
 {% endblock %}

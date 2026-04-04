@@ -1,0 +1,165 @@
+{% extends "web/base.html" %}
+{% block content %}
+  <style>
+    .staff-filter {
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .staff-filter input,
+    .staff-filter select,
+    .staff-filter button,
+    .staff-filter .tiny-btn {
+      min-height: 44px;
+      padding: 10px 14px;
+    }
+
+    .staff-table-wrap {
+      margin-top: 14px;
+    }
+
+    .staff-form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .staff-form input:not([type="hidden"]),
+    .staff-form select,
+    .staff-form button {
+      min-height: 44px;
+      padding: 10px 14px;
+    }
+
+    .staff-form input:not([type="hidden"]),
+    .staff-form select {
+      flex: 1 1 160px;
+      min-width: 0;
+    }
+
+    .staff-form .tiny-btn,
+    .staff-form button {
+      flex: 0 0 auto;
+      min-height: 44px;
+      padding: 10px 14px;
+      white-space: nowrap;
+    }
+
+    @media (min-width: 1280px) {
+      .staff-form {
+        flex-wrap: nowrap;
+      }
+
+      .staff-form input:not([type="hidden"]),
+      .staff-form select {
+        flex: 1 1 0;
+      }
+    }
+  </style>
+
+  <section class="panel">
+    <h2>Nhân sự{% if branch %} - {{ branch.name }}{% endif %}</h2>
+    <form method="get" class="inline staff-filter filter-row">
+      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên / điện thoại">
+      <input type="text" name="title" value="{{ title }}" placeholder="Lọc theo chức vụ">
+      <select name="status">
+        <option value="">Tất cả trạng thái</option>
+        <option value="active" {% if status == 'active' %}selected{% endif %}>Đang làm việc</option>
+        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+      </select>
+      {% if is_super_admin %}
+        <select name="branch_id">
+          <option value="">Tất cả chi nhánh</option>
+          {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
+      <button type="submit" class="secondary">Lọc</button>
+      <a href="{{ url_for('web.staff') }}" class="tiny-btn">Xóa lọc</a>
+    </form>
+
+    <div class="staff-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Chi nhánh</th>
+            <th>Họ tên</th>
+            <th>Điện thoại</th>
+            <th>Chức danh</th>
+            <th>Ngày vào làm</th>
+            <th>Trạng thái</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.id }}</td>
+              <td>{{ row.branch.name if row.branch else '-' }}</td>
+              <td>{{ row.full_name }}</td>
+              <td>{{ row.phone or "-" }}</td>
+              <td>{{ row.title or "-" }}</td>
+              <td>{{ row.start_date.strftime('%d/%m/%Y') if row.start_date else '-' }}</td>
+              <td>
+                <span class="status status-{{ row.status }}">
+                  {{ 'Đang làm việc' if row.status == 'active' else 'Ngừng hoạt động' }}
+                </span>
+              </td>
+              <td>
+                <a
+                  class="tiny-btn"
+                  href="{{ url_for('web.staff', edit_id=row.id, page=pager.page, q=q, title=title, status=status, branch_id=selected_branch_id) }}"
+                >Sửa</a>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="8">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      {% if pager.has_prev %}
+        <a href="{{ url_for('web.staff', page=pager.prev_num, q=q, title=title, status=status, branch_id=selected_branch_id) }}">← Trang trước</a>
+      {% endif %}
+      <span>Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
+      {% if pager.has_next %}
+        <a href="{{ url_for('web.staff', page=pager.next_num, q=q, title=title, status=status, branch_id=selected_branch_id) }}">Trang sau →</a>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>{% if edit_mode %}Cập nhật nhân sự{% else %}Thêm nhân sự{% endif %}</h3>
+    <form method="post" action="{{ url_for('web.staff_save') }}" class="inline staff-form">
+      <input type="hidden" name="staff_id" value="{{ form_data.staff_id or '' }}">
+      {% if is_super_admin %}
+        <select name="branch_id" required>
+          <option value="">Chọn chi nhánh</option>
+          {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if b.id == form_data.branch_id %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <input type="hidden" name="branch_id" value="{{ form_data.branch_id or selected_branch_id or '' }}">
+        <input type="text" value="{{ branch.name if branch else 'Chi nhánh hiện tại' }}" disabled>
+      {% endif %}
+      <input type="text" name="full_name" placeholder="Họ tên" value="{{ form_data.full_name }}" required>
+      <input type="text" name="phone" placeholder="Điện thoại" value="{{ form_data.phone }}" required>
+      <input type="text" name="title" placeholder="Chức danh" value="{{ form_data.title }}">
+      <input type="date" name="start_date" value="{{ form_data.start_date }}">
+      <select name="status">
+        <option value="active" {% if form_data.status == 'active' %}selected{% endif %}>Đang làm việc</option>
+        <option value="inactive" {% if form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+      </select>
+      <button type="submit">Lưu</button>
+      {% if edit_mode %}
+        <a href="{{ url_for('web.staff', page=pager.page, q=q, title=title, status=status, branch_id=selected_branch_id) }}" class="tiny-btn">Hủy</a>
+      {% endif %}
+    </form>
+  </section>
+{% endblock %}

@@ -1,211 +1,31 @@
-{% extends "web/base.html" %}
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Đăng nhập</title>
+    <link rel="stylesheet" href="{{ url_for('web.static', filename='style.css') }}">
+  </head>
+  <body>
+    <div class="login-wrap">
+      <section class="login-card">
+        <h2>Đăng nhập hệ thống</h2>
+        <p class="muted">Tài khoản demo: admin/admin123 hoặc manager/manager123</p>
 
-{% block title %}Đăng nhập | Lotus Spa Management{% endblock %}
-
-{% block auth_content %}
-  <div class="login-bg"></div>
-  <div class="login-overlay"></div>
-
-  <div class="login-page">
-    <div class="login-panel" data-initial-mode="{{ initial_mode|default('staff') }}" data-initial-view="{{ initial_view|default('login') }}">
-      <div class="login-brand">
-        <div class="login-logo">
-          <span class="spark-icon">&#10022;</span>
-        </div>
-        <h1 class="login-title">Chào mừng trở lại</h1>
-        <p class="login-subtitle js-login-subtitle">Đăng nhập nhân sự Lotus Spa Management</p>
-      </div>
-
-      <div class="mode-switch js-mode-switch">
-        <button type="button" class="{% if initial_mode != 'customer' %}active{% endif %}" data-mode="staff">Nhân sự</button>
-        <button type="button" class="{% if initial_mode == 'customer' %}active{% endif %}" data-mode="customer">Khách hàng</button>
-      </div>
-
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="flash-wrap">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
             {% for category, message in messages %}
-              <div class="flash {{ category|default('info') }}">{{ message }}</div>
+              <div class="flash {{ category }}">{{ message }}</div>
             {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %}
+          {% endif %}
+        {% endwith %}
 
-      <section data-mode-panel="staff" class="{% if initial_mode == 'customer' %}is-hidden{% endif %}">
-        <form method="post" action="{{ url_for('web.login', next=request.args.get('next', '')) }}">
-          <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
-          <div class="field">
-            <label for="username">Tài khoản</label>
-            <input id="username" name="username" autocomplete="username" placeholder="Nhập tên đăng nhập" required>
-          </div>
-          <div class="field">
-            <label for="password">Mật khẩu</label>
-            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="********" required>
-          </div>
-          <button class="btn btn-primary full" type="submit">Đăng nhập nhân sự</button>
+        <form method="post">
+          <p><input type="text" name="username" placeholder="Tài khoản" required></p>
+          <p><input type="password" name="password" placeholder="Mật khẩu" required></p>
+          <button type="submit">Đăng nhập</button>
         </form>
       </section>
-
-      <section data-mode-panel="customer" class="{% if initial_mode != 'customer' %}is-hidden{% endif %}">
-        <div class="customer-switch js-customer-switch">
-          <button type="button" class="{% if initial_view == 'login' %}active{% endif %}" data-view="login">Đăng nhập</button>
-          <button type="button" class="{% if initial_view == 'register' %}active{% endif %}" data-view="register">Đăng ký</button>
-          <button type="button" class="{% if initial_view == 'forgot' %}active{% endif %}" data-view="forgot">Quên mật khẩu</button>
-          <button type="button" class="{% if initial_view == 'reset' %}active{% endif %}" data-view="reset">Đặt lại</button>
-        </div>
-
-        <div data-customer-panel="login" class="{% if initial_view != 'login' %}is-hidden{% endif %}">
-          <form method="post" action="{{ url_for('web.customer_login') }}">
-            <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
-            <div class="field">
-              <label for="customer_email">Email</label>
-              <input id="customer_email" name="email" type="email" autocomplete="email" placeholder="Nhập email" required>
-            </div>
-            <div class="field">
-              <label for="customer_password">Mật khẩu</label>
-              <input id="customer_password" name="password" type="password" autocomplete="current-password" placeholder="********" required>
-            </div>
-            <button class="btn btn-primary full" type="submit">Đăng nhập khách hàng</button>
-          </form>
-        </div>
-
-        <div data-customer-panel="register" class="{% if initial_view != 'register' %}is-hidden{% endif %}">
-          <form method="post" action="{{ url_for('web.customer_register') }}">
-            <div class="field">
-              <label for="full_name">Họ và tên</label>
-              <input id="full_name" name="full_name" required placeholder="Nhập họ và tên">
-            </div>
-            <div class="field">
-              <label for="phone">Điện thoại (không bắt buộc)</label>
-              <input id="phone" name="phone" placeholder="Nhập số điện thoại">
-            </div>
-            <div class="field">
-              <label for="register_email">Email</label>
-              <input id="register_email" name="email" type="email" placeholder="Nhập email" required>
-            </div>
-            <div class="field split-two">
-              <div>
-                <label for="register_password">Mật khẩu</label>
-                <input id="register_password" name="password" type="password" minlength="6" placeholder="Mật khẩu" required>
-              </div>
-              <div>
-                <label for="register_confirm_password">Xác nhận</label>
-                <input id="register_confirm_password" name="confirm_password" type="password" minlength="6" placeholder="Xác nhận mật khẩu" required>
-              </div>
-            </div>
-            <button class="btn btn-primary full" type="submit">Tạo tài khoản</button>
-          </form>
-        </div>
-
-        <div data-customer-panel="forgot" class="{% if initial_view != 'forgot' %}is-hidden{% endif %}">
-          <form method="post" action="{{ url_for('web.customer_forgot_password') }}">
-            <div class="field">
-              <label for="forgot_email">Email tài khoản</label>
-              <input id="forgot_email" name="email" type="email" placeholder="Nhập email" required>
-            </div>
-            <button class="btn btn-primary full" type="submit">Gửi email đặt lại mật khẩu</button>
-          </form>
-        </div>
-
-        <div data-customer-panel="reset" class="{% if initial_view != 'reset' %}is-hidden{% endif %}">
-          <form method="post" action="{{ url_for('web.customer_reset_password') }}">
-            <div class="field">
-              <label for="reset_token">Token đặt lại mật khẩu</label>
-              <input id="reset_token" name="token" value="{{ reset_token|default('') }}" placeholder="Nhập token đặt lại mật khẩu" required>
-            </div>
-            <div class="field split-two">
-              <div>
-                <label for="new_password">Mật khẩu mới</label>
-                <input id="new_password" name="new_password" type="password" minlength="6" placeholder="Mật khẩu mới" required>
-              </div>
-              <div>
-                <label for="confirm_new_password">Xác nhận</label>
-                <input id="confirm_new_password" name="confirm_password" type="password" minlength="6" placeholder="Xác nhận mật khẩu mới" required>
-              </div>
-            </div>
-            <button class="btn btn-primary full" type="submit">Lưu mật khẩu mới</button>
-          </form>
-        </div>
-
-        <p class="helper-note">Mail reset hoạt động theo cấu hình <code>MAIL_MODE</code> trong backend.</p>
-      </section>
     </div>
-  </div>
-
-  <script>
-    (function () {
-      const root = document.querySelector(".login-panel");
-      if (!root) return;
-
-      const subtitle = document.querySelector(".js-login-subtitle");
-      const staffPanel = document.querySelector('[data-mode-panel="staff"]');
-      const customerPanel = document.querySelector('[data-mode-panel="customer"]');
-      const modeButtons = Array.from(document.querySelectorAll(".js-mode-switch button[data-mode]"));
-      const viewButtons = Array.from(document.querySelectorAll(".js-customer-switch button[data-view]"));
-      const customerViews = Array.from(document.querySelectorAll("[data-customer-panel]"));
-
-      const customerSubtitle = {
-        login: "Đăng nhập khách hàng để đặt lịch",
-        register: "Tạo tài khoản khách hàng để đặt lịch online",
-        forgot: "Nhập email để nhận link đặt lại mật khẩu",
-        reset: "Đặt mật khẩu mới cho tài khoản khách hàng",
-      };
-
-      let mode = root.dataset.initialMode === "customer" ? "customer" : "staff";
-      let view = root.dataset.initialView || "login";
-      if (!customerSubtitle[view]) view = "login";
-
-      function render() {
-        modeButtons.forEach((button) => {
-          const active = button.dataset.mode === mode;
-          button.classList.toggle("active", active);
-        });
-
-        staffPanel.classList.toggle("is-hidden", mode !== "staff");
-        customerPanel.classList.toggle("is-hidden", mode !== "customer");
-
-        if (mode === "staff") {
-          subtitle.textContent = "Đăng nhập nhân sự Lotus Spa Management";
-          return;
-        }
-
-        subtitle.textContent = customerSubtitle[view] || customerSubtitle.login;
-
-        viewButtons.forEach((button) => {
-          const active = button.dataset.view === view;
-          button.classList.toggle("active", active);
-        });
-
-        customerViews.forEach((panel) => {
-          panel.classList.toggle("is-hidden", panel.dataset.customerPanel !== view);
-        });
-      }
-
-      modeButtons.forEach((button) => {
-        button.addEventListener("click", function () {
-          mode = button.dataset.mode === "customer" ? "customer" : "staff";
-          if (mode === "staff") view = "login";
-          render();
-        });
-      });
-
-      viewButtons.forEach((button) => {
-        button.addEventListener("click", function () {
-          mode = "customer";
-          view = button.dataset.view || "login";
-          render();
-        });
-      });
-
-      render();
-
-      const current = new URL(window.location.href);
-      if (current.searchParams.has("mode") || current.searchParams.has("view")) {
-        current.searchParams.delete("mode");
-        current.searchParams.delete("view");
-        const next = current.pathname + (current.search ? current.search : "") + current.hash;
-        window.history.replaceState({}, "", next);
-      }
-    })();
-  </script>
-{% endblock %}
+  </body>
+</html>

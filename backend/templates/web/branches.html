@@ -1,657 +1,125 @@
 {% extends "web/base.html" %}
-
-{% block title %}{{ page_title }} | Quản Lý Spa{% endblock %}
-
 {% block content %}
-  {% macro icon(name, size=16, css_class='') -%}
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="{{ size }}"
-      height="{{ size }}"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      class="{{ css_class }}"
-      aria-hidden="true"
-    >
-      {% if name == "plus" %}
-        <path d="M12 5v14"></path>
-        <path d="M5 12h14"></path>
-      {% elif name == "map-pin" %}
-        <path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"></path>
-        <circle cx="12" cy="11" r="2"></circle>
-      {% elif name == "phone" %}
-        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.98.37 1.95.72 2.86a2 2 0 0 1-.45 2.11L8.1 10a16 16 0 0 0 6 6l1.31-1.28a2 2 0 0 1 2.11-.45c.91.35 1.88.59 2.86.72A2 2 0 0 1 22 16.92z"></path>
-      {% elif name == "clock" %}
-        <circle cx="12" cy="12" r="10"></circle>
-        <polyline points="12 6 12 12 16 14"></polyline>
-      {% elif name == "users" %}
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-        <circle cx="9" cy="7" r="4"></circle>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-      {% elif name == "star" %}
-        <path d="m12 2 3.1 6.3 7 1-5 4.8 1.2 6.9-6.3-3.3-6.3 3.3 1.2-6.9-5-4.8 7-1z"></path>
-      {% elif name == "edit" %}
-        <path d="M12 20h9"></path>
-        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
-      {% elif name == "x-circle" %}
-        <circle cx="12" cy="12" r="10"></circle>
-        <path d="m15 9-6 6"></path>
-        <path d="m9 9 6 6"></path>
-      {% endif %}
-    </svg>
-  {%- endmacro %}
+  <style>
+    form.inline.branch-form {
+      display: grid;
+      grid-template-columns: 110px 210px 190px 170px 210px 180px 80px;
+      gap: 10px;
+      align-items: center;
+    }
 
-  <div class="legacy-branches-page" data-branches-root>
-    <div class="legacy-branches-head">
-      <p class="legacy-branches-subtitle">{{ page_subtitle }}</p>
-      <button type="button" class="legacy-branches-add-btn" data-open-branch-create>
-        {{ icon("plus", 16, "legacy-icon") }}
-        <span>Mở chi nhánh mới</span>
-      </button>
-    </div>
+    form.inline.branch-form > * {
+      min-width: 0;
+    }
 
-    <div class="legacy-branches-metrics">
-      <article class="legacy-branches-metric metric-active">
-        <div class="legacy-branches-metric-value">{{ summary.active_branches }}</div>
-        <div class="legacy-branches-metric-label">Chi nhánh hoạt động</div>
-      </article>
-      <article class="legacy-branches-metric metric-staff">
-        <div class="legacy-branches-metric-value">{{ summary.total_staff }}</div>
-        <div class="legacy-branches-metric-label">Tổng nhân viên</div>
-      </article>
-      <article class="legacy-branches-metric metric-rooms">
-        <div class="legacy-branches-metric-value">{{ summary.total_rooms }}</div>
-        <div class="legacy-branches-metric-label">Tổng phòng trị liệu</div>
-      </article>
-      <article class="legacy-branches-metric metric-rating">
-        <div class="legacy-branches-metric-value">{{ summary.avg_rating }}</div>
-        <div class="legacy-branches-metric-label">Đánh giá trung bình</div>
-      </article>
-    </div>
+    form.inline.branch-form input,
+    form.inline.branch-form select {
+      width: 100%;
+    }
 
-    {% if branches %}
-      <div class="legacy-branches-grid">
-        {% for branch in branches %}
-          <article class="legacy-branch-card" data-branch-card data-branch-id="{{ branch.id }}">
-            <div class="legacy-branch-cover">
-              <img src="{{ branch.image }}" alt="{{ branch.name }}">
-              <div class="legacy-branch-cover-overlay"></div>
-              <div class="legacy-branch-cover-index">{{ loop.index }}</div>
-              <div class="legacy-branch-cover-status status-{{ branch.status }}">
-                <i></i>
-                <span>{{ "Hoạt động" if branch.status == "active" else "Tạm ngưng" }}</span>
-              </div>
-              <div class="legacy-branch-cover-copy">
-                <h3>{{ branch.name }}</h3>
-                <div class="legacy-branch-cover-meta">
-                  <span>{{ icon("star", 10, "legacy-inline-icon") }} {{ branch.rating }}</span>
-                  <span>•</span>
-                  <span>Từ {{ branch.established }}</span>
-                </div>
-              </div>
-            </div>
+    form.inline.branch-form button {
+      white-space: nowrap;
+    }
 
-            <div class="legacy-branch-body">
-              <div class="legacy-branch-info-list">
-                <div class="legacy-branch-info-row">
-                  {{ icon("map-pin", 12, "legacy-inline-icon") }}
-                  <span>{{ branch.address }}</span>
-                </div>
-                <div class="legacy-branch-info-inline">
-                  <span>{{ icon("phone", 11, "legacy-inline-icon") }} {{ branch.phone }}</span>
-                  <span>{{ icon("clock", 11, "legacy-inline-icon") }} {{ branch.hours }}</span>
-                </div>
-              </div>
+    @media (max-width: 1100px) {
+      form.inline.branch-form {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
 
-              <div class="legacy-branch-stats-grid">
-                <div class="legacy-branch-stat-item">
-                  <strong>{{ branch.staff }}</strong>
-                  <small>NV</small>
-                </div>
-                <div class="legacy-branch-stat-item">
-                  <strong>{{ branch.rooms }}</strong>
-                  <small>Phòng</small>
-                </div>
-                <div class="legacy-branch-stat-item">
-                  <strong>{{ branch.appointments }}</strong>
-                  <small>Lịch hẹn</small>
-                </div>
-                <div class="legacy-branch-stat-item">
-                  <strong>{{ branch.revenue }}</strong>
-                  <small>DT</small>
-                </div>
-              </div>
+    @media (max-width: 860px) {
+      form.inline.branch-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
 
-              <div class="legacy-branch-foot">
-                <span>Quản lí: <strong>{{ branch.manager_name }}</strong></span>
-                <button
-                  type="button"
-                  class="legacy-branch-edit-btn"
-                  data-open-branch-edit
-                  data-branch-id="{{ branch.id }}"
-                >
-                  {{ icon("edit", 12, "legacy-inline-icon") }}
-                  <span>Chỉnh sửa</span>
-                </button>
-              </div>
-            </div>
-          </article>
+  <section class="panel">
+    <h2>Chi nhánh</h2>
+    <form method="get" class="inline filter-row">
+      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên / SĐT / địa chỉ">
+      <select name="status">
+        <option value="">Tất cả trạng thái</option>
+        <option value="active" {% if status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+      </select>
+      <button type="submit" class="secondary">Lọc</button>
+      <a href="{{ url_for('web.branches') }}" class="tiny-btn">Xóa lọc</a>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Tên</th>
+          <th>Địa chỉ</th>
+          <th>SĐT</th>
+          <th>Quản lý</th>
+          <th>Trạng thái</th>
+          {% if can_edit %}<th>Hành động</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.id }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.address or "-" }}</td>
+            <td>{{ row.phone or '-' }}</td>
+            <td>{{ row.manager_name or '-' }}</td>
+            <td>
+              <span class="status status-{{ row.status }}">
+                {{ 'Đang hoạt động' if row.status == 'active' else 'Ngừng hoạt động' }}
+              </span>
+            </td>
+            {% if can_edit %}
+              <td>
+                <a
+                  class="tiny-btn"
+                  href="{{ url_for('web.branches', edit_id=row.id, page=pager.page, q=q, status=status) }}"
+                >Sửa</a>
+                <form method="post" action="{{ url_for('web.branches_toggle') }}" class="inline form-compact">
+                  <input type="hidden" name="branch_id" value="{{ row.id }}">
+                  <button type="submit" class="secondary">Bật/Tắt</button>
+                </form>
+              </td>
+            {% endif %}
+          </tr>
+        {% else %}
+          <tr><td colspan="7">Không có dữ liệu.</td></tr>
         {% endfor %}
-      </div>
-    {% else %}
-      <p class="legacy-branches-empty">Chưa có chi nhánh nào.</p>
-    {% endif %}
+      </tbody>
+    </table>
 
-    <div class="legacy-branches-modal-backdrop" data-branch-detail-modal hidden>
-      <div class="legacy-branches-detail-modal" role="dialog" aria-modal="true" aria-label="Chi tiết chi nhánh">
-        <div class="legacy-branch-detail-cover">
-          <img src="" alt="" data-detail-image>
-          <div class="legacy-branch-detail-overlay"></div>
-          <button type="button" class="legacy-branch-detail-close" data-close-branch-detail>
-            {{ icon("x-circle", 18, "legacy-inline-icon") }}
-          </button>
-          <div class="legacy-branch-detail-copy">
-            <h2 data-detail-name>-</h2>
-            <div class="legacy-branch-detail-meta">
-              <span>{{ icon("star", 10, "legacy-inline-icon") }} <span data-detail-rating>-</span></span>
-              <span>•</span>
-              <span data-detail-status-line>-</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="legacy-branch-detail-body">
-          <div class="legacy-branch-detail-stats">
-            <div class="legacy-branch-detail-stat">
-              <strong data-detail-staff>-</strong>
-              <small>Nhân viên</small>
-            </div>
-            <div class="legacy-branch-detail-stat">
-              <strong data-detail-rooms>-</strong>
-              <small>Phòng trị liệu</small>
-            </div>
-            <div class="legacy-branch-detail-stat">
-              <strong data-detail-appointments>-</strong>
-              <small>Lịch hẹn tháng</small>
-            </div>
-            <div class="legacy-branch-detail-stat">
-              <strong data-detail-revenue>-</strong>
-              <small>Doanh thu tháng</small>
-            </div>
-          </div>
-
-          <div class="legacy-branch-detail-lines">
-            <div>{{ icon("map-pin", 14, "legacy-inline-icon") }} <span data-detail-address>-</span></div>
-            <div>{{ icon("phone", 14, "legacy-inline-icon") }} <span data-detail-phone>-</span></div>
-            <div>{{ icon("clock", 14, "legacy-inline-icon") }} <span data-detail-hours>-</span></div>
-            <div>{{ icon("users", 14, "legacy-inline-icon") }} <span>Quản lí: <strong data-detail-manager>-</strong></span></div>
-          </div>
-
-          <div class="legacy-branches-modal-actions">
-            <button type="button" class="legacy-modal-btn-cancel" data-close-branch-detail>Đóng</button>
-            <button type="button" class="legacy-modal-btn-save" data-detail-open-edit>Chỉnh sửa</button>
-          </div>
-        </div>
-      </div>
+    <div class="pager">
+      {% if pager.has_prev %}
+        <a href="{{ url_for('web.branches', page=pager.prev_num, q=q, status=status) }}">← Trang trước</a>
+      {% endif %}
+      <span>Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
+      {% if pager.has_next %}
+        <a href="{{ url_for('web.branches', page=pager.next_num, q=q, status=status) }}">Trang sau →</a>
+      {% endif %}
     </div>
+  </section>
 
-    <div class="legacy-branches-modal-backdrop" data-branch-form-modal hidden>
-      <div class="legacy-branches-form-modal" role="dialog" aria-modal="true" aria-label="Lưu chi nhánh">
-        <div class="legacy-branches-form-head">
-          <div>
-            <h3 data-form-title>Mở chi nhánh mới</h3>
-            <p data-form-subtitle>Điền thông tin chi nhánh</p>
-          </div>
-          <button type="button" class="legacy-branches-form-close" data-close-branch-form>
-            {{ icon("x-circle", 18, "legacy-inline-icon") }}
-          </button>
-        </div>
-
-        <form method="post" action="{{ url_for('web.branches_save') }}" class="legacy-branches-form" data-branch-form>
-          <input type="hidden" name="branch_id" value="" data-form-branch-id>
-
-          <label class="legacy-modal-field">
-            <span>Tên chi nhánh</span>
-            <input type="text" name="name" placeholder="Nhập tên chi nhánh" data-form-name required>
-          </label>
-
-          <label class="legacy-modal-field">
-            <span>Địa chỉ</span>
-            <input type="text" name="address" placeholder="Nhập địa chỉ" data-form-address>
-          </label>
-
-          <div class="legacy-branch-form-time-grid">
-            <label class="legacy-modal-field">
-              <span>Giờ mở</span>
-              <input type="time" name="open_time" value="08:00" data-form-open-time required>
-            </label>
-            <label class="legacy-modal-field">
-              <span>Giờ đóng</span>
-              <input type="time" name="close_time" value="22:00" data-form-close-time required>
-            </label>
-          </div>
-
-          <label class="legacy-modal-field">
-            <span>Trạng thái</span>
-            <select name="status" data-form-status>
-              <option value="active">Hoạt động</option>
-              <option value="inactive">Tạm ngưng</option>
-            </select>
-          </label>
-
-          <label class="legacy-modal-field" data-manager-field hidden>
-            <span>Quản lí</span>
-            <div class="legacy-autocomplete-wrap" data-manager-wrap>
-              <input type="hidden" name="manager_staff_id" value="" data-manager-id>
-              <input
-                type="text"
-                name="manager_query"
-                placeholder="Nhập tên, chức danh hoặc số điện thoại"
-                autocomplete="off"
-                value=""
-                data-manager-query
-              >
-              <div class="legacy-autocomplete-list" data-manager-list hidden></div>
-            </div>
-          </label>
-
-          <div class="legacy-branches-modal-actions">
-            <button type="button" class="legacy-modal-btn-cancel" data-close-branch-form>Hủy</button>
-            <button type="submit" class="legacy-modal-btn-save" data-form-submit>Lưu thay đổi</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <script id="branch-items" type="application/json">{{ branches|tojson }}</script>
-  <script id="branch-manager-options" type="application/json">{{ manager_options_by_branch|tojson }}</script>
-
-  <script>
-    (function () {
-      var root = document.querySelector("[data-branches-root]");
-      if (!root) {
-        return;
-      }
-
-      function parseJSONScript(id) {
-        var node = document.getElementById(id);
-        if (!node) {
-          return {};
-        }
-        try {
-          return JSON.parse(node.textContent || "{}");
-        } catch (_error) {
-          return {};
-        }
-      }
-
-      var branchItemsRaw = parseJSONScript("branch-items");
-      var branchItems = Array.isArray(branchItemsRaw) ? branchItemsRaw : [];
-      var managerOptionsByBranch = parseJSONScript("branch-manager-options");
-      var branchById = {};
-      branchItems.forEach(function (item) {
-        var id = String((item && item.id) || "");
-        if (id) {
-          branchById[id] = item;
-        }
-      });
-
-      var detailModal = root.querySelector("[data-branch-detail-modal]");
-      var formModal = root.querySelector("[data-branch-form-modal]");
-
-      var detailImage = root.querySelector("[data-detail-image]");
-      var detailName = root.querySelector("[data-detail-name]");
-      var detailRating = root.querySelector("[data-detail-rating]");
-      var detailStatusLine = root.querySelector("[data-detail-status-line]");
-      var detailStaff = root.querySelector("[data-detail-staff]");
-      var detailRooms = root.querySelector("[data-detail-rooms]");
-      var detailAppointments = root.querySelector("[data-detail-appointments]");
-      var detailRevenue = root.querySelector("[data-detail-revenue]");
-      var detailAddress = root.querySelector("[data-detail-address]");
-      var detailPhone = root.querySelector("[data-detail-phone]");
-      var detailHours = root.querySelector("[data-detail-hours]");
-      var detailManager = root.querySelector("[data-detail-manager]");
-      var detailOpenEdit = root.querySelector("[data-detail-open-edit]");
-
-      var form = root.querySelector("[data-branch-form]");
-      var formTitle = root.querySelector("[data-form-title]");
-      var formSubtitle = root.querySelector("[data-form-subtitle]");
-      var formSubmit = root.querySelector("[data-form-submit]");
-      var formBranchId = root.querySelector("[data-form-branch-id]");
-      var formName = root.querySelector("[data-form-name]");
-      var formAddress = root.querySelector("[data-form-address]");
-      var formOpenTime = root.querySelector("[data-form-open-time]");
-      var formCloseTime = root.querySelector("[data-form-close-time]");
-      var formStatus = root.querySelector("[data-form-status]");
-
-      var managerField = root.querySelector("[data-manager-field]");
-      var managerWrap = root.querySelector("[data-manager-wrap]");
-      var managerId = root.querySelector("[data-manager-id]");
-      var managerQuery = root.querySelector("[data-manager-query]");
-      var managerList = root.querySelector("[data-manager-list]");
-
-      var selectedBranchId = "";
-      var editingBranchId = "";
-
-      function setModalOpen(modal, isOpen) {
-        if (!modal) {
-          return;
-        }
-        modal.hidden = !isOpen;
-        var anyOpen = Boolean(
-          (detailModal && !detailModal.hidden) ||
-          (formModal && !formModal.hidden)
-        );
-        document.body.classList.toggle("legacy-modal-open", anyOpen);
-      }
-
-      function closeAllModals() {
-        setModalOpen(detailModal, false);
-        setModalOpen(formModal, false);
-      }
-
-      function setText(node, value) {
-        if (node) {
-          node.textContent = value ? String(value) : "-";
-        }
-      }
-
-      function getBranchById(branchId) {
-        return branchById[String(branchId)] || null;
-      }
-
-      function managerOptionsForBranch(branchId) {
-        var key = String(branchId || "");
-        var options = managerOptionsByBranch[key];
-        return Array.isArray(options) ? options : [];
-      }
-
-      function renderManagerList(query) {
-        if (!managerList) {
-          return;
-        }
-        var options = managerOptionsForBranch(editingBranchId);
-        var normalizedQuery = String(query || "").trim().toLowerCase();
-        var filtered = !normalizedQuery
-          ? options
-          : options.filter(function (item) {
-              var search = String((item && item.search) || (item && item.display) || "").toLowerCase();
-              return search.indexOf(normalizedQuery) !== -1;
-            });
-
-        managerList.innerHTML = "";
-        if (!filtered.length) {
-          var empty = document.createElement("div");
-          empty.className = "legacy-autocomplete-empty";
-          empty.textContent = "Không có dữ liệu phù hợp";
-          managerList.appendChild(empty);
-          return;
-        }
-
-        filtered.forEach(function (option) {
-          var button = document.createElement("button");
-          button.type = "button";
-          button.className = "legacy-autocomplete-item";
-          button.textContent = option.display || "";
-          button.dataset.optionId = String(option.id || "");
-          button.addEventListener("mousedown", function (event) {
-            event.preventDefault();
-            if (managerId) {
-              managerId.value = String(option.id || "");
-            }
-            if (managerQuery) {
-              managerQuery.value = option.display || "";
-            }
-            managerList.hidden = true;
-          });
-          managerList.appendChild(button);
-        });
-      }
-
-      function openDetail(branchId) {
-        var branch = getBranchById(branchId);
-        if (!branch) {
-          return;
-        }
-        selectedBranchId = String(branch.id);
-
-        if (detailImage) {
-          detailImage.src = branch.image || "";
-          detailImage.alt = branch.name || "";
-        }
-        setText(detailName, branch.name || "-");
-        setText(detailRating, branch.rating || "-");
-        setText(
-          detailStatusLine,
-          ((branch.status === "active") ? "Hoạt động" : "Tạm ngưng") + " từ " + (branch.established || "-")
-        );
-        setText(detailStaff, String(branch.staff || 0) + " người");
-        setText(detailRooms, String(branch.rooms || 0));
-        setText(detailAppointments, String(branch.appointments || 0));
-        setText(detailRevenue, branch.revenue || "0.0 tr");
-        setText(detailAddress, branch.address || "-");
-        setText(detailPhone, branch.phone || "-");
-        setText(detailHours, branch.hours || "-");
-        setText(detailManager, branch.manager_name || "-");
-
-        setModalOpen(detailModal, true);
-      }
-
-      function openFormCreate() {
-        editingBranchId = "";
-        if (formTitle) {
-          formTitle.textContent = "Mở chi nhánh mới";
-        }
-        if (formSubtitle) {
-          formSubtitle.textContent = "Điền thông tin chi nhánh";
-        }
-        if (formSubmit) {
-          formSubmit.textContent = "Thêm chi nhánh";
-        }
-        if (formBranchId) {
-          formBranchId.value = "";
-        }
-        if (formName) {
-          formName.value = "";
-        }
-        if (formAddress) {
-          formAddress.value = "";
-        }
-        if (formOpenTime) {
-          formOpenTime.value = "08:00";
-        }
-        if (formCloseTime) {
-          formCloseTime.value = "22:00";
-        }
-        if (formStatus) {
-          formStatus.value = "active";
-        }
-
-        if (managerField) {
-          managerField.hidden = true;
-        }
-        if (managerId) {
-          managerId.value = "";
-        }
-        if (managerQuery) {
-          managerQuery.value = "";
-        }
-        if (managerList) {
-          managerList.hidden = true;
-          managerList.innerHTML = "";
-        }
-        setModalOpen(formModal, true);
-      }
-
-      function openFormEdit(branchId) {
-        var branch = getBranchById(branchId);
-        if (!branch) {
-          return;
-        }
-        editingBranchId = String(branch.id);
-
-        if (formTitle) {
-          formTitle.textContent = "Chỉnh sửa chi nhánh";
-        }
-        if (formSubtitle) {
-          formSubtitle.textContent = "Cập nhật thông tin chi nhánh đang chọn";
-        }
-        if (formSubmit) {
-          formSubmit.textContent = "Lưu thay đổi";
-        }
-        if (formBranchId) {
-          formBranchId.value = String(branch.id || "");
-        }
-        if (formName) {
-          formName.value = branch.name || "";
-        }
-        if (formAddress) {
-          formAddress.value = branch.address && branch.address !== "-" ? branch.address : "";
-        }
-        if (formOpenTime) {
-          formOpenTime.value = branch.open_time || "08:00";
-        }
-        if (formCloseTime) {
-          formCloseTime.value = branch.close_time || "22:00";
-        }
-        if (formStatus) {
-          formStatus.value = branch.status === "inactive" ? "inactive" : "active";
-        }
-
-        if (managerField) {
-          managerField.hidden = false;
-        }
-        if (managerId) {
-          managerId.value = branch.manager_staff_id ? String(branch.manager_staff_id) : "";
-        }
-        if (managerQuery) {
-          if (branch.manager_option_display) {
-            managerQuery.value = branch.manager_option_display;
-          } else if (branch.manager_name && branch.manager_name !== "-") {
-            managerQuery.value = branch.manager_name;
-          } else {
-            managerQuery.value = "";
-          }
-        }
-        if (managerList) {
-          managerList.hidden = true;
-          managerList.innerHTML = "";
-        }
-
-        setModalOpen(formModal, true);
-      }
-
-      var createButtons = Array.prototype.slice.call(root.querySelectorAll("[data-open-branch-create]"));
-      var cardNodes = Array.prototype.slice.call(root.querySelectorAll("[data-branch-card]"));
-      var editButtons = Array.prototype.slice.call(root.querySelectorAll("[data-open-branch-edit]"));
-      var closeDetailButtons = Array.prototype.slice.call(root.querySelectorAll("[data-close-branch-detail]"));
-      var closeFormButtons = Array.prototype.slice.call(root.querySelectorAll("[data-close-branch-form]"));
-
-      createButtons.forEach(function (button) {
-        button.addEventListener("click", function () {
-          openFormCreate();
-        });
-      });
-
-      cardNodes.forEach(function (card) {
-        card.addEventListener("click", function () {
-          openDetail(card.getAttribute("data-branch-id") || "");
-        });
-      });
-
-      editButtons.forEach(function (button) {
-        button.addEventListener("click", function (event) {
-          event.preventDefault();
-          event.stopPropagation();
-          var branchId = button.getAttribute("data-branch-id") || "";
-          openFormEdit(branchId);
-        });
-      });
-
-      if (detailOpenEdit) {
-        detailOpenEdit.addEventListener("click", function () {
-          if (!selectedBranchId) {
-            return;
-          }
-          setModalOpen(detailModal, false);
-          openFormEdit(selectedBranchId);
-        });
-      }
-
-      closeDetailButtons.forEach(function (button) {
-        button.addEventListener("click", function () {
-          setModalOpen(detailModal, false);
-        });
-      });
-
-      closeFormButtons.forEach(function (button) {
-        button.addEventListener("click", function () {
-          setModalOpen(formModal, false);
-        });
-      });
-
-      [detailModal, formModal].forEach(function (modal) {
-        if (!modal) {
-          return;
-        }
-        modal.addEventListener("click", function (event) {
-          if (event.target === modal) {
-            setModalOpen(modal, false);
-          }
-        });
-      });
-
-      if (managerQuery && managerId && managerList && managerWrap) {
-        managerQuery.addEventListener("focus", function () {
-          renderManagerList(managerQuery.value);
-          managerList.hidden = false;
-        });
-        managerQuery.addEventListener("input", function () {
-          managerId.value = "";
-          renderManagerList(managerQuery.value);
-          managerList.hidden = false;
-        });
-        managerQuery.addEventListener("keydown", function (event) {
-          if (event.key === "Escape") {
-            managerList.hidden = true;
-          }
-        });
-        document.addEventListener("click", function (event) {
-          if (!managerWrap.contains(event.target)) {
-            managerList.hidden = true;
-          }
-        });
-      }
-
-      if (form) {
-        form.addEventListener("submit", function (event) {
-          if (!formName || !formName.value.trim()) {
-            event.preventDefault();
-            alert("Vui lòng nhập tên chi nhánh.");
-            return;
-          }
-          if (!managerField || managerField.hidden) {
-            return;
-          }
-          var managerText = managerQuery ? managerQuery.value.trim() : "";
-          if (managerText && managerId && !managerId.value) {
-            event.preventDefault();
-            alert("Vui lòng chọn Quản lí từ danh sách gợi ý.");
-          }
-        });
-      }
-
-      document.addEventListener("keydown", function (event) {
-        if (event.key === "Escape") {
-          closeAllModals();
-        }
-      });
-    })();
-  </script>
+  {% if can_edit %}
+    <section class="panel">
+      <h3>{% if edit_mode %}Cập nhật chi nhánh{% else %}Thêm chi nhánh{% endif %}</h3>
+      <form method="post" action="{{ url_for('web.branches_save') }}" class="inline branch-form">
+        <input type="hidden" name="branch_id" value="{{ form_data.branch_id or '' }}">
+        <input type="text" name="name" placeholder="Tên chi nhánh" value="{{ form_data.name }}" required>
+        <input type="text" name="address" placeholder="Địa chỉ" value="{{ form_data.address }}">
+        <input type="text" name="phone" placeholder="Số điện thoại" value="{{ form_data.phone }}">
+        <input type="text" name="manager_name" placeholder="Quản lý chi nhánh" value="{{ form_data.manager_name }}">
+        <select name="status">
+          <option value="active" {% if form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+          <option value="inactive" {% if form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+        </select>
+        <button type="submit">Lưu</button>
+        {% if edit_mode %}
+          <a href="{{ url_for('web.branches', page=pager.page, q=q, status=status) }}" class="tiny-btn">Hủy</a>
+        {% endif %}
+      </form>
+    </section>
+  {% endif %}
 {% endblock %}

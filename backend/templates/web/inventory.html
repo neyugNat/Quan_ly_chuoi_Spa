@@ -1,283 +1,211 @@
 {% extends "web/base.html" %}
-
-{% block title %}{{ page_title }} | Quản Lý Spa{% endblock %}
-
 {% block content %}
-  {% macro icon(name, size=16, css_class='') -%}
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="{{ size }}"
-      height="{{ size }}"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      class="{{ css_class }}"
-      aria-hidden="true"
-    >
-      {% if name == "search" %}
-        <circle cx="11" cy="11" r="8"></circle>
-        <path d="m21 21-4.35-4.35"></path>
-      {% elif name == "box" %}
-        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73z"></path>
-        <path d="m3.3 7 8.7 5 8.7-5"></path>
-        <path d="M12 22V12"></path>
-      {% elif name == "calendar" %}
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-        <path d="M16 2v4"></path>
-        <path d="M8 2v4"></path>
-        <path d="M3 10h18"></path>
-      {% elif name == "chevron-left" %}
-        <path d="m15 18-6-6 6-6"></path>
-      {% elif name == "chevron-right" %}
-        <path d="m9 18 6-6-6-6"></path>
-      {% endif %}
-    </svg>
-  {%- endmacro %}
+  <style>
+    .inventory-inline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
 
-  {% set type_class_map = {
-    "Dầu massage": "type-massage-oil",
-    "Dưỡng da": "type-skincare",
-    "Khăn & ga": "type-linen",
-    "Vệ sinh": "type-cleaning",
-    "Dụng cụ": "type-tools",
-    "Tiêu hao": "type-consumable",
-  } %}
+    .inventory-inline input[type="text"],
+    .inventory-inline input[type="number"],
+    .inventory-inline select,
+    .inventory-inline button {
+      min-height: 40px;
+      padding: 8px 12px;
+    }
 
-  <div class="legacy-inventory-page" data-inventory-root data-total-count="{{ items|length }}">
-    <div class="legacy-inventory-head">
-      <p class="legacy-inventory-subtitle">{{ page_subtitle }}</p>
-    </div>
+    .inventory-inline input[type="text"],
+    .inventory-inline input[type="number"],
+    .inventory-inline select {
+      flex: 1 1 170px;
+      min-width: 0;
+    }
 
-    <div class="legacy-inventory-metrics">
-      <article class="legacy-inventory-metric metric-total">
-        <div class="legacy-inventory-metric-value">{{ summary.total_items }}</div>
-        <div class="legacy-inventory-metric-label">Tổng vật phẩm</div>
-      </article>
-      <article class="legacy-inventory-metric metric-low">
-        <div class="legacy-inventory-metric-value">{{ summary.low_stock_items }}</div>
-        <div class="legacy-inventory-metric-label">Sắp hết hàng</div>
-      </article>
-      <article class="legacy-inventory-metric metric-out">
-        <div class="legacy-inventory-metric-value">{{ summary.out_of_stock_items }}</div>
-        <div class="legacy-inventory-metric-label">Hết hàng</div>
-      </article>
-    </div>
+    .inventory-inline .inv-q {
+      flex: 0 1 360px;
+    }
 
-    <section class="legacy-inventory-tools">
-      <label class="legacy-inventory-search-wrap" for="legacy-inventory-search">
-        {{ icon("search", 15, "legacy-search-icon") }}
-        <input
-          id="legacy-inventory-search"
-          type="text"
-          class="legacy-inventory-search"
-          placeholder="Tìm vật phẩm, mã SKU..."
-          data-inventory-search
-        >
-      </label>
-      <div class="legacy-inventory-filters" role="tablist" aria-label="Bộ lọc loại vật phẩm">
-        {% for type_name in type_filters %}
-          <button
-            type="button"
-            class="legacy-inventory-filter {% if loop.first %}is-active{% endif %}"
-            data-type-filter="{{ type_name }}"
-          >
-            {{ type_name }}
-          </button>
-        {% endfor %}
-      </div>
-    </section>
+    .inventory-inline .inv-branch {
+      flex: 0 1 300px;
+    }
 
-    <div class="legacy-inventory-table-wrap">
-      <table class="legacy-inventory-table">
-        <thead>
-          <tr>
-            <th>Vật phẩm</th>
-            <th>Loại</th>
-            <th>Ngày nhập</th>
-            <th>Hạn sử dụng</th>
-          </tr>
-        </thead>
-        <tbody data-inventory-tbody>
-          {% for item in items %}
-            {% set type_class = type_class_map.get(item.type, "type-consumable") %}
-            <tr
-              data-inventory-row
-              data-search="{{ item.search_text|e }}"
-              data-type="{{ item.type }}"
-            >
-              <td>
-                <div class="legacy-inventory-item-cell">
-                  <div class="legacy-inventory-item-avatar {{ item.avatar_class }}">{{ item.name_initial }}</div>
-                  <div>
-                    <div class="legacy-inventory-item-name">{{ item.name }}</div>
-                    <div class="legacy-inventory-item-sku">{{ item.sku }}</div>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <span class="legacy-inventory-type {{ type_class }}">{{ item.type }}</span>
-              </td>
-              <td>
-                <span class="legacy-inventory-date">
-                  {{ icon("calendar", 12, "legacy-inline-icon") }}
-                  <span>{{ item.import_date }}</span>
-                </span>
-              </td>
-              <td>
-                <span class="legacy-inventory-date {% if item.expiry_date == '-' %}is-empty{% endif %}">
-                  {{ icon("calendar", 12, "legacy-inline-icon") }}
-                  <span>{{ item.expiry_date }}</span>
-                </span>
-              </td>
-            </tr>
+    .inventory-inline .low-flag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .inventory-inline .low-flag input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      accent-color: #334155;
+    }
+
+    .inventory-inline label,
+    .inventory-inline .tiny-btn,
+    .inventory-inline button {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    @media (min-width: 1280px) {
+      .inventory-inline {
+        flex-wrap: nowrap;
+      }
+
+      .inventory-inline .inv-q {
+        flex: 0 1 340px;
+      }
+
+      .inventory-inline .inv-branch {
+        flex: 0 1 260px;
+      }
+    }
+  </style>
+
+  <section class="panel">
+    <h2>Kho</h2>
+    <form method="get" class="inline inventory-inline filter-row">
+      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo sản phẩm / nhóm" class="inv-q">
+      {% if is_super_admin %}
+        <select name="branch_id" class="inv-branch">
+          <option value="">Tất cả chi nhánh</option>
+          {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
           {% endfor %}
-        </tbody>
-      </table>
+        </select>
+      {% endif %}
+      <label class="low-flag"><input type="checkbox" name="low" value="1" {% if low %}checked{% endif %}> Hàng sắp hết</label>
+      <button type="submit" class="secondary">Lọc</button>
+      <a href="{{ url_for('web.inventory') }}" class="tiny-btn">Xóa lọc</a>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Chi nhánh</th>
+          <th>Sản phẩm</th>
+          <th>Nhóm</th>
+          <th>Đơn vị</th>
+          <th>Tồn hiện tại</th>
+          <th>Mức tối thiểu</th>
+          <th>Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.branch.name if row.branch else '-' }}</td>
+            <td>{{ row.item.name if row.item else '-' }}</td>
+            <td>{{ row.item.group_name if row.item else '-' }}</td>
+            <td>{{ row.item.unit if row.item else '-' }}</td>
+            <td>{{ row.quantity|int }}</td>
+            <td>{{ row.item.min_stock|int if row.item else '-' }}</td>
+            <td>
+              {% if row.item %}
+                <span class="status status-{{ row.item.status }}">
+                  {{ 'Đang hoạt động' if row.item.status == 'active' else 'Ngừng hoạt động' }}
+                </span>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="7">Không có dữ liệu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="pager">
+      {% if pager.has_prev %}
+        <a href="{{ url_for('web.inventory', page=pager.prev_num, q=q, low=1 if low else None, branch_id=selected_branch_id) }}">← Trang trước</a>
+      {% endif %}
+      <span>Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
+      {% if pager.has_next %}
+        <a href="{{ url_for('web.inventory', page=pager.next_num, q=q, low=1 if low else None, branch_id=selected_branch_id) }}">Trang sau →</a>
+      {% endif %}
     </div>
+  </section>
 
-    <p class="legacy-inventory-empty" data-inventory-empty {% if items %}hidden{% endif %}>
-      Không có vật phẩm phù hợp.
-    </p>
+  <section class="panel">
+    <h3>Giao dịch kho gần nhất</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Thời gian</th>
+          <th>Chi nhánh</th>
+          <th>Sản phẩm</th>
+          <th>Loại</th>
+          <th>Số lượng (+/-)</th>
+          <th>Ghi chú</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in tx_rows %}
+          <tr>
+            <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M') if row.created_at else '-' }}</td>
+            <td>{{ row.branch.name if row.branch else '-' }}</td>
+            <td>{{ row.item.name if row.item else '-' }}</td>
+            <td>
+              {% if row.type == 'in' %}Nhập kho{% elif row.type == 'out' %}Xuất kho{% else %}Điều chỉnh{% endif %}
+            </td>
+            <td>{{ row.quantity|int }}</td>
+            <td>{{ row.note or '-' }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">Không có lịch sử giao dịch.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
 
-    <div class="legacy-inventory-foot">
-      <span class="legacy-inventory-foot-copy">
-        Hiển thị <span class="legacy-inventory-foot-emphasis" data-visible-count>{{ [items|length, 20]|min }}</span> / {{ items|length }} vật phẩm
-      </span>
-      <div class="legacy-inventory-pagination">
-        <button type="button" class="legacy-page-btn" data-inventory-page-prev aria-label="Trang trước">{{ icon("chevron-left", 14, "legacy-inline-icon") }}</button>
-        <span class="legacy-customers-page-status" data-inventory-page-status>
-          {% if items|length %}
-            Trang 1 / {{ (items|length + 19) // 20 }}
-          {% else %}
-            Trang 0 / 0
-          {% endif %}
-        </span>
-        <button type="button" class="legacy-page-btn" data-inventory-page-next aria-label="Trang sau">{{ icon("chevron-right", 14, "legacy-inline-icon") }}</button>
-      </div>
-    </div>
-  </div>
+  {% if is_super_admin %}
+    <section class="panel">
+      <h3>Danh mục sản phẩm kho (thêm/sửa)</h3>
+      <form method="post" action="{{ url_for('web.inventory_items_save') }}" class="inline inventory-inline">
+        <input type="number" name="item_id" placeholder="ID">
+        <input type="text" name="name" placeholder="Tên sản phẩm" required>
+        <input type="text" name="unit" placeholder="Đơn vị" required>
+        <input type="text" name="group_name" placeholder="Nhóm hàng">
+        <input type="number" name="min_stock" min="0" step="1" placeholder="Mức tồn tối thiểu" required>
+        <select name="status">
+          <option value="active">Đang hoạt động</option>
+          <option value="inactive">Ngừng hoạt động</option>
+        </select>
+        <button type="submit">Lưu danh mục</button>
+      </form>
+    </section>
+  {% endif %}
 
-  <script>
-    (function () {
-      var root = document.querySelector("[data-inventory-root]");
-      if (!root) {
-        return;
-      }
-
-      var rows = Array.prototype.slice.call(root.querySelectorAll("[data-inventory-row]"));
-      var filterButtons = Array.prototype.slice.call(root.querySelectorAll("[data-type-filter]"));
-      var searchInput = root.querySelector("[data-inventory-search]");
-      var visibleCount = root.querySelector("[data-visible-count]");
-      var emptyState = root.querySelector("[data-inventory-empty]");
-      var pagePrev = root.querySelector("[data-inventory-page-prev]");
-      var pageNext = root.querySelector("[data-inventory-page-next]");
-      var pageStatus = root.querySelector("[data-inventory-page-status]");
-      var activeType = "Tất cả";
-      var currentPage = 1;
-      var pageSize = 20;
-
-      function applyFilters(resetPage) {
-        var query = ((searchInput && searchInput.value) || "").trim().toLowerCase();
-        var shouldResetPage = Boolean(resetPage);
-        var matchedRows = [];
-
-        rows.forEach(function (row) {
-          var searchText = (row.getAttribute("data-search") || "").toLowerCase();
-          var typeLabel = row.getAttribute("data-type") || "";
-          var matchSearch = !query || searchText.indexOf(query) !== -1;
-          var matchType = activeType === "Tất cả" || typeLabel === activeType;
-          if (matchSearch && matchType) {
-            matchedRows.push(row);
-          }
-        });
-
-        var totalMatched = matchedRows.length;
-        var totalPages = totalMatched === 0 ? 0 : Math.ceil(totalMatched / pageSize);
-
-        if (shouldResetPage) {
-          currentPage = totalPages > 0 ? 1 : 0;
-        }
-        if (totalPages === 0) {
-          currentPage = 0;
-        } else {
-          if (currentPage < 1) {
-            currentPage = 1;
-          }
-          if (currentPage > totalPages) {
-            currentPage = totalPages;
-          }
-        }
-
-        var startIndex = currentPage > 0 ? (currentPage - 1) * pageSize : 0;
-        var endIndex = startIndex + pageSize;
-        var visible = 0;
-
-        rows.forEach(function (row) {
-          row.hidden = true;
-        });
-
-        matchedRows.forEach(function (row, index) {
-          var isVisible = index >= startIndex && index < endIndex;
-          row.hidden = !isVisible;
-          if (isVisible) {
-            visible += 1;
-          }
-        });
-
-        if (visibleCount) {
-          visibleCount.textContent = String(visible);
-        }
-        if (emptyState) {
-          emptyState.hidden = totalMatched !== 0;
-        }
-        if (pageStatus) {
-          pageStatus.textContent = totalPages === 0
-            ? "Trang 0 / 0"
-            : "Trang " + String(currentPage) + " / " + String(totalPages);
-        }
-        if (pagePrev) {
-          pagePrev.disabled = currentPage <= 1;
-        }
-        if (pageNext) {
-          pageNext.disabled = totalPages === 0 || currentPage >= totalPages;
-        }
-      }
-
-      filterButtons.forEach(function (button) {
-        button.addEventListener("click", function () {
-          activeType = button.getAttribute("data-type-filter") || "Tất cả";
-          filterButtons.forEach(function (item) {
-            item.classList.toggle("is-active", item === button);
-          });
-          applyFilters(true);
-        });
-      });
-
-      if (searchInput) {
-        searchInput.addEventListener("input", function () {
-          applyFilters(true);
-        });
-      }
-      if (pagePrev) {
-        pagePrev.addEventListener("click", function () {
-          if (currentPage <= 1) {
-            return;
-          }
-          currentPage -= 1;
-          applyFilters(false);
-        });
-      }
-      if (pageNext) {
-        pageNext.addEventListener("click", function () {
-          currentPage += 1;
-          applyFilters(false);
-        });
-      }
-
-      applyFilters(true);
-    })();
-  </script>
+  <section class="panel">
+    <h3>Nhập/Xuất/Điều chỉnh tồn kho</h3>
+    <form method="post" action="{{ url_for('web.inventory_txn') }}" class="inline inventory-inline">
+      {% if is_super_admin %}
+        <select name="branch_id" required>
+          {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
+      <select name="item_id" required>
+        <option value="">Chọn sản phẩm</option>
+        {% for item in item_rows %}
+          <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
+        {% endfor %}
+      </select>
+      <select name="type" required>
+        <option value="in">Nhập kho</option>
+        <option value="out">Xuất kho</option>
+        <option value="adjust">Điều chỉnh về số lượng mới</option>
+      </select>
+      <input type="number" name="quantity" min="0" step="1" placeholder="Số lượng" required>
+      <input type="text" name="note" placeholder="Ghi chú">
+      <button type="submit">Cập nhật kho</button>
+    </form>
+  </section>
 {% endblock %}

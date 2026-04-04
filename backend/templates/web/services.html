@@ -1,0 +1,122 @@
+{% extends "web/base.html" %}
+{% block content %}
+  {% set service_status_labels = {
+    'active': 'Đang hoạt động',
+    'inactive': 'Ngừng hoạt động'
+  } %}
+
+  <style>
+    form.inline.service-form {
+      display: grid;
+      grid-template-columns: 90px 190px 220px 110px 130px 170px 150px 80px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    form.inline.service-form > * {
+      min-width: 0;
+    }
+
+    form.inline.service-form input,
+    form.inline.service-form select {
+      width: 100%;
+    }
+
+    @media (max-width: 1200px) {
+      form.inline.service-form {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 860px) {
+      form.inline.service-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+
+  <section class="panel">
+    <h2>Dịch vụ</h2>
+    <form method="get" class="inline filter-row">
+      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên dịch vụ">
+      <input type="text" name="group" value="{{ group_name }}" placeholder="Nhóm dịch vụ">
+      <select name="status">
+        <option value="">Tất cả trạng thái</option>
+        <option value="active" {% if status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+      </select>
+      <button type="submit" class="secondary">Lọc</button>
+      <a href="{{ url_for('web.services') }}" class="tiny-btn">Xóa lọc</a>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Chi nhánh</th>
+          <th>Tên dịch vụ</th>
+          <th>Nhóm</th>
+          <th>Giá</th>
+          <th>Thời lượng</th>
+          <th>Trạng thái</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.id }}</td>
+            <td>{{ row.branch.name if row.branch else '-' }}</td>
+            <td>{{ row.name }}</td>
+            <td>{{ row.group_name or '-' }}</td>
+            <td>{{ fmt_money(row.price) }}</td>
+            <td>{{ row.duration_minutes }} phút</td>
+            <td><span class="status status-{{ row.status }}">{{ service_status_labels.get(row.status, row.status) }}</span></td>
+            <td>
+              <form method="post" action="{{ url_for('web.services_toggle') }}" class="inline form-compact">
+                <input type="hidden" name="service_id" value="{{ row.id }}">
+                <button type="submit" class="secondary">Bật/Tắt</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8">Không có dữ liệu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="pager">
+      {% if pager.has_prev %}
+        <a href="{{ url_for('web.services', page=pager.prev_num, q=q, group=group_name, status=status) }}">← Trang trước</a>
+      {% endif %}
+      <span>Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
+      {% if pager.has_next %}
+        <a href="{{ url_for('web.services', page=pager.next_num, q=q, group=group_name, status=status) }}">Trang sau →</a>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>Thêm/Sửa dịch vụ</h3>
+    <form method="post" action="{{ url_for('web.services_save') }}" class="inline service-form">
+      <input type="number" name="service_id" placeholder="ID">
+      {% if is_super_admin %}
+        <select name="branch_id" required>
+          <option value="">Chọn chi nhánh</option>
+          {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
+      <input type="text" name="name" placeholder="Tên dịch vụ" required>
+      <input type="text" name="group_name" placeholder="Nhóm">
+      <input type="number" name="price" step="1000" min="0" placeholder="Giá (VNĐ)" required>
+      <input type="number" name="duration_minutes" min="1" placeholder="Thời lượng (phút)" required>
+      <select name="status">
+        <option value="active">Đang hoạt động</option>
+        <option value="inactive">Ngừng hoạt động</option>
+      </select>
+      <button type="submit">Lưu</button>
+    </form>
+  </section>
+{% endblock %}

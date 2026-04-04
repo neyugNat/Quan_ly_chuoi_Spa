@@ -1,0 +1,69 @@
+{% extends "web/base.html" %}
+{% block content %}
+  <section class="panel">
+    <h2>Tài khoản quản lí chi nhánh</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Chi nhánh</th>
+          <th>Trạng thái</th>
+          <th>Tạo lúc</th>
+          <th>Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.username }}</td>
+            <td>Quản lí chi nhánh</td>
+            <td>{{ row.branch.name if row.branch else '-' }}</td>
+            <td>
+              <span class="status status-{{ 'active' if row.is_active else 'inactive' }}">
+                {{ 'Đang hoạt động' if row.is_active else 'Ngừng hoạt động' }}
+              </span>
+            </td>
+            <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M') if row.created_at else '-' }}</td>
+            <td><a href="{{ url_for('web.accounts', edit_id=row.id) }}" class="tiny-btn">Sửa</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">Không có dữ liệu.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h3>Thêm/Sửa tài khoản quản lí chi nhánh</h3>
+    <form method="post" action="{{ url_for('web.accounts_save') }}" class="inline">
+      <input type="hidden" name="user_id" value="{{ form_data.user_id or '' }}">
+      <input type="text" name="username" placeholder="Username" value="{{ form_data.username }}" required>
+      <select name="branch_id" required>
+        <option value="">Chọn chi nhánh</option>
+        {% for b in branch_options %}
+          <option value="{{ b.id }}" {% if form_data.branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+      <input type="password" name="password" placeholder="Mật khẩu mới{% if edit_mode %} (để trống nếu giữ){% endif %}" {% if not edit_mode %}required{% endif %}>
+      <select name="is_active">
+        <option value="1" {% if form_data.is_active == '1' %}selected{% endif %}>Đang hoạt động</option>
+        <option value="0" {% if form_data.is_active == '0' %}selected{% endif %}>Ngừng hoạt động</option>
+      </select>
+      <button type="submit">Lưu</button>
+      {% if edit_mode %}
+        <a href="{{ url_for('web.accounts') }}" class="tiny-btn">Hủy</a>
+      {% endif %}
+    </form>
+  </section>
+
+  <section class="panel">
+    <h3>Đổi mật khẩu</h3>
+    <form method="post" action="{{ url_for('web.accounts_change_password') }}" class="inline">
+      <input type="password" name="current_password" placeholder="Mật khẩu hiện tại" required>
+      <input type="password" name="new_password" placeholder="Mật khẩu mới" required>
+      <input type="password" name="confirm_password" placeholder="Xác nhận mật khẩu mới" required>
+      <button type="submit" class="secondary">Đổi mật khẩu</button>
+    </form>
+  </section>
+{% endblock %}
