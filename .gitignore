@@ -4,5 +4,6 @@ __pycache__/
 *.log
 *.pid
 instance/
+.vscode/
 .sisyphus/
 nul
