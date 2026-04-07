@@ -31,11 +31,29 @@
       flex: 0 1 300px;
     }
 
+    .inventory-inline .inv-group {
+      flex: 0 1 260px;
+    }
+
     .inventory-inline .low-flag {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       white-space: nowrap;
+    }
+
+    .inventory-inline .inventory-save-btn,
+    .inventory-inline .inventory-cancel-btn {
+      min-height: 40px;
+      padding: 8px 12px;
+      font-size: inherit;
+      white-space: nowrap;
+    }
+
+    .inventory-inline .inventory-cancel-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .inventory-inline .low-flag input[type="checkbox"] {
@@ -64,13 +82,23 @@
       .inventory-inline .inv-branch {
         flex: 0 1 260px;
       }
+
+      .inventory-inline .inv-group {
+        flex: 0 1 230px;
+      }
     }
   </style>
 
   <section class="panel">
     <h2>Kho</h2>
     <form method="get" class="inline inventory-inline filter-row">
-      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo sản phẩm / nhóm" class="inv-q">
+      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên sản phẩm" class="inv-q">
+      <select name="group_name" class="inv-group">
+        <option value="">Tất cả nhóm</option>
+        {% for g in group_options %}
+          <option value="{{ g }}" {% if g == group_name %}selected{% endif %}>{{ g }}</option>
+        {% endfor %}
+      </select>
       {% if is_super_admin %}
         <select name="branch_id" class="inv-branch">
           <option value="">Tất cả chi nhánh</option>
@@ -94,6 +122,7 @@
           <th>Tồn hiện tại</th>
           <th>Mức tối thiểu</th>
           <th>Trạng thái</th>
+          <th>Hành động</th>
         </tr>
       </thead>
       <tbody>
@@ -114,23 +143,89 @@
                 -
               {% endif %}
             </td>
+            <td>
+              <div class="inline-links">
+                <a
+                  class="tiny-btn"
+                  href="{{ url_for('web.inventory', edit_stock_id=row.id, page=pager.page, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}#stock-editor"
+                >Sửa</a>
+                <form
+                  method="post"
+                  action="{{ url_for('web.inventory_stocks_delete') }}"
+                  class="inline form-compact"
+                  data-confirm-modal="1"
+                  data-confirm-message="Bạn có chắc muốn xóa dòng tồn kho này không?"
+                  data-confirm-ok-label="Xóa dòng kho"
+                >
+                  <input type="hidden" name="stock_id" value="{{ row.id }}">
+                  <input type="hidden" name="q" value="{{ q }}">
+                  <input type="hidden" name="group_name" value="{{ group_name }}">
+                  <input type="hidden" name="low" value="{{ 1 if low else '' }}">
+                  <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
+                  <input type="hidden" name="page" value="{{ pager.page }}">
+                  <button type="submit" class="warn">Xóa</button>
+                </form>
+              </div>
+            </td>
           </tr>
         {% else %}
-          <tr><td colspan="7">Không có dữ liệu.</td></tr>
+          <tr><td colspan="8">Không có dữ liệu.</td></tr>
         {% endfor %}
       </tbody>
     </table>
 
     <div class="pager">
       {% if pager.has_prev %}
-        <a href="{{ url_for('web.inventory', page=pager.prev_num, q=q, low=1 if low else None, branch_id=selected_branch_id) }}">← Trang trước</a>
+        <a href="{{ url_for('web.inventory', page=pager.prev_num, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}">← Trang trước</a>
       {% endif %}
       <span>Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
       {% if pager.has_next %}
-        <a href="{{ url_for('web.inventory', page=pager.next_num, q=q, low=1 if low else None, branch_id=selected_branch_id) }}">Trang sau →</a>
+        <a href="{{ url_for('web.inventory', page=pager.next_num, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}">Trang sau →</a>
       {% endif %}
     </div>
   </section>
+
+  {% if stock_edit_mode %}
+    <section class="panel edit-anchor-target" id="stock-editor">
+      <h3>Sửa dữ liệu kho</h3>
+      <form method="post" action="{{ url_for('web.inventory_stocks_save') }}" class="inline inventory-inline">
+        <input type="hidden" name="stock_id" value="{{ stock_form_data.stock_id }}">
+        <input type="hidden" name="q" value="{{ q }}">
+        <input type="hidden" name="group_name" value="{{ group_name }}">
+        <input type="hidden" name="low" value="{{ 1 if low else '' }}">
+        <input type="hidden" name="page" value="{{ pager.page }}">
+
+        {% if is_super_admin %}
+          <select name="branch_id" required>
+            {% for b in branch_options %}
+              <option value="{{ b.id }}" {% if b.id == stock_form_data.branch_id %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        {% else %}
+          <input type="hidden" name="branch_id" value="{{ stock_form_data.branch_id }}">
+          <input type="text" value="{{ stock_form_data.branch_name }}" disabled>
+        {% endif %}
+
+        <input type="text" name="item_name" placeholder="Sản phẩm" value="{{ stock_form_data.item_name }}" required>
+        <select name="group_name">
+          <option value="">Không nhóm</option>
+          {% for g in group_options %}
+            <option value="{{ g }}" {% if g == stock_form_data.group_name %}selected{% endif %}>{{ g }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="unit" placeholder="Đơn vị" value="{{ stock_form_data.unit }}" required>
+        <input type="number" name="quantity" min="0" step="1" placeholder="Tồn hiện tại" value="{{ stock_form_data.quantity }}" required>
+        <input type="number" name="min_stock" min="0" step="1" placeholder="Mức tối thiểu" value="{{ stock_form_data.min_stock }}" required>
+        <select name="status" required>
+          <option value="active" {% if stock_form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+          <option value="inactive" {% if stock_form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+        </select>
+
+        <button type="submit" class="inventory-save-btn">Lưu thay đổi</button>
+        <a href="{{ url_for('web.inventory', page=pager.page, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}" class="tiny-btn inventory-cancel-btn">Hủy</a>
+      </form>
+    </section>
+  {% endif %}
 
   <section class="panel">
     <h3>Giao dịch kho gần nhất</h3>
@@ -163,24 +258,6 @@
       </tbody>
     </table>
   </section>
-
-  {% if is_super_admin %}
-    <section class="panel">
-      <h3>Danh mục sản phẩm kho (thêm/sửa)</h3>
-      <form method="post" action="{{ url_for('web.inventory_items_save') }}" class="inline inventory-inline">
-        <input type="number" name="item_id" placeholder="ID">
-        <input type="text" name="name" placeholder="Tên sản phẩm" required>
-        <input type="text" name="unit" placeholder="Đơn vị" required>
-        <input type="text" name="group_name" placeholder="Nhóm hàng">
-        <input type="number" name="min_stock" min="0" step="1" placeholder="Mức tồn tối thiểu" required>
-        <select name="status">
-          <option value="active">Đang hoạt động</option>
-          <option value="inactive">Ngừng hoạt động</option>
-        </select>
-        <button type="submit">Lưu danh mục</button>
-      </form>
-    </section>
-  {% endif %}
 
   <section class="panel">
     <h3>Nhập/Xuất/Điều chỉnh tồn kho</h3>

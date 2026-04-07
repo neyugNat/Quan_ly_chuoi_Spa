@@ -7,7 +7,7 @@ from flask import Response, g, flash, redirect, render_template, request, url_fo
 from sqlalchemy import func, or_
 
 from backend.extensions import db
-from backend.models import Branch, Invoice, InvoiceItem, InvoicePayment, Service, Staff, recalc_invoice
+from backend.models import Branch, Invoice, InvoiceItem, Service, Staff, recalc_invoice
 from backend.web import (
     INVOICE_STATUS_LABELS,
     get_current_branch_scope,
@@ -16,16 +16,23 @@ from backend.web import (
     parse_date,
     parse_int,
     parse_money,
+    parse_optional_text,
     parse_page,
     parse_qty,
+    parse_text,
     resolve_selected_branch_id,
     roles_required,
     web_bp,
 )
 
 
+def invoices_error(message: str):
+    flash(message, "error")
+    return redirect(url_for("web.invoices"))
+
+
 def build_invoice_filters(scope_ids):
-    q = (request.args.get("q") or "").strip()
+    q = parse_text(request.args.get("q"))
     status = normalize_choice(request.args.get("status"), set(INVOICE_STATUS_LABELS), "")
     from_date = parse_date(request.args.get("from_date"))
     to_date = parse_date(request.args.get("to_date"))
@@ -67,29 +74,31 @@ def apply_invoice_filters(query, filters):
 
 
 def calc_kpi(filtered_query):
-    non_canceled = filtered_query.filter(Invoice.status != "canceled")
     total_count = filtered_query.count()
     canceled_count = filtered_query.filter(Invoice.status == "canceled").count()
-    paid_count = non_canceled.filter(Invoice.status == "paid").count()
-    payable_count = non_canceled.count()
+    paid_count = filtered_query.filter(Invoice.status == "paid").count()
+    draft_count = filtered_query.filter(Invoice.status == "draft").count()
 
-    total_invoice_value = non_canceled.with_entities(func.coalesce(func.sum(Invoice.total_amount), 0)).scalar()
-    collected_amount = non_canceled.with_entities(func.coalesce(func.sum(Invoice.paid_amount), 0)).scalar()
-    receivable_amount = non_canceled.with_entities(func.coalesce(func.sum(Invoice.balance_amount), 0)).scalar()
-    full_paid_ratio = round((paid_count * 100.0 / payable_count), 1) if payable_count else 0.0
+    completed_value = (
+        filtered_query.filter(Invoice.status == "paid")
+        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
+        .scalar()
+    )
+    completion_base = paid_count + canceled_count
+    completion_ratio = round((paid_count * 100.0 / completion_base), 1) if completion_base else 0.0
 
     return {
         "total_count": total_count,
-        "total_invoice_value": total_invoice_value,
-        "collected_amount": collected_amount,
-        "receivable_amount": receivable_amount,
+        "paid_count": paid_count,
+        "completed_value": completed_value,
+        "draft_count": draft_count,
         "canceled_count": canceled_count,
-        "full_paid_ratio": full_paid_ratio,
+        "completion_ratio": completion_ratio,
     }
 
 
 @web_bp.get("/invoices")
-@roles_required("super_admin", "branch_manager")
+@roles_required("super_admin", "branch_manager", "receptionist")
 def invoices():
     scope_ids = get_current_branch_scope()
     if not scope_ids:
@@ -114,18 +123,11 @@ def invoices():
         scope_label = "Tất cả chi nhánh" if g.web_user.is_super_admin else branch_map.get(g.active_branch_id, "Chi nhánh")
 
     selected_invoice = None
-    payment_rows = []
     if filters["view_id"]:
         selected_invoice = Invoice.query.filter(
             Invoice.id == filters["view_id"],
             Invoice.branch_id.in_(scope_ids),
         ).first()
-        if selected_invoice:
-            payment_rows = (
-                InvoicePayment.query.filter_by(invoice_id=selected_invoice.id)
-                .order_by(InvoicePayment.created_at.asc())
-                .all()
-            )
 
     operator_branch_id = g.active_branch_id if g.active_branch_id in scope_ids else scope_ids[0]
     service_rows = (
@@ -139,17 +141,23 @@ def invoices():
         else []
     )
 
+    can_export_csv = g.web_user.role in {"super_admin", "branch_manager"}
+    can_create_invoice = g.web_user.role in {"branch_manager", "receptionist"}
+    can_void_invoice = g.web_user.role == "branch_manager"
+
     return render_template(
         "web/invoices.html",
         invoice_rows=pager.items,
         pager=pager,
         branch_options=branch_options,
         selected_invoice=selected_invoice,
-        payment_rows=payment_rows,
         scope_label=scope_label,
         filters=filters,
         kpi=kpi,
         is_super_admin=g.web_user.is_super_admin,
+        can_export_csv=can_export_csv,
+        can_create_invoice=can_create_invoice,
+        can_void_invoice=can_void_invoice,
         service_rows=service_rows,
         staff_rows=staff_rows,
     )
@@ -160,8 +168,7 @@ def invoices():
 def invoices_export_csv():
     scope_ids = get_current_branch_scope()
     if not scope_ids:
-        flash("Không có dữ liệu để xuất.", "error")
-        return redirect(url_for("web.invoices"))
+        return invoices_error("Không có dữ liệu để xuất.")
 
     filters = build_invoice_filters(scope_ids)
     query = Invoice.query.filter(Invoice.branch_id.in_(scope_ids))
@@ -198,8 +205,6 @@ def invoices_export_csv():
         "Tên khách",
         "SĐT",
         "Tổng tiền",
-        "Đã thu",
-        "Còn phải thu",
         "Trạng thái",
         "Nhân sự",
         "Giảm giá",
@@ -218,8 +223,6 @@ def invoices_export_csv():
                 row.customer_name or "",
                 row.customer_phone or "",
                 int(float(row.total_amount or 0)),
-                int(float(row.paid_amount or 0)),
-                int(float(row.balance_amount or 0)),
                 INVOICE_STATUS_LABELS.get(row.status, row.status),
                 row.staff.full_name if row.staff else "",
                 int(float(row.discount_amount or 0)),
@@ -243,19 +246,17 @@ def invoices_export_csv():
 
 
 @web_bp.post("/invoices/create")
-@roles_required("branch_manager")
+@roles_required("branch_manager", "receptionist")
 def invoices_create():
     branch_id = g.active_branch_id
     if not branch_id:
-        flash("Tài khoản không có phạm vi chi nhánh hợp lệ.", "error")
-        return redirect(url_for("web.invoices"))
+        return invoices_error("Tài khoản không có phạm vi chi nhánh hợp lệ.")
 
-    customer_name = (request.form.get("customer_name") or "").strip() or None
-    customer_phone = (request.form.get("customer_phone") or "").strip() or None
+    customer_name = parse_optional_text(request.form.get("customer_name"))
+    customer_phone = parse_optional_text(request.form.get("customer_phone"))
     staff_id = parse_int(request.form.get("staff_id"))
-    note = (request.form.get("note") or "").strip() or None
+    note = parse_optional_text(request.form.get("note"))
     discount_amount = parse_money(request.form.get("discount_amount"), default=Decimal("0.00"))
-    paid_amount = parse_money(request.form.get("paid_amount"), default=Decimal("0.00"))
 
     service_ids = request.form.getlist("service_id[]")
     qty_values = request.form.getlist("qty[]")
@@ -270,24 +271,23 @@ def invoices_create():
             lines.append((service, qty))
 
     if not lines:
-        flash("Cần ít nhất một dòng dịch vụ hợp lệ.", "error")
-        return redirect(url_for("web.invoices"))
+        return invoices_error("Cần ít nhất một dòng dịch vụ hợp lệ.")
 
-    staff = None
-    if staff_id:
-        staff = Staff.query.filter_by(id=staff_id, branch_id=branch_id, status="active").first()
-        if staff is None:
-            flash("Nhân sự phụ trách không hợp lệ.", "error")
-            return redirect(url_for("web.invoices"))
+    if not staff_id:
+        return invoices_error("Vui lòng chọn nhân sự phụ trách.")
+
+    staff = Staff.query.filter_by(id=staff_id, branch_id=branch_id, status="active").first()
+    if staff is None:
+        return invoices_error("Nhân sự phụ trách không hợp lệ.")
 
     invoice = Invoice(
         code="TMP",
         branch_id=branch_id,
-        staff_id=staff.id if staff else None,
+        staff_id=staff.id,
         customer_name=customer_name,
         customer_phone=customer_phone,
         discount_amount=discount_amount,
-        paid_amount=paid_amount,
+        status="paid",
         note=note,
         last_action_by=g.web_user.username,
     )
@@ -309,66 +309,10 @@ def invoices_create():
     recalc_invoice(invoice)
     if Decimal(str(invoice.total_amount or 0)) <= 0:
         db.session.rollback()
-        flash("Tổng tiền hóa đơn phải lớn hơn 0.", "error")
-        return redirect(url_for("web.invoices"))
-
-    if Decimal(str(invoice.paid_amount or 0)) > 0:
-        db.session.add(
-            InvoicePayment(
-                invoice_id=invoice.id,
-                amount=invoice.paid_amount,
-                note="Thu khi tạo hóa đơn",
-                created_by=g.web_user.username,
-            )
-        )
+        return invoices_error("Tổng tiền hóa đơn phải lớn hơn 0.")
 
     db.session.commit()
     flash("Đã tạo hóa đơn.", "success")
-    return redirect(url_for("web.invoices", view_id=invoice.id))
-
-
-@web_bp.post("/invoices/pay")
-@roles_required("branch_manager")
-def invoices_pay():
-    branch_id = g.active_branch_id
-    if not branch_id:
-        flash("Tài khoản không có phạm vi chi nhánh hợp lệ.", "error")
-        return redirect(url_for("web.invoices"))
-
-    invoice_id = parse_int(request.form.get("invoice_id"))
-    amount = parse_money(request.form.get("amount"), default=Decimal("0.00"))
-    note = (request.form.get("note") or "").strip() or None
-    if amount <= 0:
-        flash("Số tiền thu thêm phải lớn hơn 0.", "error")
-        return redirect(url_for("web.invoices"))
-
-    invoice = Invoice.query.filter_by(id=invoice_id, branch_id=branch_id).first()
-    if invoice is None:
-        flash("Không tìm thấy hóa đơn trong chi nhánh của bạn.", "error")
-        return redirect(url_for("web.invoices"))
-    if invoice.status == "canceled":
-        flash("Hóa đơn đã hủy, không thể thu thêm.", "error")
-        return redirect(url_for("web.invoices"))
-
-    total = Decimal(str(invoice.total_amount or 0))
-    paid = Decimal(str(invoice.paid_amount or 0))
-    if paid + amount > total:
-        flash("Không thể thu vượt tổng cần thanh toán.", "error")
-        return redirect(url_for("web.invoices"))
-
-    invoice.paid_amount = paid + amount
-    invoice.last_action_by = g.web_user.username
-    recalc_invoice(invoice)
-    db.session.add(
-        InvoicePayment(
-            invoice_id=invoice.id,
-            amount=amount,
-            note=note,
-            created_by=g.web_user.username,
-        )
-    )
-    db.session.commit()
-    flash("Đã cập nhật thanh toán.", "success")
     return redirect(url_for("web.invoices", view_id=invoice.id))
 
 
@@ -377,28 +321,20 @@ def invoices_pay():
 def invoices_void():
     branch_id = g.active_branch_id
     if not branch_id:
-        flash("Tài khoản không có phạm vi chi nhánh hợp lệ.", "error")
-        return redirect(url_for("web.invoices"))
+        return invoices_error("Tài khoản không có phạm vi chi nhánh hợp lệ.")
 
     invoice_id = parse_int(request.form.get("invoice_id"))
-    cancel_reason = (request.form.get("cancel_reason") or "").strip()
+    cancel_reason = parse_text(request.form.get("cancel_reason"))
     if not cancel_reason:
-        flash("Vui lòng nhập lý do hủy hóa đơn.", "error")
-        return redirect(url_for("web.invoices"))
+        return invoices_error("Vui lòng nhập lý do hủy hóa đơn.")
 
     invoice = Invoice.query.filter_by(id=invoice_id, branch_id=branch_id).first()
     if invoice is None:
-        flash("Không tìm thấy hóa đơn trong chi nhánh của bạn.", "error")
-        return redirect(url_for("web.invoices"))
+        return invoices_error("Không tìm thấy hóa đơn trong chi nhánh của bạn.")
     if invoice.status == "canceled":
-        flash("Hóa đơn đã hủy trước đó.", "error")
-        return redirect(url_for("web.invoices"))
-    if Decimal(str(invoice.paid_amount or 0)) > 0:
-        flash("Hóa đơn đã có thanh toán, không được hủy.", "error")
-        return redirect(url_for("web.invoices"))
+        return invoices_error("Hóa đơn đã hủy trước đó.")
 
     invoice.status = "canceled"
-    invoice.balance_amount = Decimal("0.00")
     invoice.canceled_reason = cancel_reason
     invoice.canceled_at = datetime.utcnow()
     invoice.last_action_by = g.web_user.username

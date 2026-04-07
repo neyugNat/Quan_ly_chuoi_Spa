@@ -21,10 +21,74 @@ web_bp = Blueprint(
 
 INVOICE_STATUS_LABELS = {
     "draft": "Nháp",
-    "partial": "Thanh toán một phần",
     "paid": "Đã thanh toán",
     "canceled": "Đã hủy",
 }
+
+ROLE_LABELS = {
+    "super_admin": "Quản trị hệ thống",
+    "branch_manager": "Quản lý chi nhánh",
+    "receptionist": "Lễ tân",
+    "inventory_controller": "Kiểm soát kho",
+    "technician": "Kỹ thuật viên",
+}
+
+ROLE_HOME_ENDPOINT = {
+    "super_admin": "web.dashboard",
+    "branch_manager": "web.dashboard",
+    "receptionist": "web.appointments",
+    "inventory_controller": "web.inventory",
+    "technician": "web.appointments",
+}
+
+ROLE_MENU_ACCESS = {
+    "super_admin": {
+        "dashboard",
+        "branches",
+        "staff",
+        "services",
+        "appointments",
+        "inventory",
+        "invoices",
+        "reports",
+        "accounts",
+    },
+    "branch_manager": {
+        "dashboard",
+        "branches",
+        "staff",
+        "services",
+        "appointments",
+        "inventory",
+        "invoices",
+        "reports",
+    },
+    "receptionist": {"appointments", "invoices"},
+    "inventory_controller": {"inventory"},
+    "technician": {"appointments"},
+}
+
+BRANCH_OPERATION_ROLES = {
+    "branch_manager",
+    "receptionist",
+    "inventory_controller",
+    "technician",
+}
+
+ACCOUNT_MANAGED_ROLES = BRANCH_OPERATION_ROLES
+
+
+def parse_text(value: str | None) -> str:
+    return (value or "").strip()
+
+
+def parse_optional_text(value: str | None) -> str | None:
+    text = parse_text(value)
+    return text or None
+
+
+def collect_non_empty_text(rows) -> list[str]:
+    return [text for (value,) in rows if (text := parse_text(value))]
 
 
 def parse_int(value):
@@ -35,7 +99,7 @@ def parse_int(value):
 
 
 def parse_date(value):
-    text = (value or "").strip()
+    text = parse_text(value)
     if not text:
         return None
     try:
@@ -52,7 +116,7 @@ def parse_page(value, default=1):
 
 
 def normalize_choice(value, allowed, default):
-    text = (value or "").strip().lower()
+    text = parse_text(value).lower()
     if text in allowed:
         return text
     return default
@@ -87,9 +151,19 @@ def fmt_money(value):
 
 
 def role_label(role: str) -> str:
-    if role == "super_admin":
-        return "Quản trị hệ thống"
-    return "Quản lý chi nhánh"
+    return ROLE_LABELS.get(role, role)
+
+
+def home_endpoint_for_user(user: User | None) -> str:
+    if not user:
+        return "web.login"
+    return ROLE_HOME_ENDPOINT.get(user.role, "web.dashboard")
+
+
+def can_access_menu_for_user(user: User | None, menu_key: str) -> bool:
+    if not user:
+        return False
+    return menu_key in ROLE_MENU_ACCESS.get(user.role, set())
 
 
 def resolve_selected_branch_id(scope_ids: list[int], requested_branch_id: int | None) -> int | None:
@@ -166,7 +240,8 @@ def roles_required(*allowed_roles):
             user = getattr(g, "web_user", None)
             if not user or user.role not in allowed_roles:
                 flash("Bạn không có quyền truy cập module này.", "error")
-                return redirect(url_for("web.dashboard"))
+                target_endpoint = home_endpoint_for_user(user)
+                return redirect(url_for(target_endpoint))
             return fn(*args, **kwargs)
 
         return wrapper
@@ -202,9 +277,14 @@ def inject_globals():
     user = getattr(g, "web_user", None)
     scope_branch_ids = getattr(g, "scope_branch_ids", [])
     branch_rows = list_scope_branches(scope_branch_ids, order_by="name")
+
+    def can_access_menu(menu_key: str) -> bool:
+        return can_access_menu_for_user(user, menu_key)
+
     return {
         "web_user": user,
         "role_label": role_label,
+        "can_access_menu": can_access_menu,
         "active_branch_id": getattr(g, "active_branch_id", None),
         "branch_options": branch_rows,
         "fmt_money": fmt_money,
@@ -218,6 +298,7 @@ from backend.web_modules import tong_quan  # noqa: F401,E402
 from backend.web_modules import chi_nhanh  # noqa: F401,E402
 from backend.web_modules import nhan_su  # noqa: F401,E402
 from backend.web_modules import dich_vu  # noqa: F401,E402
+from backend.web_modules import lich_hen  # noqa: F401,E402
 from backend.web_modules import kho  # noqa: F401,E402
 from backend.web_modules import hoa_don  # noqa: F401,E402
 from backend.web_modules import bao_cao  # noqa: F401,E402

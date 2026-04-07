@@ -1,13 +1,13 @@
 from flask import flash, g, redirect, render_template, request, session, url_for
 
 from backend.models import User
-from backend.web import login_required, web_bp
+from backend.web import home_endpoint_for_user, login_required, parse_text, web_bp
 
 
 @web_bp.get("/")
 def index():
     if getattr(g, "web_user", None):
-        return redirect(url_for("web.dashboard"))
+        return redirect(url_for(home_endpoint_for_user(g.web_user)))
     return redirect(url_for("web.login"))
 
 
@@ -15,10 +15,10 @@ def index():
 def login():
     if request.method == "GET":
         if getattr(g, "web_user", None):
-            return redirect(url_for("web.dashboard"))
+            return redirect(url_for(home_endpoint_for_user(g.web_user)))
         return render_template("web/login.html")
 
-    username = (request.form.get("username") or "").strip()
+    username = parse_text(request.form.get("username"))
     password = request.form.get("password") or ""
     if not username or not password:
         flash("Vui lòng nhập đầy đủ tài khoản và mật khẩu.", "error")
@@ -32,7 +32,7 @@ def login():
     session["web_user_id"] = user.id
     if user.branch_id:
         session["web_branch_id"] = int(user.branch_id)
-    return redirect(url_for("web.dashboard"))
+    return redirect(url_for(home_endpoint_for_user(user)))
 
 
 @web_bp.post("/logout")

@@ -3,7 +3,7 @@
   <style>
     form.inline.branch-form {
       display: grid;
-      grid-template-columns: 110px 210px 190px 170px 210px 180px 80px;
+      grid-template-columns: 110px minmax(160px, 1.2fr) minmax(180px, 1.5fr) minmax(150px, 1.1fr) minmax(150px, 1.1fr) 170px auto auto;
       gap: 10px;
       align-items: center;
     }
@@ -19,6 +19,24 @@
 
     form.inline.branch-form button {
       white-space: nowrap;
+    }
+
+    form.inline.branch-form .branch-save-btn {
+      min-height: 42px;
+      padding: 10px 18px;
+      width: fit-content;
+      justify-self: start;
+    }
+
+    form.inline.branch-form .branch-cancel-btn {
+      min-height: 42px;
+      padding: 10px 18px;
+      width: fit-content;
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: inherit;
     }
 
     @media (max-width: 1100px) {
@@ -37,7 +55,7 @@
   <section class="panel">
     <h2>Chi nhánh</h2>
     <form method="get" class="inline filter-row">
-      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên / SĐT / địa chỉ">
+      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo mã / tên / SĐT / địa chỉ">
       <select name="status">
         <option value="">Tất cả trạng thái</option>
         <option value="active" {% if status == 'active' %}selected{% endif %}>Đang hoạt động</option>
@@ -50,7 +68,7 @@
     <table>
       <thead>
         <tr>
-          <th>ID</th>
+          <th>Mã CN</th>
           <th>Tên</th>
           <th>Địa chỉ</th>
           <th>SĐT</th>
@@ -62,11 +80,11 @@
       <tbody>
         {% for row in rows %}
           <tr>
-            <td>{{ row.id }}</td>
+            <td>{{ row.branch_code or ('CN' ~ row.id) }}</td>
             <td>{{ row.name }}</td>
             <td>{{ row.address or "-" }}</td>
             <td>{{ row.phone or '-' }}</td>
-            <td>{{ row.manager_name or '-' }}</td>
+            <td>{{ row.manager_staff.full_name if row.manager_staff else 'Chưa gán' }}</td>
             <td>
               <span class="status status-{{ row.status }}">
                 {{ 'Đang hoạt động' if row.status == 'active' else 'Ngừng hoạt động' }}
@@ -74,19 +92,31 @@
             </td>
             {% if can_edit %}
               <td>
-                <a
-                  class="tiny-btn"
-                  href="{{ url_for('web.branches', edit_id=row.id, page=pager.page, q=q, status=status) }}"
-                >Sửa</a>
-                <form method="post" action="{{ url_for('web.branches_toggle') }}" class="inline form-compact">
-                  <input type="hidden" name="branch_id" value="{{ row.id }}">
-                  <button type="submit" class="secondary">Bật/Tắt</button>
-                </form>
+                <div class="inline-links">
+                  <a
+                    class="tiny-btn"
+                    href="{{ url_for('web.branches', edit_id=row.id, page=pager.page, q=q, status=status) }}#branch-editor"
+                  >Sửa</a>
+                  <form
+                    method="post"
+                    action="{{ url_for('web.branches_delete') }}"
+                    class="inline form-compact"
+                    data-confirm-modal="1"
+                    data-confirm-message="Bạn có chắc muốn xóa chi nhánh này không?"
+                    data-confirm-ok-label="Xóa chi nhánh"
+                  >
+                    <input type="hidden" name="branch_id" value="{{ row.id }}">
+                    <input type="hidden" name="q" value="{{ q }}">
+                    <input type="hidden" name="status" value="{{ status }}">
+                    <input type="hidden" name="page" value="{{ pager.page }}">
+                    <button type="submit" class="warn">Xóa</button>
+                  </form>
+                </div>
               </td>
             {% endif %}
           </tr>
         {% else %}
-          <tr><td colspan="7">Không có dữ liệu.</td></tr>
+          <tr><td colspan="{{ 7 if can_edit else 6 }}">Không có dữ liệu.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -103,21 +133,31 @@
   </section>
 
   {% if can_edit %}
-    <section class="panel">
+    <section class="panel edit-anchor-target" id="branch-editor">
       <h3>{% if edit_mode %}Cập nhật chi nhánh{% else %}Thêm chi nhánh{% endif %}</h3>
       <form method="post" action="{{ url_for('web.branches_save') }}" class="inline branch-form">
         <input type="hidden" name="branch_id" value="{{ form_data.branch_id or '' }}">
+        <input type="text" name="branch_code" placeholder="CNx" value="{{ form_data.branch_code }}" required>
         <input type="text" name="name" placeholder="Tên chi nhánh" value="{{ form_data.name }}" required>
         <input type="text" name="address" placeholder="Địa chỉ" value="{{ form_data.address }}">
         <input type="text" name="phone" placeholder="Số điện thoại" value="{{ form_data.phone }}">
-        <input type="text" name="manager_name" placeholder="Quản lý chi nhánh" value="{{ form_data.manager_name }}">
+        {% if edit_mode %}
+          <select name="manager_staff_id">
+            <option value="">Chưa gán quản lý</option>
+            {% for staff in manager_options %}
+              <option value="{{ staff.id }}" {% if form_data.manager_staff_id == staff.id %}selected{% endif %}>
+                {{ staff.full_name }}{% if staff.title %} - {{ staff.title }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        {% endif %}
         <select name="status">
           <option value="active" {% if form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
           <option value="inactive" {% if form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
         </select>
-        <button type="submit">Lưu</button>
+        <button type="submit" class="branch-save-btn">Lưu</button>
         {% if edit_mode %}
-          <a href="{{ url_for('web.branches', page=pager.page, q=q, status=status) }}" class="tiny-btn">Hủy</a>
+          <a href="{{ url_for('web.branches', page=pager.page, q=q, status=status) }}" class="tiny-btn branch-cancel-btn">Hủy</a>
         {% endif %}
       </form>
     </section>

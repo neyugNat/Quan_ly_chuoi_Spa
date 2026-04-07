@@ -111,6 +111,10 @@ a {
   margin-bottom: 16px;
 }
 
+.edit-anchor-target {
+  scroll-margin-top: 84px;
+}
+
 .grid-4 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -122,6 +126,30 @@ a {
   grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   margin-bottom: 16px;
+}
+
+.invoice-kpi-grid {
+  grid-template-columns: 1.1fr 1.1fr 1.9fr 1.1fr 1.1fr 1.6fr;
+}
+
+.invoice-kpi-grid .kpi-money .value {
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.report-kpi-grid {
+  grid-template-columns: 1.05fr 1.25fr 1.55fr 1.25fr 1.65fr 1.65fr;
+}
+
+.invoice-kpi-grid .kpi .label,
+.report-kpi-grid .kpi .label {
+  white-space: nowrap;
+}
+
+.kpi-hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
 }
 
 .kpi {
@@ -277,6 +305,69 @@ button.warn {
   padding: 22px;
 }
 
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.confirm-modal.open {
+  display: flex;
+}
+
+.confirm-modal-card {
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  box-shadow: 0 24px 54px rgba(15, 23, 42, 0.25);
+  padding: 18px;
+}
+
+.confirm-modal-title {
+  margin: 0;
+  color: #1f2937;
+  font-size: 18px;
+}
+
+.confirm-modal-message {
+  margin: 10px 0 0;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.confirm-modal-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirm-btn-cancel,
+.confirm-btn-delete {
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirm-btn-cancel {
+  background: #16a34a;
+}
+
+.confirm-btn-delete {
+  background: #b91c1c;
+}
+
 .status {
   display: inline-flex;
   align-items: center;
@@ -291,7 +382,12 @@ button.warn {
   color: var(--green-text);
 }
 
-.status-partial {
+.status-completed {
+  background: var(--green-bg);
+  color: var(--green-text);
+}
+
+.status-pending {
   background: #fef3c7;
   color: #92400e;
 }
@@ -302,7 +398,8 @@ button.warn {
 }
 
 .status-void,
-.status-canceled {
+.status-canceled,
+.status-cancelled {
   background: var(--red-bg);
   color: var(--red-text);
 }
@@ -342,6 +439,15 @@ button.warn {
 
   .grid-6 {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .invoice-kpi-grid .kpi-money .value {
+    white-space: normal;
+  }
+
+  .invoice-kpi-grid .kpi .label,
+  .report-kpi-grid .kpi .label {
+    white-space: normal;
   }
 
   .ops-grid {

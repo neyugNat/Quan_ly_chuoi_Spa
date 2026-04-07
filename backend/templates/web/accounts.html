@@ -1,15 +1,96 @@
 {% extends "web/base.html" %}
 {% block content %}
+  <style>
+    .account-form {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(220px, 1fr));
+      gap: 10px 12px;
+      align-items: center;
+    }
+
+    .account-form > * {
+      min-width: 0;
+    }
+
+    .account-form input,
+    .account-form select {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 12px;
+    }
+
+    .account-form button,
+    .account-form .tiny-btn {
+      min-height: 44px;
+      white-space: nowrap;
+    }
+
+    .account-form .account-username,
+    .account-form .account-password {
+      max-width: 360px;
+    }
+
+    .account-form .account-password {
+      grid-column: 1;
+    }
+
+    .account-form .account-status {
+      grid-column: 2;
+    }
+
+    .account-form .account-actions {
+      grid-column: 3 / span 2;
+      justify-self: start;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .account-form .account-actions .account-save {
+      width: auto;
+      padding-inline: 20px;
+    }
+
+    .account-form .account-actions .account-cancel {
+      min-height: 44px;
+      padding-inline: 20px;
+      font-size: inherit;
+    }
+
+    @media (max-width: 1250px) {
+      .account-form {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .account-form .account-username,
+      .account-form .account-password {
+        max-width: none;
+      }
+
+      .account-form .account-password,
+      .account-form .account-status,
+      .account-form .account-actions {
+        grid-column: auto;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .account-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+
   <section class="panel">
-    <h2>Tài khoản quản lí chi nhánh</h2>
+    <h2>Tài khoản vận hành chi nhánh</h2>
     <table>
       <thead>
         <tr>
           <th>Username</th>
-          <th>Role</th>
+          <th>Chức vụ</th>
           <th>Chi nhánh</th>
+          <th>Nhân sự</th>
           <th>Trạng thái</th>
-          <th>Tạo lúc</th>
           <th>Hành động</th>
         </tr>
       </thead>
@@ -17,15 +98,30 @@
         {% for row in rows %}
           <tr>
             <td>{{ row.username }}</td>
-            <td>Quản lí chi nhánh</td>
+            <td>{{ role_label(row.role) }}</td>
             <td>{{ row.branch.name if row.branch else '-' }}</td>
+            <td>{{ row.staff.full_name if row.staff else '-' }}</td>
             <td>
               <span class="status status-{{ 'active' if row.is_active else 'inactive' }}">
                 {{ 'Đang hoạt động' if row.is_active else 'Ngừng hoạt động' }}
               </span>
             </td>
-            <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M') if row.created_at else '-' }}</td>
-            <td><a href="{{ url_for('web.accounts', edit_id=row.id) }}" class="tiny-btn">Sửa</a></td>
+            <td>
+              <div class="inline-links">
+                <a href="{{ url_for('web.accounts', edit_id=row.id) }}#account-editor" class="tiny-btn">Sửa</a>
+                <form
+                  method="post"
+                  action="{{ url_for('web.accounts_delete') }}"
+                  class="inline form-compact"
+                  data-confirm-modal="1"
+                  data-confirm-message="Bạn có chắc muốn xóa tài khoản này không?"
+                  data-confirm-ok-label="Xóa tài khoản"
+                >
+                  <input type="hidden" name="user_id" value="{{ row.id }}">
+                  <button type="submit" class="warn">Xóa</button>
+                </form>
+              </div>
+            </td>
           </tr>
         {% else %}
           <tr><td colspan="6">Không có dữ liệu.</td></tr>
@@ -34,28 +130,142 @@
     </table>
   </section>
 
-  <section class="panel">
-    <h3>Thêm/Sửa tài khoản quản lí chi nhánh</h3>
-    <form method="post" action="{{ url_for('web.accounts_save') }}" class="inline">
+  <section class="panel edit-anchor-target" id="account-editor">
+    <h3>Thêm/Sửa tài khoản vận hành</h3>
+    <form method="post" action="{{ url_for('web.accounts_save') }}" class="account-form" id="accountForm">
       <input type="hidden" name="user_id" value="{{ form_data.user_id or '' }}">
-      <input type="text" name="username" placeholder="Username" value="{{ form_data.username }}" required>
-      <select name="branch_id" required>
+      <input type="text" name="username" class="account-username" placeholder="Username" value="{{ form_data.username }}" required>
+      <select name="role" id="accountRole" required>
+        <option value="" {% if not form_data.role %}selected{% endif %}>Chọn chức vụ</option>
+        <option value="branch_manager" {% if form_data.role == 'branch_manager' %}selected{% endif %}>Quản lý chi nhánh</option>
+        <option value="receptionist" {% if form_data.role == 'receptionist' %}selected{% endif %}>Lễ tân</option>
+        <option value="inventory_controller" {% if form_data.role == 'inventory_controller' %}selected{% endif %}>Kiểm soát kho</option>
+        <option value="technician" {% if form_data.role == 'technician' %}selected{% endif %}>Kỹ thuật viên</option>
+      </select>
+      <select name="branch_id" id="accountBranch" required>
         <option value="">Chọn chi nhánh</option>
         {% for b in branch_options %}
           <option value="{{ b.id }}" {% if form_data.branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>
         {% endfor %}
       </select>
-      <input type="password" name="password" placeholder="Mật khẩu mới{% if edit_mode %} (để trống nếu giữ){% endif %}" {% if not edit_mode %}required{% endif %}>
-      <select name="is_active">
+      <select name="staff_id" id="accountStaff" required>
+        <option value="">Chọn nhân sự</option>
+        {% for staff in staff_options %}
+          <option
+            value="{{ staff.id }}"
+            data-branch-id="{{ staff.branch_id }}"
+            data-title="{{ (staff.title or '')|lower }}"
+            {% if form_data.staff_id == staff.id %}selected{% endif %}
+          >{{ staff.full_name }}</option>
+        {% endfor %}
+      </select>
+      <input
+        type="password"
+        name="password"
+        class="account-password"
+        placeholder="{{ 'Mật khẩu mới (tài khoản mới)' if not edit_mode else 'Mật khẩu mới (để trống nếu giữ)' }}"
+        {% if not edit_mode %}required{% endif %}
+      >
+      <select name="is_active" class="account-status">
         <option value="1" {% if form_data.is_active == '1' %}selected{% endif %}>Đang hoạt động</option>
         <option value="0" {% if form_data.is_active == '0' %}selected{% endif %}>Ngừng hoạt động</option>
       </select>
-      <button type="submit">Lưu</button>
-      {% if edit_mode %}
-        <a href="{{ url_for('web.accounts') }}" class="tiny-btn">Hủy</a>
-      {% endif %}
+      <div class="account-actions">
+        <button type="submit" class="account-save">Lưu</button>
+        {% if edit_mode %}
+          <a href="{{ url_for('web.accounts') }}" class="tiny-btn account-cancel">Hủy</a>
+        {% endif %}
+      </div>
     </form>
   </section>
+
+  <script>
+    (function () {
+      var roleEl = document.getElementById("accountRole");
+      var branchEl = document.getElementById("accountBranch");
+      var staffEl = document.getElementById("accountStaff");
+      if (!roleEl || !branchEl || !staffEl) {
+        return;
+      }
+
+      function normalizeTitle(text) {
+        return (text || "")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/đ/g, "d")
+          .replace(/[^a-z0-9\s]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      var roleTitleMap = {{ role_staff_titles | tojson }};
+      Object.keys(roleTitleMap).forEach(function (roleKey) {
+        roleTitleMap[roleKey] = roleTitleMap[roleKey].map(normalizeTitle);
+      });
+
+      var originalOptions = Array.from(staffEl.querySelectorAll("option")).map(function (option) {
+        return {
+          value: option.value,
+          text: option.textContent,
+          branchId: option.getAttribute("data-branch-id") || "",
+          title: normalizeTitle(option.getAttribute("data-title") || ""),
+          selected: option.selected,
+        };
+      });
+
+      function renderStaffOptions() {
+        var selectedRole = roleEl.value;
+        var selectedBranch = branchEl.value;
+        var selectedBefore = staffEl.value;
+
+        staffEl.innerHTML = "";
+        var placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = !selectedRole || !selectedBranch ? "Chọn chức vụ và chi nhánh trước" : "Chọn nhân sự";
+        staffEl.appendChild(placeholder);
+
+        if (!selectedRole || !selectedBranch) {
+          staffEl.disabled = true;
+          staffEl.value = "";
+          return;
+        }
+
+        staffEl.disabled = false;
+        var allowedTitles = roleTitleMap[selectedRole] || [];
+
+        originalOptions.forEach(function (item) {
+          if (!item.value) {
+            return;
+          }
+          var branchMatch = item.branchId === selectedBranch;
+          var titleMatch = allowedTitles.some(function (keyword) {
+            return item.title.indexOf(keyword) >= 0;
+          });
+          var keepSelected = !!selectedBefore && item.value === selectedBefore;
+          if (!branchMatch || (!titleMatch && !keepSelected)) {
+            return;
+          }
+
+          var option = document.createElement("option");
+          option.value = item.value;
+          option.textContent = item.text;
+          if (keepSelected || (item.selected && !selectedBefore)) {
+            option.selected = true;
+          }
+          staffEl.appendChild(option);
+        });
+
+        if (staffEl.options.length <= 1) {
+          staffEl.value = "";
+        }
+      }
+
+      roleEl.addEventListener("change", renderStaffOptions);
+      branchEl.addEventListener("change", renderStaffOptions);
+      renderStaffOptions();
+    })();
+  </script>
 
   <section class="panel">
     <h3>Đổi mật khẩu</h3>

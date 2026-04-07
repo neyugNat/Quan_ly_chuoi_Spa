@@ -62,7 +62,12 @@
     <h2>Nhân sự{% if branch %} - {{ branch.name }}{% endif %}</h2>
     <form method="get" class="inline staff-filter filter-row">
       <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên / điện thoại">
-      <input type="text" name="title" value="{{ title }}" placeholder="Lọc theo chức vụ">
+      <select name="title">
+        <option value="">Tất cả chức vụ</option>
+        {% for option_title in title_options %}
+          <option value="{{ option_title }}" {% if title == option_title %}selected{% endif %}>{{ option_title }}</option>
+        {% endfor %}
+      </select>
       <select name="status">
         <option value="">Tất cả trạng thái</option>
         <option value="active" {% if status == 'active' %}selected{% endif %}>Đang làm việc</option>
@@ -84,7 +89,7 @@
       <table>
         <thead>
           <tr>
-            <th>ID</th>
+            <th>Mã NV</th>
             <th>Chi nhánh</th>
             <th>Họ tên</th>
             <th>Điện thoại</th>
@@ -97,7 +102,7 @@
         <tbody>
           {% for row in rows %}
             <tr>
-              <td>{{ row.id }}</td>
+              <td>{{ 'NV%03d'|format(row.id) }}</td>
               <td>{{ row.branch.name if row.branch else '-' }}</td>
               <td>{{ row.full_name }}</td>
               <td>{{ row.phone or "-" }}</td>
@@ -109,10 +114,28 @@
                 </span>
               </td>
               <td>
-                <a
-                  class="tiny-btn"
-                  href="{{ url_for('web.staff', edit_id=row.id, page=pager.page, q=q, title=title, status=status, branch_id=selected_branch_id) }}"
-                >Sửa</a>
+                <div class="inline-links">
+                  <a
+                    class="tiny-btn"
+                    href="{{ url_for('web.staff', edit_id=row.id, page=pager.page, q=q, title=title, status=status, branch_id=selected_branch_id) }}#staff-editor"
+                  >Sửa</a>
+                  <form
+                    method="post"
+                    action="{{ url_for('web.staff_delete') }}"
+                    class="inline form-compact"
+                    data-confirm-modal="1"
+                    data-confirm-message="Nếu nhân sự đã phát sinh nghiệp vụ, trạng thái sẽ chuyển sang ngừng hoạt động thay vì xóa. Tiếp tục?"
+                    data-confirm-ok-label="Xóa nhân sự"
+                  >
+                    <input type="hidden" name="staff_id" value="{{ row.id }}">
+                    <input type="hidden" name="q" value="{{ q }}">
+                    <input type="hidden" name="title" value="{{ title }}">
+                    <input type="hidden" name="status" value="{{ status }}">
+                    <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
+                    <input type="hidden" name="page" value="{{ pager.page }}">
+                    <button type="submit" class="warn">Xóa</button>
+                  </form>
+                </div>
               </td>
             </tr>
           {% else %}
@@ -133,7 +156,7 @@
     </div>
   </section>
 
-  <section class="panel">
+  <section class="panel edit-anchor-target" id="staff-editor">
     <h3>{% if edit_mode %}Cập nhật nhân sự{% else %}Thêm nhân sự{% endif %}</h3>
     <form method="post" action="{{ url_for('web.staff_save') }}" class="inline staff-form">
       <input type="hidden" name="staff_id" value="{{ form_data.staff_id or '' }}">
@@ -150,7 +173,12 @@
       {% endif %}
       <input type="text" name="full_name" placeholder="Họ tên" value="{{ form_data.full_name }}" required>
       <input type="text" name="phone" placeholder="Điện thoại" value="{{ form_data.phone }}" required>
-      <input type="text" name="title" placeholder="Chức danh" value="{{ form_data.title }}">
+      <select name="title">
+        <option value="">Chọn chức vụ</option>
+        {% for option_title in title_options %}
+          <option value="{{ option_title }}" {% if form_data.title == option_title %}selected{% endif %}>{{ option_title }}</option>
+        {% endfor %}
+      </select>
       <input type="date" name="start_date" value="{{ form_data.start_date }}">
       <select name="status">
         <option value="active" {% if form_data.status == 'active' %}selected{% endif %}>Đang làm việc</option>

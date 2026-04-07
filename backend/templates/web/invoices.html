@@ -1,29 +1,29 @@
 {% extends "web/base.html" %}
 {% block content %}
-  <section class="grid-6">
+  <section class="grid-6 invoice-kpi-grid">
     <article class="kpi">
       <div class="label">Tổng số hóa đơn</div>
       <div class="value">{{ kpi.total_count }}</div>
     </article>
     <article class="kpi">
-      <div class="label">Tổng giá trị hóa đơn</div>
-      <div class="value">{{ fmt_money(kpi.total_invoice_value) }}</div>
+      <div class="label">Số hóa đơn đã hoàn tất</div>
+      <div class="value">{{ kpi.paid_count }}</div>
+    </article>
+    <article class="kpi kpi-money">
+      <div class="label">Giá trị đã hoàn tất</div>
+      <div class="value">{{ fmt_money(kpi.completed_value) }}</div>
     </article>
     <article class="kpi">
-      <div class="label">Đã thu</div>
-      <div class="value">{{ fmt_money(kpi.collected_amount) }}</div>
+      <div class="label">Số hóa đơn nháp</div>
+      <div class="value">{{ kpi.draft_count }}</div>
     </article>
     <article class="kpi">
-      <div class="label">Còn phải thu</div>
-      <div class="value">{{ fmt_money(kpi.receivable_amount) }}</div>
-    </article>
-    <article class="kpi">
-      <div class="label">Đơn bị hủy</div>
+      <div class="label">Số hóa đơn bị hủy</div>
       <div class="value">{{ kpi.canceled_count }}</div>
     </article>
-    <article class="kpi">
-      <div class="label">Tỷ lệ thanh toán đủ</div>
-      <div class="value">{{ kpi.full_paid_ratio }}%</div>
+    <article class="kpi kpi-ratio">
+      <div class="label">Tỷ lệ hoàn tất (Không nháp)</div>
+      <div class="value">{{ kpi.completion_ratio }}%</div>
     </article>
   </section>
 
@@ -33,7 +33,6 @@
       <select name="status">
         <option value="">Tất cả trạng thái</option>
         <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>Nháp</option>
-        <option value="partial" {% if filters.status == 'partial' %}selected{% endif %}>Thanh toán một phần</option>
         <option value="paid" {% if filters.status == 'paid' %}selected{% endif %}>Đã thanh toán</option>
         <option value="canceled" {% if filters.status == 'canceled' %}selected{% endif %}>Đã hủy</option>
       </select>
@@ -51,10 +50,12 @@
       <input type="date" name="to_date" value="{{ filters.to_date.isoformat() if filters.to_date else '' }}">
       <button type="submit" class="secondary">Lọc</button>
       <a href="{{ url_for('web.invoices') }}" class="tiny-btn">Xóa lọc</a>
-      <a
-        href="{{ url_for('web.invoices_export_csv', q=filters.q, status=filters.status, branch_id=filters.selected_branch_id, from_date=filters.from_date.isoformat() if filters.from_date else '', to_date=filters.to_date.isoformat() if filters.to_date else '') }}"
-        class="tiny-btn"
-      >Xuất CSV</a>
+      {% if can_export_csv %}
+        <a
+          href="{{ url_for('web.invoices_export_csv', q=filters.q, status=filters.status, branch_id=filters.selected_branch_id, from_date=filters.from_date.isoformat() if filters.from_date else '', to_date=filters.to_date.isoformat() if filters.to_date else '') }}"
+          class="tiny-btn"
+        >Xuất CSV</a>
+      {% endif %}
     </form>
   </section>
 
@@ -67,8 +68,6 @@
           <th>Khách</th>
           <th>SĐT</th>
           <th>Tổng tiền</th>
-          <th>Đã thu</th>
-          <th>Còn lại</th>
           <th>Trạng thái</th>
           <th>Tạo lúc</th>
           <th>Nhân sự</th>
@@ -83,20 +82,18 @@
             <td>{{ row.customer_name or '-' }}</td>
             <td>{{ row.customer_phone or '-' }}</td>
             <td>{{ fmt_money(row.total_amount) }}</td>
-            <td>{{ fmt_money(row.paid_amount) }}</td>
-            <td>{{ fmt_money(row.balance_amount) }}</td>
             <td><span class="status status-{{ row.status }}">{{ invoice_status_labels.get(row.status, row.status) }}</span></td>
             <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M') if row.created_at else '-' }}</td>
             <td>{{ row.staff.full_name if row.staff else '-' }}</td>
             <td>
               <a
                 class="tiny-btn"
-                href="{{ url_for('web.invoices', view_id=row.id, q=filters.q, status=filters.status, branch_id=filters.selected_branch_id, from_date=filters.from_date.isoformat() if filters.from_date else '', to_date=filters.to_date.isoformat() if filters.to_date else '', page=pager.page) }}"
+                href="{{ url_for('web.invoices', view_id=row.id, q=filters.q, status=filters.status, branch_id=filters.selected_branch_id, from_date=filters.from_date.isoformat() if filters.from_date else '', to_date=filters.to_date.isoformat() if filters.to_date else '', page=pager.page) }}#invoice-detail"
               >Xem</a>
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="11">Không có dữ liệu.</td></tr>
+          <tr><td colspan="9">Không có dữ liệu.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -117,7 +114,7 @@
   </section>
 
   {% if selected_invoice %}
-    <section class="panel">
+    <section class="panel edit-anchor-target" id="invoice-detail">
       <h3>Chi tiết hóa đơn {{ selected_invoice.code }}</h3>
 
       <table>
@@ -143,8 +140,8 @@
           <tr>
             <th>Tổng tiền</th>
             <td>{{ fmt_money(selected_invoice.total_amount) }}</td>
-            <th>Đã thu / Còn lại</th>
-            <td>{{ fmt_money(selected_invoice.paid_amount) }} / {{ fmt_money(selected_invoice.balance_amount) }}</td>
+            <th>Tạm tính / Giảm giá</th>
+            <td>{{ fmt_money(selected_invoice.subtotal_amount) }} / {{ fmt_money(selected_invoice.discount_amount) }}</td>
           </tr>
           <tr>
             <th>Trạng thái</th>
@@ -168,7 +165,7 @@
           {% for item in selected_invoice.items %}
             <tr>
               <td>{{ item.service_name }}</td>
-              <td>{{ item.qty }}</td>
+              <td>{{ item.qty|int }}</td>
               <td>{{ fmt_money(item.unit_price) }}</td>
               <td>{{ fmt_money(item.line_total) }}</td>
             </tr>
@@ -177,30 +174,6 @@
           {% endfor %}
         </tbody>
       </table>
-
-      {% if payment_rows %}
-        <h4>Lịch sử thanh toán</h4>
-        <table>
-          <thead>
-            <tr>
-              <th>Thời gian</th>
-              <th>Số tiền</th>
-              <th>Ghi chú</th>
-              <th>Người thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in payment_rows %}
-              <tr>
-                <td>{{ p.created_at.strftime('%d/%m/%Y %H:%M') if p.created_at else '-' }}</td>
-                <td>{{ fmt_money(p.amount) }}</td>
-                <td>{{ p.note or '-' }}</td>
-                <td>{{ p.created_by or '-' }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% endif %}
 
       {% if selected_invoice.status == 'canceled' %}
         <p class="muted">
@@ -221,69 +194,62 @@
         đối soát, giám sát và phân tích giao dịch toàn chuỗi thay vì thao tác thu ngân hằng ngày.
       </p>
     </section>
-  {% else %}
+  {% elif can_create_invoice or can_void_invoice %}
     <section class="panel">
       <h3>Thao tác vận hành chi nhánh</h3>
       <p class="muted">Các thao tác dưới đây chỉ áp dụng cho hóa đơn thuộc chi nhánh bạn đang quản lí.</p>
 
       <div class="ops-grid">
-        <article class="mini-panel">
-          <h4>Tạo hóa đơn</h4>
-          <form method="post" action="{{ url_for('web.invoices_create') }}" class="stack-form">
-            <input type="text" name="customer_name" placeholder="Tên khách (optional)">
-            <input type="text" name="customer_phone" placeholder="SĐT khách (optional)">
-            <select name="staff_id">
-              <option value="">Nhân sự phụ trách</option>
-              {% for staff in staff_rows %}
-                <option value="{{ staff.id }}">{{ staff.full_name }}</option>
-              {% endfor %}
-            </select>
-
-            <div class="line-block">
-              <select name="service_id[]" required>
-                <option value="">Dịch vụ dòng 1</option>
-                {% for service in service_rows %}
-                  <option value="{{ service.id }}">{{ service.name }} - {{ fmt_money(service.price) }}</option>
+        {% if can_create_invoice %}
+          <article class="mini-panel">
+            <h4>Tạo hóa đơn</h4>
+            <form method="post" action="{{ url_for('web.invoices_create') }}" class="stack-form">
+              <input type="text" name="customer_name" placeholder="Tên khách (optional)">
+              <input type="text" name="customer_phone" placeholder="SĐT khách (optional)">
+              <select name="staff_id" required>
+                <option value="" selected disabled>Chọn nhân sự phụ trách</option>
+                {% for staff in staff_rows %}
+                  <option value="{{ staff.id }}">{{ staff.full_name }}</option>
                 {% endfor %}
               </select>
-              <input type="number" name="qty[]" min="1" step="1" value="1" required>
-            </div>
 
-            <div class="line-block">
-              <select name="service_id[]">
-                <option value="">Dịch vụ dòng 2 (optional)</option>
-                {% for service in service_rows %}
-                  <option value="{{ service.id }}">{{ service.name }} - {{ fmt_money(service.price) }}</option>
-                {% endfor %}
-              </select>
-              <input type="number" name="qty[]" min="1" step="1" value="1">
-            </div>
+              <div class="line-block">
+                <select name="service_id[]" required>
+                  <option value="">Dịch vụ dòng 1</option>
+                  {% for service in service_rows %}
+                    <option value="{{ service.id }}">{{ service.name }} - {{ fmt_money(service.price) }}</option>
+                  {% endfor %}
+                </select>
+                <input type="number" name="qty[]" min="1" step="1" value="1" required>
+              </div>
 
-            <input type="number" name="discount_amount" min="0" step="1000" value="0" required>
-            <input type="number" name="paid_amount" min="0" step="1000" value="0" required>
-            <input type="text" name="note" placeholder="Ghi chú hóa đơn">
-            <button type="submit">Tạo hóa đơn</button>
-          </form>
-        </article>
+              <div class="line-block">
+                <select name="service_id[]">
+                  <option value="">Dịch vụ dòng 2 (optional)</option>
+                  {% for service in service_rows %}
+                    <option value="{{ service.id }}">{{ service.name }} - {{ fmt_money(service.price) }}</option>
+                  {% endfor %}
+                </select>
+                <input type="number" name="qty[]" min="1" step="1" value="1">
+              </div>
 
-        <article class="mini-panel">
-          <h4>Thu thêm tiền</h4>
-          <form method="post" action="{{ url_for('web.invoices_pay') }}" class="stack-form">
-            <input type="number" name="invoice_id" placeholder="ID hóa đơn" required>
-            <input type="number" name="amount" min="1" step="1000" placeholder="Số tiền thu thêm" required>
-            <input type="text" name="note" placeholder="Ghi chú thu tiền (optional)">
-            <button type="submit" class="secondary">Thu tiền</button>
-          </form>
-        </article>
+              <input type="number" name="discount_amount" min="0" step="1000" value="0" required>
+              <input type="text" name="note" placeholder="Ghi chú hóa đơn">
+              <button type="submit">Tạo hóa đơn</button>
+            </form>
+          </article>
+        {% endif %}
 
-        <article class="mini-panel">
-          <h4>Hủy hóa đơn</h4>
-          <form method="post" action="{{ url_for('web.invoices_void') }}" class="stack-form">
-            <input type="number" name="invoice_id" placeholder="ID hóa đơn" required>
-            <input type="text" name="cancel_reason" placeholder="Lý do hủy" required>
-            <button type="submit" class="warn">Hủy hóa đơn</button>
-          </form>
-        </article>
+        {% if can_void_invoice %}
+          <article class="mini-panel">
+            <h4>Hủy hóa đơn</h4>
+            <form method="post" action="{{ url_for('web.invoices_void') }}" class="stack-form">
+              <input type="number" name="invoice_id" placeholder="ID hóa đơn" required>
+              <input type="text" name="cancel_reason" placeholder="Lý do hủy" required>
+              <button type="submit" class="warn">Hủy hóa đơn</button>
+            </form>
+          </article>
+        {% endif %}
       </div>
 
       <p class="muted">MVP hiện tại chưa tự động trừ kho theo hóa đơn; kho được quản lí thủ công tại module Kho.</p>

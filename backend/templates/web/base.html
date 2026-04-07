@@ -20,14 +20,31 @@
     </header>
     <div class="layout">
       <aside class="sidebar">
-        <a href="{{ url_for('web.dashboard') }}" class="{% if request.path.startswith('/web/dashboard') %}active{% endif %}">Tổng quan</a>
-        <a href="{{ url_for('web.branches') }}" class="{% if request.path.startswith('/web/branches') %}active{% endif %}">Chi nhánh</a>
-        <a href="{{ url_for('web.staff') }}" class="{% if request.path.startswith('/web/staff') %}active{% endif %}">Nhân sự</a>
-        <a href="{{ url_for('web.services') }}" class="{% if request.path.startswith('/web/services') %}active{% endif %}">Dịch vụ</a>
-        <a href="{{ url_for('web.inventory') }}" class="{% if request.path.startswith('/web/inventory') %}active{% endif %}">Kho</a>
-        <a href="{{ url_for('web.invoices') }}" class="{% if request.path.startswith('/web/invoices') %}active{% endif %}">Hóa đơn</a>
-        <a href="{{ url_for('web.reports') }}" class="{% if request.path.startswith('/web/reports') %}active{% endif %}">Báo cáo</a>
-        {% if web_user and web_user.is_super_admin %}
+        {% if can_access_menu('dashboard') %}
+          <a href="{{ url_for('web.dashboard') }}" class="{% if request.path.startswith('/web/dashboard') %}active{% endif %}">Tổng quan</a>
+        {% endif %}
+        {% if can_access_menu('branches') %}
+          <a href="{{ url_for('web.branches') }}" class="{% if request.path.startswith('/web/branches') %}active{% endif %}">Chi nhánh</a>
+        {% endif %}
+        {% if can_access_menu('staff') %}
+          <a href="{{ url_for('web.staff') }}" class="{% if request.path.startswith('/web/staff') %}active{% endif %}">Nhân sự</a>
+        {% endif %}
+        {% if can_access_menu('services') %}
+          <a href="{{ url_for('web.services') }}" class="{% if request.path.startswith('/web/services') %}active{% endif %}">Dịch vụ</a>
+        {% endif %}
+        {% if can_access_menu('appointments') %}
+          <a href="{{ url_for('web.appointments') }}" class="{% if request.path.startswith('/web/appointments') %}active{% endif %}">Lịch hẹn</a>
+        {% endif %}
+        {% if can_access_menu('inventory') %}
+          <a href="{{ url_for('web.inventory') }}" class="{% if request.path.startswith('/web/inventory') %}active{% endif %}">Kho</a>
+        {% endif %}
+        {% if can_access_menu('invoices') %}
+          <a href="{{ url_for('web.invoices') }}" class="{% if request.path.startswith('/web/invoices') %}active{% endif %}">Hóa đơn</a>
+        {% endif %}
+        {% if can_access_menu('reports') %}
+          <a href="{{ url_for('web.reports') }}" class="{% if request.path.startswith('/web/reports') %}active{% endif %}">Báo cáo</a>
+        {% endif %}
+        {% if can_access_menu('accounts') %}
           <a href="{{ url_for('web.accounts') }}" class="{% if request.path.startswith('/web/accounts') %}active{% endif %}">Tài khoản</a>
         {% endif %}
       </aside>
@@ -45,5 +62,91 @@
         {% block content %}{% endblock %}
       </main>
     </div>
+
+    <div class="confirm-modal" id="globalConfirmModal" aria-hidden="true">
+      <div class="confirm-modal-card" role="dialog" aria-modal="true" aria-labelledby="globalConfirmTitle" aria-describedby="globalConfirmMessage">
+        <h3 class="confirm-modal-title" id="globalConfirmTitle">Xác nhận thao tác</h3>
+        <p class="confirm-modal-message" id="globalConfirmMessage"></p>
+        <div class="confirm-modal-actions">
+          <button type="button" id="globalConfirmCancel" class="confirm-btn-cancel">Hủy bỏ</button>
+          <button type="button" id="globalConfirmOk" class="confirm-btn-delete">Xóa</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var modal = document.getElementById("globalConfirmModal");
+        var messageEl = document.getElementById("globalConfirmMessage");
+        var cancelBtn = document.getElementById("globalConfirmCancel");
+        var okBtn = document.getElementById("globalConfirmOk");
+        var pendingForm = null;
+
+        if (!modal || !messageEl || !cancelBtn || !okBtn) {
+          return;
+        }
+
+        function closeModal() {
+          modal.classList.remove("open");
+          modal.setAttribute("aria-hidden", "true");
+          pendingForm = null;
+        }
+
+        function openModal(form) {
+          pendingForm = form;
+          messageEl.textContent =
+            form.getAttribute("data-confirm-message") ||
+            "Bạn có chắc muốn tiếp tục thao tác này không?";
+          okBtn.textContent = form.getAttribute("data-confirm-ok-label") || "Xóa";
+          modal.classList.add("open");
+          modal.setAttribute("aria-hidden", "false");
+          cancelBtn.focus();
+        }
+
+        document.addEventListener("submit", function (event) {
+          var form = event.target;
+          if (!(form instanceof HTMLFormElement)) {
+            return;
+          }
+          if (form.getAttribute("data-confirm-modal") !== "1") {
+            return;
+          }
+          if (form.getAttribute("data-confirmed") === "1") {
+            form.removeAttribute("data-confirmed");
+            return;
+          }
+
+          event.preventDefault();
+          openModal(form);
+        });
+
+        cancelBtn.addEventListener("click", closeModal);
+        okBtn.addEventListener("click", function () {
+          if (!pendingForm) {
+            return;
+          }
+          var submitForm = pendingForm;
+          closeModal();
+          submitForm.setAttribute("data-confirmed", "1");
+          if (typeof submitForm.requestSubmit === "function") {
+            submitForm.requestSubmit();
+            return;
+          }
+          submitForm.submit();
+        });
+
+        modal.addEventListener("click", function (event) {
+          if (event.target === modal) {
+            closeModal();
+          }
+        });
+
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape" && modal.classList.contains("open")) {
+            closeModal();
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

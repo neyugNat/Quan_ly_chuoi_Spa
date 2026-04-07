@@ -5,7 +5,7 @@ from sqlalchemy import func
 
 from backend.extensions import db
 from backend.models import Branch, InventoryItem, InventoryStock, Invoice, InvoiceItem, Service, Staff
-from backend.web import get_current_branch_scope, list_scope_branches, parse_int, roles_required, web_bp
+from backend.web import get_current_branch_scope, list_scope_branches, parse_int, parse_text, roles_required, web_bp
 
 
 @web_bp.get("/dashboard")
@@ -16,7 +16,7 @@ def dashboard():
         return redirect(url_for("web.login"))
 
     user = g.web_user
-    view_mode = (request.args.get("view") or "").strip().lower()
+    view_mode = parse_text(request.args.get("view")).lower()
     selected_branch_id = parse_int(request.args.get("branch_id"))
 
     if user.is_super_admin and selected_branch_id is None and view_mode == "branch":
@@ -89,19 +89,19 @@ def dashboard():
         ).count()
     )
     month_revenue = (
-        db.session.query(func.coalesce(func.sum(Invoice.paid_amount), 0))
+        db.session.query(func.coalesce(func.sum(Invoice.total_amount), 0))
         .filter(
             Invoice.branch_id.in_(data_scope),
-            Invoice.status != "canceled",
+            Invoice.status == "paid",
             func.strftime("%Y-%m", Invoice.created_at) == month_key,
         )
         .scalar()
     )
     today_revenue = (
-        db.session.query(func.coalesce(func.sum(Invoice.paid_amount), 0))
+        db.session.query(func.coalesce(func.sum(Invoice.total_amount), 0))
         .filter(
             Invoice.branch_id.in_(data_scope),
-            Invoice.status != "canceled",
+            Invoice.status == "paid",
             func.date(Invoice.created_at) == today.isoformat(),
         )
         .scalar()
@@ -110,32 +110,32 @@ def dashboard():
     top_branch_row = (
         db.session.query(
             Branch.name,
-            func.coalesce(func.sum(Invoice.paid_amount), 0).label("revenue"),
+            func.coalesce(func.sum(Invoice.total_amount), 0).label("revenue"),
         )
         .join(Invoice, Invoice.branch_id == Branch.id)
         .filter(
             Branch.id.in_(data_scope),
-            Invoice.status != "canceled",
+            Invoice.status == "paid",
             func.strftime("%Y-%m", Invoice.created_at) == month_key,
         )
         .group_by(Branch.id, Branch.name)
-        .order_by(func.coalesce(func.sum(Invoice.paid_amount), 0).desc())
+        .order_by(func.coalesce(func.sum(Invoice.total_amount), 0).desc())
         .first()
     )
 
     weak_branch_row = (
         db.session.query(
             Branch.name,
-            func.coalesce(func.sum(Invoice.paid_amount), 0).label("revenue"),
+            func.coalesce(func.sum(Invoice.total_amount), 0).label("revenue"),
         )
         .join(Invoice, Invoice.branch_id == Branch.id)
         .filter(
             Branch.id.in_(data_scope),
-            Invoice.status != "canceled",
+            Invoice.status == "paid",
             func.strftime("%Y-%m", Invoice.created_at) == month_key,
         )
         .group_by(Branch.id, Branch.name)
-        .order_by(func.coalesce(func.sum(Invoice.paid_amount), 0).asc())
+        .order_by(func.coalesce(func.sum(Invoice.total_amount), 0).asc())
         .first()
     )
 

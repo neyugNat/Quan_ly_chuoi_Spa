@@ -18,33 +18,31 @@
       <a href="{{ url_for('web.reports_export_csv', from_date=from_date.isoformat() if from_date else '', to_date=to_date.isoformat() if to_date else '', branch_id=selected_branch_id) }}" class="tiny-btn">Xuất CSV</a>
     </form>
 
-    <div class="grid-4">
+    <div class="grid-6 report-kpi-grid">
       <article class="kpi">
-        <div class="label">Tổng hóa đơn</div>
+        <div class="label">Tổng số hóa đơn</div>
         <div class="value">{{ total_invoices }}</div>
       </article>
       <article class="kpi">
-        <div class="label">Tổng giá trị hóa đơn hợp lệ</div>
-        <div class="value">{{ fmt_money(total_invoice_value) }}</div>
+        <div class="label">Số hóa đơn hoàn tất</div>
+        <div class="value">{{ paid_count }}</div>
       </article>
       <article class="kpi">
-        <div class="label">Doanh thu đã thu</div>
+        <div class="label">Doanh thu hoàn tất</div>
         <div class="value">{{ fmt_money(collected_amount) }}</div>
       </article>
       <article class="kpi">
-        <div class="label">Còn phải thu</div>
-        <div class="value">{{ fmt_money(receivable_amount) }}</div>
+        <div class="label">Số hóa đơn bị hủy</div>
+        <div class="value">{{ canceled_count }}</div>
       </article>
-      {% if not selected_branch_id %}
-        <article class="kpi">
-          <div class="label">Chi nhánh tốt nhất</div>
-          <div class="value">{{ best_branch.name if best_branch else '-' }}</div>
-        </article>
-        <article class="kpi">
-          <div class="label">Chi nhánh thấp nhất</div>
-          <div class="value">{{ weak_branch.name if weak_branch else '-' }}</div>
-        </article>
-      {% endif %}
+      <article class="kpi">
+        <div class="label">Chi nhánh doanh thu cao nhất</div>
+        <div class="value">{{ best_branch.name if best_branch else '-' }}</div>
+      </article>
+      <article class="kpi">
+        <div class="label">Chi nhánh doanh thu thấp nhất</div>
+        <div class="value">{{ weak_branch.name if weak_branch else '-' }}</div>
+      </article>
     </div>
   </section>
 

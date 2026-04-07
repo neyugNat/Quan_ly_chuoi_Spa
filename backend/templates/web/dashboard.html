@@ -81,7 +81,7 @@
           <th>Mã</th>
           <th>Chi nhánh</th>
           <th>Khách</th>
-          <th>Doanh thu ghi nhận</th>
+          <th>Giá trị hóa đơn</th>
           <th>Trạng thái</th>
         </tr>
       </thead>
@@ -91,7 +91,7 @@
             <td>{{ row.code }}</td>
             <td>{{ row.branch.name if row.branch else '-' }}</td>
             <td>{{ row.customer_name or '-' }}</td>
-            <td>{{ fmt_money(row.paid_amount) }}</td>
+            <td>{{ fmt_money(row.total_amount) }}</td>
             <td><span class="status status-{{ row.status }}">{{ invoice_status_labels.get(row.status, row.status) }}</span></td>
           </tr>
         {% else %}
@@ -140,7 +140,7 @@
         {% for name, qty in top_service_rows %}
           <tr>
             <td>{{ name }}</td>
-            <td>{{ qty }}</td>
+            <td>{{ qty|int }}</td>
           </tr>
         {% else %}
           <tr><td colspan="2">Không có dữ liệu.</td></tr>

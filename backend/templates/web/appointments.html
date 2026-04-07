@@ -1,0 +1,112 @@
+{% extends "web/base.html" %}
+{% block content %}
+  <section class="panel">
+    <h2>Lịch hẹn</h2>
+
+    <form method="get" class="inline filter-row">
+      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên khách / SĐT">
+      <select name="status">
+        <option value="">Tất cả trạng thái</option>
+        {% for key, label in status_labels.items() %}
+          <option value="{{ key }}" {% if status == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      {% if web_user and web_user.is_super_admin %}
+        <select name="branch_id">
+          <option value="">Tất cả chi nhánh</option>
+          {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <input type="text" value="{{ scope_label }}" disabled>
+      {% endif %}
+      <input type="date" name="from_date" value="{{ from_date.isoformat() if from_date else '' }}">
+      <input type="date" name="to_date" value="{{ to_date.isoformat() if to_date else '' }}">
+      <button type="submit" class="secondary">Lọc</button>
+      <a href="{{ url_for('web.appointments') }}" class="tiny-btn">Xóa lọc</a>
+    </form>
+
+    {% if technician_scope_warning %}
+      <p class="muted">{{ technician_scope_warning }}</p>
+    {% endif %}
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Chi nhánh</th>
+          <th>Khách</th>
+          <th>SĐT</th>
+          <th>Dịch vụ</th>
+          <th>Kỹ thuật viên</th>
+          <th>Ngày</th>
+          <th>Giờ</th>
+          <th>Trạng thái</th>
+          <th>Ghi chú</th>
+          <th>Tạo bởi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.id }}</td>
+            <td>{{ row.branch.name if row.branch else '-' }}</td>
+            <td>{{ row.customer_name }}</td>
+            <td>{{ row.customer_phone or '-' }}</td>
+            <td>{{ row.service.name if row.service else '-' }}</td>
+            <td>{{ row.technician.full_name if row.technician else '-' }}</td>
+            <td>{{ row.appointment_date.strftime('%d/%m/%Y') if row.appointment_date else '-' }}</td>
+            <td>{{ row.appointment_time }}</td>
+            <td><span class="status status-{{ row.status }}">{{ status_labels.get(row.status, row.status) }}</span></td>
+            <td>{{ row.note or '-' }}</td>
+            <td>{{ row.created_by or '-' }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="11">Không có lịch hẹn.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="pager">
+      {% if pager.has_prev %}
+        <a href="{{ url_for('web.appointments', page=pager.prev_num, q=q, status=status, branch_id=selected_branch_id, from_date=from_date.isoformat() if from_date else '', to_date=to_date.isoformat() if to_date else '') }}">← Trang trước</a>
+      {% endif %}
+      <span>Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
+      {% if pager.has_next %}
+        <a href="{{ url_for('web.appointments', page=pager.next_num, q=q, status=status, branch_id=selected_branch_id, from_date=from_date.isoformat() if from_date else '', to_date=to_date.isoformat() if to_date else '') }}">Trang sau →</a>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if can_create_appointment %}
+    <section class="panel">
+      <h3>Tạo lịch hẹn</h3>
+      <form method="post" action="{{ url_for('web.appointments_create') }}" class="inline">
+        <input type="text" name="customer_name" placeholder="Tên khách" required>
+        <input type="text" name="customer_phone" placeholder="SĐT khách">
+        <select name="service_id" required>
+          <option value="">Chọn dịch vụ</option>
+          {% for service in service_rows %}
+            <option value="{{ service.id }}">{{ service.name }}</option>
+          {% endfor %}
+        </select>
+        <select name="technician_id" required>
+          <option value="">Chọn kỹ thuật viên</option>
+          {% for tech in technician_rows %}
+            <option value="{{ tech.id }}">{{ tech.full_name }}</option>
+          {% endfor %}
+        </select>
+        <input type="date" name="appointment_date" required>
+        <input type="time" name="appointment_time" required>
+        <select name="status">
+          <option value="pending">Chờ thực hiện</option>
+          <option value="completed">Đã hoàn thành</option>
+          <option value="cancelled">Đã hủy</option>
+        </select>
+        <input type="text" name="note" placeholder="Ghi chú">
+        <button type="submit">Lưu lịch hẹn</button>
+      </form>
+    </section>
+  {% endif %}
+{% endblock %}

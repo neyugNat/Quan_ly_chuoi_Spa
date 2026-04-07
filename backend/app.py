@@ -3,8 +3,23 @@ from flask import Flask, redirect, url_for
 
 from backend.config import Config
 from backend.extensions import db
-from backend.models import ensure_seed_data
+from backend.models import (
+    ensure_seed_data,
+    migrate_add_branch_code,
+    migrate_add_branch_manager_staff_id,
+    migrate_backfill_user_staff_id,
+    migrate_add_user_staff_id,
+    migrate_remove_partial_payment_schema,
+)
 from backend.web import web_bp
+
+
+def run_schema_migrations() -> None:
+    migrate_add_branch_code()
+    migrate_add_branch_manager_staff_id()
+    migrate_add_user_staff_id()
+    migrate_backfill_user_staff_id()
+    migrate_remove_partial_payment_schema()
 
 
 def create_app():
@@ -25,11 +40,13 @@ def create_app():
     @app.cli.command("init-db")
     def init_db_command():
         db.create_all()
+        run_schema_migrations()
         print("init-db: ok")
 
     @app.cli.command("seed")
     def seed_command():
         db.create_all()
+        run_schema_migrations()
         ensure_seed_data()
         print("seed: ok")
 
@@ -38,12 +55,14 @@ def create_app():
     def reset_db_command(seed: bool):
         db.drop_all()
         db.create_all()
+        run_schema_migrations()
         if seed:
             ensure_seed_data()
         print("reset-db: ok")
 
     with app.app_context():
         db.create_all()
+        run_schema_migrations()
 
     return app
 

@@ -8,7 +8,7 @@
   <style>
     form.inline.service-form {
       display: grid;
-      grid-template-columns: 90px 190px 220px 110px 130px 170px 150px 80px;
+      grid-template-columns: minmax(150px, 1.1fr) minmax(180px, 1.3fr) minmax(160px, 1.1fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(170px, 1.2fr) 120px auto;
       gap: 10px;
       align-items: center;
     }
@@ -20,6 +20,22 @@
     form.inline.service-form input,
     form.inline.service-form select {
       width: 100%;
+    }
+
+    form.inline.service-form .service-save-btn,
+    form.inline.service-form .service-cancel-btn {
+      min-height: 42px;
+      padding: 10px 18px;
+      width: fit-content;
+      justify-self: start;
+      white-space: nowrap;
+    }
+
+    form.inline.service-form .service-cancel-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: inherit;
     }
 
     @media (max-width: 1200px) {
@@ -39,7 +55,12 @@
     <h2>Dịch vụ</h2>
     <form method="get" class="inline filter-row">
       <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên dịch vụ">
-      <input type="text" name="group" value="{{ group_name }}" placeholder="Nhóm dịch vụ">
+      <select name="group">
+        <option value="">Tất cả nhóm dịch vụ</option>
+        {% for option_group in group_options %}
+          <option value="{{ option_group }}" {% if group_name == option_group %}selected{% endif %}>{{ option_group }}</option>
+        {% endfor %}
+      </select>
       <select name="status">
         <option value="">Tất cả trạng thái</option>
         <option value="active" {% if status == 'active' %}selected{% endif %}>Đang hoạt động</option>
@@ -73,10 +94,28 @@
             <td>{{ row.duration_minutes }} phút</td>
             <td><span class="status status-{{ row.status }}">{{ service_status_labels.get(row.status, row.status) }}</span></td>
             <td>
-              <form method="post" action="{{ url_for('web.services_toggle') }}" class="inline form-compact">
-                <input type="hidden" name="service_id" value="{{ row.id }}">
-                <button type="submit" class="secondary">Bật/Tắt</button>
-              </form>
+              <div class="inline-links">
+                <a
+                  class="tiny-btn"
+                  href="{{ url_for('web.services', edit_id=row.id, page=pager.page, q=q, group=group_name, status=status, branch_id=selected_branch_id) }}#service-editor"
+                >Sửa</a>
+                <form
+                  method="post"
+                  action="{{ url_for('web.services_delete') }}"
+                  class="inline form-compact"
+                  data-confirm-modal="1"
+                  data-confirm-message="Bạn có chắc muốn xóa dịch vụ này không?"
+                  data-confirm-ok-label="Xóa dịch vụ"
+                >
+                  <input type="hidden" name="service_id" value="{{ row.id }}">
+                  <input type="hidden" name="q" value="{{ q }}">
+                  <input type="hidden" name="group" value="{{ group_name }}">
+                  <input type="hidden" name="status" value="{{ status }}">
+                  <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
+                  <input type="hidden" name="page" value="{{ pager.page }}">
+                  <button type="submit" class="warn">Xóa</button>
+                </form>
+              </div>
             </td>
           </tr>
         {% else %}
@@ -96,27 +135,35 @@
     </div>
   </section>
 
-  <section class="panel">
-    <h3>Thêm/Sửa dịch vụ</h3>
+  <section class="panel edit-anchor-target" id="service-editor">
+    <h3>{% if edit_mode %}Cập nhật dịch vụ{% else %}Thêm dịch vụ{% endif %}</h3>
     <form method="post" action="{{ url_for('web.services_save') }}" class="inline service-form">
-      <input type="number" name="service_id" placeholder="ID">
+      <input type="hidden" name="service_id" value="{{ form_data.service_id or '' }}">
       {% if is_super_admin %}
         <select name="branch_id" required>
           <option value="">Chọn chi nhánh</option>
           {% for b in branch_options %}
-            <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+            <option value="{{ b.id }}" {% if b.id == form_data.branch_id %}selected{% endif %}>{{ b.name }}</option>
           {% endfor %}
         </select>
       {% endif %}
-      <input type="text" name="name" placeholder="Tên dịch vụ" required>
-      <input type="text" name="group_name" placeholder="Nhóm">
-      <input type="number" name="price" step="1000" min="0" placeholder="Giá (VNĐ)" required>
-      <input type="number" name="duration_minutes" min="1" placeholder="Thời lượng (phút)" required>
-      <select name="status">
-        <option value="active">Đang hoạt động</option>
-        <option value="inactive">Ngừng hoạt động</option>
+      <input type="text" name="name" placeholder="Tên dịch vụ" value="{{ form_data.name }}" required>
+      <select name="group_name">
+        <option value="">Không chọn nhóm</option>
+        {% for option_group in group_options %}
+          <option value="{{ option_group }}" {% if form_data.group_name == option_group %}selected{% endif %}>{{ option_group }}</option>
+        {% endfor %}
       </select>
-      <button type="submit">Lưu</button>
+      <input type="number" name="price" step="any" min="0" placeholder="Giá (VNĐ)" value="{{ form_data.price }}" required>
+      <input type="number" name="duration_minutes" min="1" placeholder="Thời lượng (phút)" value="{{ form_data.duration_minutes }}" required>
+      <select name="status">
+        <option value="active" {% if form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+        <option value="inactive" {% if form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+      </select>
+      <button type="submit" class="service-save-btn">Lưu</button>
+      {% if edit_mode %}
+        <a href="{{ url_for('web.services', page=pager.page, q=q, group=group_name, status=status, branch_id=selected_branch_id) }}" class="tiny-btn service-cancel-btn">Hủy</a>
+      {% endif %}
     </form>
   </section>
 {% endblock %}

@@ -76,8 +76,18 @@ def reports():
     non_canceled_invoice_base = invoice_base.filter(Invoice.status != "canceled")
 
     total_invoice_value = non_canceled_invoice_base.with_entities(func.coalesce(func.sum(Invoice.total_amount), 0)).scalar()
-    collected_amount = non_canceled_invoice_base.with_entities(func.coalesce(func.sum(Invoice.paid_amount), 0)).scalar()
-    receivable_amount = non_canceled_invoice_base.with_entities(func.coalesce(func.sum(Invoice.balance_amount), 0)).scalar()
+    paid_count = invoice_base.filter(Invoice.status == "paid").with_entities(func.count(Invoice.id)).scalar()
+    canceled_count = invoice_base.filter(Invoice.status == "canceled").with_entities(func.count(Invoice.id)).scalar()
+    collected_amount = (
+        non_canceled_invoice_base.filter(Invoice.status == "paid")
+        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
+        .scalar()
+    )
+    receivable_amount = (
+        non_canceled_invoice_base.filter(Invoice.status == "draft")
+        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
+        .scalar()
+    )
     total_invoices = invoice_base.with_entities(func.count(Invoice.id)).scalar()
 
     status_rows = (
@@ -91,9 +101,9 @@ def reports():
     month_rows = (
         db.session.query(
             func.strftime("%Y-%m", Invoice.created_at).label("month_key"),
-            func.coalesce(func.sum(Invoice.paid_amount), 0).label("revenue"),
+            func.coalesce(func.sum(Invoice.total_amount), 0).label("revenue"),
         )
-        .filter(Invoice.branch_id.in_(report_scope), Invoice.status != "canceled")
+        .filter(Invoice.branch_id.in_(report_scope), Invoice.status == "paid")
         .group_by(func.strftime("%Y-%m", Invoice.created_at))
         .all()
     )
@@ -111,7 +121,7 @@ def reports():
         db.session.query(
             Branch.id,
             Branch.name,
-            func.coalesce(func.sum(Invoice.paid_amount), 0).label("revenue"),
+            func.coalesce(func.sum(case((Invoice.status == "paid", Invoice.total_amount), else_=0)), 0).label("revenue"),
             func.count(Invoice.id).label("invoice_count"),
         )
         .filter(Branch.id.in_(report_scope))
@@ -178,6 +188,8 @@ def reports():
         month_items=month_items,
         branch_items=branch_items,
         total_invoice_value=total_invoice_value,
+        paid_count=paid_count,
+        canceled_count=canceled_count,
         collected_amount=collected_amount,
         receivable_amount=receivable_amount,
         total_invoices=total_invoices,
@@ -211,8 +223,16 @@ def reports_export_csv():
     total_invoices = invoice_base.with_entities(func.count(Invoice.id)).scalar()
     canceled_count = invoice_base.filter(Invoice.status == "canceled").with_entities(func.count(Invoice.id)).scalar()
     total_invoice_value = non_canceled_base.with_entities(func.coalesce(func.sum(Invoice.total_amount), 0)).scalar()
-    collected_amount = non_canceled_base.with_entities(func.coalesce(func.sum(Invoice.paid_amount), 0)).scalar()
-    receivable_amount = non_canceled_base.with_entities(func.coalesce(func.sum(Invoice.balance_amount), 0)).scalar()
+    collected_amount = (
+        non_canceled_base.filter(Invoice.status == "paid")
+        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
+        .scalar()
+    )
+    receivable_amount = (
+        non_canceled_base.filter(Invoice.status == "draft")
+        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
+        .scalar()
+    )
 
     join_conditions = [Invoice.branch_id == Branch.id]
     if from_date:
@@ -226,8 +246,8 @@ def reports_export_csv():
             func.count(Invoice.id).label("invoice_count"),
             func.coalesce(func.sum(case((Invoice.status == "canceled", 1), else_=0)), 0).label("canceled_count"),
             func.coalesce(func.sum(case((Invoice.status != "canceled", Invoice.total_amount), else_=0)), 0).label("total_value"),
-            func.coalesce(func.sum(case((Invoice.status != "canceled", Invoice.paid_amount), else_=0)), 0).label("collected"),
-            func.coalesce(func.sum(case((Invoice.status != "canceled", Invoice.balance_amount), else_=0)), 0).label("receivable"),
+            func.coalesce(func.sum(case((Invoice.status == "paid", Invoice.total_amount), else_=0)), 0).label("collected"),
+            func.coalesce(func.sum(case((Invoice.status == "draft", Invoice.total_amount), else_=0)), 0).label("receivable"),
         )
         .filter(Branch.id.in_(report_scope))
         .outerjoin(Invoice, and_(*join_conditions))
@@ -281,8 +301,8 @@ def reports_export_csv():
     writer.writerow(["Tổng hóa đơn", int(total_invoices or 0)])
     writer.writerow(["Hóa đơn hủy", int(canceled_count or 0)])
     writer.writerow(["Tổng giá trị hóa đơn hợp lệ", int(float(total_invoice_value or 0))])
-    writer.writerow(["Doanh thu đã thu", int(float(collected_amount or 0))])
-    writer.writerow(["Còn phải thu", int(float(receivable_amount or 0))])
+    writer.writerow(["Doanh thu hoàn tất", int(float(collected_amount or 0))])
+    writer.writerow(["Giá trị đơn nháp", int(float(receivable_amount or 0))])
     writer.writerow([])
     writer.writerow([
         "Chi nhánh",
@@ -290,8 +310,8 @@ def reports_export_csv():
         "Hóa đơn hủy",
         "Hóa đơn hợp lệ",
         "Tổng giá trị hóa đơn hợp lệ",
-        "Doanh thu đã thu",
-        "Còn phải thu",
+        "Doanh thu hoàn tất",
+        "Giá trị đơn nháp",
     ])
     for row in branch_rows:
         writer.writerow(
