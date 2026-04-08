@@ -3,6 +3,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 from backend.extensions import db
+from backend.logs import write_log
 from backend.models import Staff, User
 from backend.web import (
     ACCOUNT_MANAGED_ROLES,
@@ -65,7 +66,8 @@ def is_staff_compatible_with_role(staff: Staff, role: str) -> bool:
     allowed_titles = ROLE_STAFF_TITLES.get(role, set())
     if not allowed_titles:
         return True
-    return normalize_text(staff.title) in allowed_titles
+    title = normalize_text(staff.title)
+    return any(keyword in title for keyword in allowed_titles)
 
 
 def has_duplicate_staff_account(staff_id: int, exclude_user_id: int | None = None) -> bool:
@@ -119,6 +121,7 @@ def accounts_save():
     staff_id = parse_int(request.form.get("staff_id"))
     password = request.form.get("password") or ""
     is_active = (request.form.get("is_active") or "1") == "1"
+    created_new_user = user_id is None
 
     if not username:
         return accounts_redirect("Username không được để trống.")
@@ -157,6 +160,16 @@ def accounts_save():
         row.set_password(password)
 
     try:
+        if created_new_user:
+            db.session.flush()
+            write_log(
+                "create_account",
+                branch_id=branch_id,
+                entity_type="user",
+                entity_id=row.id,
+                message=f"Tạo tài khoản {username}",
+                details={"role": role, "staff_id": staff.id},
+            )
         db.session.commit()
     except IntegrityError:
         db.session.rollback()

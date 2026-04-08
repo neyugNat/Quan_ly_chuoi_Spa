@@ -1,5 +1,6 @@
 import csv
 import io
+import re
 from datetime import datetime
 from decimal import Decimal
 
@@ -7,7 +8,8 @@ from flask import Response, g, flash, redirect, render_template, request, url_fo
 from sqlalchemy import func, or_
 
 from backend.extensions import db
-from backend.models import Branch, Invoice, InvoiceItem, Service, Staff, recalc_invoice
+from backend.logs import write_log
+from backend.models import Branch, Invoice, InvoiceItem, Service, Staff, User, recalc_invoice
 from backend.web import (
     INVOICE_STATUS_LABELS,
     get_current_branch_scope,
@@ -26,9 +28,71 @@ from backend.web import (
 )
 
 
+PHONE_PATTERN = re.compile(r"^\d{8,15}$")
+
+
 def invoices_error(message: str):
     flash(message, "error")
     return redirect(url_for("web.invoices"))
+
+
+def normalize_staff_title(value: str | None) -> str:
+    return parse_text(value).lower().replace("đ", "d")
+
+
+def is_branch_manager_title(value: str | None) -> bool:
+    title = normalize_staff_title(value)
+    return "quan ly chi nhanh" in title
+
+
+def is_cashier_title(value: str | None) -> bool:
+    title = normalize_staff_title(value)
+    return "thu ngan" in title or "le tan" in title
+
+
+def normalize_phone(value: str | None) -> str:
+    return re.sub(r"\D+", "", parse_text(value))
+
+
+def resolve_operator_staff(branch_id: int | None) -> Staff | None:
+    staff_id = getattr(g.web_user, "staff_id", None)
+    if not branch_id or not staff_id:
+        return None
+    return Staff.query.filter_by(id=staff_id, branch_id=branch_id, status="active").first()
+
+
+def list_staff_candidates_for_invoice(branch_id: int, operator_staff: Staff | None) -> list[Staff]:
+    rows = Staff.query.filter_by(branch_id=branch_id, status="active").order_by(Staff.full_name.asc()).all()
+    if not rows:
+        return [operator_staff] if operator_staff else []
+
+    role_staff_rows = (
+        User.query.with_entities(User.staff_id)
+        .filter(
+            User.branch_id == branch_id,
+            User.is_active.is_(True),
+            User.role.in_(("branch_manager", "receptionist")),
+            User.staff_id.isnot(None),
+        )
+        .all()
+    )
+    role_staff_ids = {int(staff_id) for (staff_id,) in role_staff_rows if staff_id}
+
+    selected_ids: set[int] = set()
+    candidates: list[Staff] = []
+    for row in rows:
+        if (
+            row.id in role_staff_ids
+            or is_branch_manager_title(row.title)
+            or is_cashier_title(row.title)
+        ) and row.id not in selected_ids:
+            candidates.append(row)
+            selected_ids.add(row.id)
+
+    if operator_staff and operator_staff.id not in selected_ids:
+        candidates.insert(0, operator_staff)
+
+    return candidates
 
 
 def build_invoice_filters(scope_ids):
@@ -130,20 +194,30 @@ def invoices():
         ).first()
 
     operator_branch_id = g.active_branch_id if g.active_branch_id in scope_ids else scope_ids[0]
+    operator_staff = resolve_operator_staff(operator_branch_id)
     service_rows = (
         Service.query.filter_by(branch_id=operator_branch_id, status="active").order_by(Service.name.asc()).all()
         if operator_branch_id
         else []
     )
-    staff_rows = (
-        Staff.query.filter_by(branch_id=operator_branch_id, status="active").order_by(Staff.full_name.asc()).all()
-        if operator_branch_id
-        else []
-    )
+    can_select_staff = g.web_user.role == "branch_manager"
+    if operator_branch_id and can_select_staff:
+        staff_rows = list_staff_candidates_for_invoice(operator_branch_id, operator_staff)
+    elif operator_staff:
+        staff_rows = [operator_staff]
+    else:
+        staff_rows = []
 
     can_export_csv = g.web_user.role in {"super_admin", "branch_manager"}
     can_create_invoice = g.web_user.role in {"branch_manager", "receptionist"}
     can_void_invoice = g.web_user.role == "branch_manager"
+    if g.web_user.role != "branch_manager" and operator_staff is None:
+        can_create_invoice = False
+
+    operator_staff_label = "Chưa liên kết nhân sự"
+    if operator_staff:
+        display_name = parse_text(operator_staff.full_name) or g.web_user.username
+        operator_staff_label = f"{display_name} - NV{operator_staff.id}"
 
     return render_template(
         "web/invoices.html",
@@ -160,6 +234,9 @@ def invoices():
         can_void_invoice=can_void_invoice,
         service_rows=service_rows,
         staff_rows=staff_rows,
+        can_select_staff=can_select_staff,
+        operator_staff=operator_staff,
+        operator_staff_label=operator_staff_label,
     )
 
 
@@ -252,11 +329,18 @@ def invoices_create():
     if not branch_id:
         return invoices_error("Tài khoản không có phạm vi chi nhánh hợp lệ.")
 
-    customer_name = parse_optional_text(request.form.get("customer_name"))
-    customer_phone = parse_optional_text(request.form.get("customer_phone"))
-    staff_id = parse_int(request.form.get("staff_id"))
+    customer_name = parse_text(request.form.get("customer_name"))
+    customer_phone = normalize_phone(request.form.get("customer_phone"))
+    submitted_staff_id = parse_int(request.form.get("staff_id"))
     note = parse_optional_text(request.form.get("note"))
     discount_amount = parse_money(request.form.get("discount_amount"), default=Decimal("0.00"))
+
+    if not customer_name:
+        return invoices_error("Vui lòng nhập tên khách.")
+    if not customer_phone:
+        return invoices_error("Vui lòng nhập SĐT khách.")
+    if not PHONE_PATTERN.fullmatch(customer_phone):
+        return invoices_error("SĐT khách phải gồm 8-15 chữ số.")
 
     service_ids = request.form.getlist("service_id[]")
     qty_values = request.form.getlist("qty[]")
@@ -273,12 +357,22 @@ def invoices_create():
     if not lines:
         return invoices_error("Cần ít nhất một dòng dịch vụ hợp lệ.")
 
-    if not staff_id:
-        return invoices_error("Vui lòng chọn nhân sự phụ trách.")
+    operator_staff = resolve_operator_staff(branch_id)
+    if g.web_user.role == "branch_manager":
+        candidate_rows = list_staff_candidates_for_invoice(branch_id, operator_staff)
+        candidate_ids = {row.id for row in candidate_rows}
+        if not submitted_staff_id:
+            return invoices_error("Vui lòng chọn nhân sự phụ trách.")
+        if submitted_staff_id not in candidate_ids:
+            return invoices_error("Nhân sự phụ trách phải là quản lý hoặc thu ngân thuộc chi nhánh.")
 
-    staff = Staff.query.filter_by(id=staff_id, branch_id=branch_id, status="active").first()
-    if staff is None:
-        return invoices_error("Nhân sự phụ trách không hợp lệ.")
+        staff = Staff.query.filter_by(id=submitted_staff_id, branch_id=branch_id, status="active").first()
+        if staff is None:
+            return invoices_error("Nhân sự phụ trách không hợp lệ.")
+    else:
+        if operator_staff is None:
+            return invoices_error("Tài khoản hiện tại chưa liên kết nhân sự đang làm việc.")
+        staff = operator_staff
 
     invoice = Invoice(
         code="TMP",
@@ -311,6 +405,14 @@ def invoices_create():
         db.session.rollback()
         return invoices_error("Tổng tiền hóa đơn phải lớn hơn 0.")
 
+    write_log(
+        "create_invoice",
+        branch_id=branch_id,
+        entity_type="invoice",
+        entity_id=invoice.id,
+        message=f"Tạo hóa đơn {invoice.code}",
+    )
+
     db.session.commit()
     flash("Đã tạo hóa đơn.", "success")
     return redirect(url_for("web.invoices", view_id=invoice.id))
@@ -338,6 +440,16 @@ def invoices_void():
     invoice.canceled_reason = cancel_reason
     invoice.canceled_at = datetime.utcnow()
     invoice.last_action_by = g.web_user.username
+
+    write_log(
+        "cancel_invoice",
+        branch_id=branch_id,
+        entity_type="invoice",
+        entity_id=invoice.id,
+        message=f"Hủy hóa đơn {invoice.code}",
+        details={"reason": cancel_reason},
+    )
+
     db.session.commit()
     flash("Đã hủy hóa đơn.", "success")
     return redirect(url_for("web.invoices", view_id=invoice.id))

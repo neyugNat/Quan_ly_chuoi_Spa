@@ -5,165 +5,188 @@
     'inactive': 'Ngừng hoạt động'
   } %}
 
-  <style>
-    form.inline.service-form {
-      display: grid;
-      grid-template-columns: minmax(150px, 1.1fr) minmax(180px, 1.3fr) minmax(160px, 1.1fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(170px, 1.2fr) 120px auto;
-      gap: 10px;
-      align-items: center;
-    }
+  <!-- Services List Section -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h2 class="text-xl font-bold text-spa-800 mb-6 flex items-center gap-2">
+      <svg class="w-6 h-6 text-spa-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+      Dịch vụ
+    </h2>
 
-    form.inline.service-form > * {
-      min-width: 0;
-    }
-
-    form.inline.service-form input,
-    form.inline.service-form select {
-      width: 100%;
-    }
-
-    form.inline.service-form .service-save-btn,
-    form.inline.service-form .service-cancel-btn {
-      min-height: 42px;
-      padding: 10px 18px;
-      width: fit-content;
-      justify-self: start;
-      white-space: nowrap;
-    }
-
-    form.inline.service-form .service-cancel-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: inherit;
-    }
-
-    @media (max-width: 1200px) {
-      form.inline.service-form {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 860px) {
-      form.inline.service-form {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-  </style>
-
-  <section class="panel">
-    <h2>Dịch vụ</h2>
-    <form method="get" class="inline filter-row">
-      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên dịch vụ">
-      <select name="group">
+    <!-- Filter Form -->
+    <form method="get" class="flex flex-wrap items-center gap-3 mb-6 p-4 bg-spa-50 rounded-xl">
+      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên dịch vụ"
+        class="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      <select name="group"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[180px]">
         <option value="">Tất cả nhóm dịch vụ</option>
         {% for option_group in group_options %}
           <option value="{{ option_group }}" {% if group_name == option_group %}selected{% endif %}>{{ option_group }}</option>
         {% endfor %}
       </select>
-      <select name="status">
+      <select name="status"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[180px]">
         <option value="">Tất cả trạng thái</option>
         <option value="active" {% if status == 'active' %}selected{% endif %}>Đang hoạt động</option>
         <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
       </select>
-      <button type="submit" class="secondary">Lọc</button>
-      <a href="{{ url_for('web.services') }}" class="tiny-btn">Xóa lọc</a>
+      <button type="submit" class="px-5 py-2.5 rounded-xl border border-spa-300 bg-white text-spa-700 hover:bg-spa-50 font-medium transition-all">
+        Lọc
+      </button>
+      <a href="{{ url_for('web.services') }}" class="px-4 py-2.5 rounded-xl text-spa-500 hover:text-spa-700 hover:bg-spa-100 transition-all">
+        Xóa lọc
+      </a>
     </form>
 
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Chi nhánh</th>
-          <th>Tên dịch vụ</th>
-          <th>Nhóm</th>
-          <th>Giá</th>
-          <th>Thời lượng</th>
-          <th>Trạng thái</th>
-          <th>Hành động</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-          <tr>
-            <td>{{ row.id }}</td>
-            <td>{{ row.branch.name if row.branch else '-' }}</td>
-            <td>{{ row.name }}</td>
-            <td>{{ row.group_name or '-' }}</td>
-            <td>{{ fmt_money(row.price) }}</td>
-            <td>{{ row.duration_minutes }} phút</td>
-            <td><span class="status status-{{ row.status }}">{{ service_status_labels.get(row.status, row.status) }}</span></td>
-            <td>
-              <div class="inline-links">
-                <a
-                  class="tiny-btn"
-                  href="{{ url_for('web.services', edit_id=row.id, page=pager.page, q=q, group=group_name, status=status, branch_id=selected_branch_id) }}#service-editor"
-                >Sửa</a>
-                <form
-                  method="post"
-                  action="{{ url_for('web.services_delete') }}"
-                  class="inline form-compact"
-                  data-confirm-modal="1"
-                  data-confirm-message="Bạn có chắc muốn xóa dịch vụ này không?"
-                  data-confirm-ok-label="Xóa dịch vụ"
-                >
-                  <input type="hidden" name="service_id" value="{{ row.id }}">
-                  <input type="hidden" name="q" value="{{ q }}">
-                  <input type="hidden" name="group" value="{{ group_name }}">
-                  <input type="hidden" name="status" value="{{ status }}">
-                  <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
-                  <input type="hidden" name="page" value="{{ pager.page }}">
-                  <button type="submit" class="warn">Xóa</button>
-                </form>
-              </div>
-            </td>
+    <!-- Services Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">ID</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tên dịch vụ</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Nhóm</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Giá</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Thời lượng</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Trạng thái</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Hành động</th>
           </tr>
-        {% else %}
-          <tr><td colspan="8">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for row in rows %}
+            <tr class="hover:bg-spa-50/50 transition-colors">
+              <td class="py-3 px-4 text-spa-600">{{ row.id }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.name }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.group_name or '-' }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(row.price) }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.duration_minutes }} phút</td>
+              <td class="py-3 px-4">
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-medium
+                  {% if row.status == 'active' %}bg-sage-100 text-sage-700{% else %}bg-spa-200 text-spa-600{% endif %}">
+                  {{ service_status_labels.get(row.status, row.status) }}
+                </span>
+              </td>
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2">
+                  <a href="{{ url_for('web.services', edit_id=row.id, page=pager.page, q=q, group=group_name, status=status, branch_id=selected_branch_id) }}#service-editor"
+                    class="px-3 py-1.5 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 text-sm font-medium transition-all">
+                    Sửa
+                  </a>
+                  <form method="post" action="{{ url_for('web.services_delete') }}" class="inline"
+                    data-confirm-modal="1"
+                    data-confirm-message="Bạn có chắc muốn xóa dịch vụ này không?"
+                    data-confirm-ok-label="Xóa dịch vụ">
+                    <input type="hidden" name="service_id" value="{{ row.id }}">
+                    <input type="hidden" name="q" value="{{ q }}">
+                    <input type="hidden" name="group" value="{{ group_name }}">
+                    <input type="hidden" name="status" value="{{ status }}">
+                    <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
+                    <input type="hidden" name="page" value="{{ pager.page }}">
+                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium transition-all">
+                      Xóa
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="8" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-    <div class="pager">
+    <!-- Pagination -->
+    <div class="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-spa-100">
       {% if pager.has_prev %}
-        <a href="{{ url_for('web.services', page=pager.prev_num, q=q, group=group_name, status=status) }}">← Trang trước</a>
+        <a href="{{ url_for('web.services', page=pager.prev_num, q=q, group=group_name, status=status) }}"
+          class="px-4 py-2 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 font-medium transition-all">
+          ← Trang trước
+        </a>
       {% endif %}
-      <span>Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
+      <span class="text-spa-600">Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
       {% if pager.has_next %}
-        <a href="{{ url_for('web.services', page=pager.next_num, q=q, group=group_name, status=status) }}">Trang sau →</a>
+        <a href="{{ url_for('web.services', page=pager.next_num, q=q, group=group_name, status=status) }}"
+          class="px-4 py-2 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 font-medium transition-all">
+          Trang sau →
+        </a>
       {% endif %}
     </div>
   </section>
 
-  <section class="panel edit-anchor-target" id="service-editor">
-    <h3>{% if edit_mode %}Cập nhật dịch vụ{% else %}Thêm dịch vụ{% endif %}</h3>
-    <form method="post" action="{{ url_for('web.services_save') }}" class="inline service-form">
+  <!-- Add/Edit Service Form -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6" id="service-editor">
+    <h3 class="text-lg font-semibold text-spa-800 mb-6 flex items-center gap-2">
+      <svg class="w-5 h-5 text-sage-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+      {% if edit_mode %}Cập nhật dịch vụ{% else %}Thêm dịch vụ{% endif %}
+    </h3>
+    <form method="post" action="{{ url_for('web.services_save') }}" class="flex flex-wrap items-end gap-4">
       <input type="hidden" name="service_id" value="{{ form_data.service_id or '' }}">
+
       {% if is_super_admin %}
-        <select name="branch_id" required>
-          <option value="">Chọn chi nhánh</option>
-          {% for b in branch_options %}
-            <option value="{{ b.id }}" {% if b.id == form_data.branch_id %}selected{% endif %}>{{ b.name }}</option>
+        <div class="flex-1 min-w-[180px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Chi nhánh</label>
+          <select name="branch_id" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+            <option value="">Chọn chi nhánh</option>
+            {% for b in branch_options %}
+              <option value="{{ b.id }}" {% if b.id == form_data.branch_id %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endif %}
+
+      <div class="flex-1 min-w-[200px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Tên dịch vụ</label>
+        <input type="text" name="name" placeholder="Nhập tên dịch vụ" value="{{ form_data.name }}" required
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      </div>
+
+      <div class="flex-1 min-w-[160px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Nhóm dịch vụ</label>
+        <select name="group_name"
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+          <option value="">Không chọn nhóm</option>
+          {% for option_group in group_options %}
+            <option value="{{ option_group }}" {% if form_data.group_name == option_group %}selected{% endif %}>{{ option_group }}</option>
           {% endfor %}
         </select>
-      {% endif %}
-      <input type="text" name="name" placeholder="Tên dịch vụ" value="{{ form_data.name }}" required>
-      <select name="group_name">
-        <option value="">Không chọn nhóm</option>
-        {% for option_group in group_options %}
-          <option value="{{ option_group }}" {% if form_data.group_name == option_group %}selected{% endif %}>{{ option_group }}</option>
-        {% endfor %}
-      </select>
-      <input type="number" name="price" step="any" min="0" placeholder="Giá (VNĐ)" value="{{ form_data.price }}" required>
-      <input type="number" name="duration_minutes" min="1" placeholder="Thời lượng (phút)" value="{{ form_data.duration_minutes }}" required>
-      <select name="status">
-        <option value="active" {% if form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
-        <option value="inactive" {% if form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
-      </select>
-      <button type="submit" class="service-save-btn">Lưu</button>
-      {% if edit_mode %}
-        <a href="{{ url_for('web.services', page=pager.page, q=q, group=group_name, status=status, branch_id=selected_branch_id) }}" class="tiny-btn service-cancel-btn">Hủy</a>
-      {% endif %}
+      </div>
+
+      <div class="flex-1 min-w-[140px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Giá (VNĐ)</label>
+        <input type="number" name="price" step="any" min="0" placeholder="0" value="{{ form_data.price }}" required
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      </div>
+
+      <div class="flex-1 min-w-[140px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Thời lượng (phút)</label>
+        <input type="number" name="duration_minutes" min="1" placeholder="60" value="{{ form_data.duration_minutes }}" required
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      </div>
+
+      <div class="flex-1 min-w-[160px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Trạng thái</label>
+        <select name="status"
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+          <option value="active" {% if form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+          <option value="inactive" {% if form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button type="submit"
+          class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-spa-600 to-sage-600 text-white font-medium hover:from-spa-700 hover:to-sage-700 transition-all shadow-md hover:shadow-lg">
+          Lưu
+        </button>
+        {% if edit_mode %}
+          <a href="{{ url_for('web.services', page=pager.page, q=q, group=group_name, status=status, branch_id=selected_branch_id) }}"
+            class="px-5 py-2.5 rounded-xl border border-spa-200 text-spa-600 hover:bg-spa-50 font-medium transition-all">
+            Hủy
+          </a>
+        {% endif %}
+      </div>
     </form>
   </section>
 {% endblock %}

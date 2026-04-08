@@ -1,180 +1,151 @@
 {% extends "web/base.html" %}
 {% block content %}
-  <style>
-    .account-form {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(220px, 1fr));
-      gap: 10px 12px;
-      align-items: center;
-    }
+  <!-- Accounts List Section -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h2 class="text-xl font-bold text-spa-800 mb-6 flex items-center gap-2">
+      <svg class="w-6 h-6 text-spa-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Tài khoản vận hành chi nhánh
+    </h2>
 
-    .account-form > * {
-      min-width: 0;
-    }
-
-    .account-form input,
-    .account-form select {
-      width: 100%;
-      min-height: 44px;
-      padding: 10px 12px;
-    }
-
-    .account-form button,
-    .account-form .tiny-btn {
-      min-height: 44px;
-      white-space: nowrap;
-    }
-
-    .account-form .account-username,
-    .account-form .account-password {
-      max-width: 360px;
-    }
-
-    .account-form .account-password {
-      grid-column: 1;
-    }
-
-    .account-form .account-status {
-      grid-column: 2;
-    }
-
-    .account-form .account-actions {
-      grid-column: 3 / span 2;
-      justify-self: start;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .account-form .account-actions .account-save {
-      width: auto;
-      padding-inline: 20px;
-    }
-
-    .account-form .account-actions .account-cancel {
-      min-height: 44px;
-      padding-inline: 20px;
-      font-size: inherit;
-    }
-
-    @media (max-width: 1250px) {
-      .account-form {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-
-      .account-form .account-username,
-      .account-form .account-password {
-        max-width: none;
-      }
-
-      .account-form .account-password,
-      .account-form .account-status,
-      .account-form .account-actions {
-        grid-column: auto;
-      }
-    }
-
-    @media (max-width: 860px) {
-      .account-form {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-  </style>
-
-  <section class="panel">
-    <h2>Tài khoản vận hành chi nhánh</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Username</th>
-          <th>Chức vụ</th>
-          <th>Chi nhánh</th>
-          <th>Nhân sự</th>
-          <th>Trạng thái</th>
-          <th>Hành động</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-          <tr>
-            <td>{{ row.username }}</td>
-            <td>{{ role_label(row.role) }}</td>
-            <td>{{ row.branch.name if row.branch else '-' }}</td>
-            <td>{{ row.staff.full_name if row.staff else '-' }}</td>
-            <td>
-              <span class="status status-{{ 'active' if row.is_active else 'inactive' }}">
-                {{ 'Đang hoạt động' if row.is_active else 'Ngừng hoạt động' }}
-              </span>
-            </td>
-            <td>
-              <div class="inline-links">
-                <a href="{{ url_for('web.accounts', edit_id=row.id) }}#account-editor" class="tiny-btn">Sửa</a>
-                <form
-                  method="post"
-                  action="{{ url_for('web.accounts_delete') }}"
-                  class="inline form-compact"
-                  data-confirm-modal="1"
-                  data-confirm-message="Bạn có chắc muốn xóa tài khoản này không?"
-                  data-confirm-ok-label="Xóa tài khoản"
-                >
-                  <input type="hidden" name="user_id" value="{{ row.id }}">
-                  <button type="submit" class="warn">Xóa</button>
-                </form>
-              </div>
-            </td>
+    <!-- Accounts Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Username</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chức vụ</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Nhân sự</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Trạng thái</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Hành động</th>
           </tr>
-        {% else %}
-          <tr><td colspan="6">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for row in rows %}
+            <tr class="hover:bg-spa-50/50 transition-colors">
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.username }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ role_label(row.role) }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.staff.full_name if row.staff else '-' }}</td>
+              <td class="py-3 px-4">
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-medium
+                  {% if row.is_active %}bg-sage-100 text-sage-700{% else %}bg-spa-200 text-spa-600{% endif %}">
+                  {{ 'Đang hoạt động' if row.is_active else 'Ngừng hoạt động' }}
+                </span>
+              </td>
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2">
+                  <a href="{{ url_for('web.accounts', edit_id=row.id) }}#account-editor"
+                    class="px-3 py-1.5 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 text-sm font-medium transition-all">
+                    Sửa
+                  </a>
+                  <form method="post" action="{{ url_for('web.accounts_delete') }}" class="inline"
+                    data-confirm-modal="1"
+                    data-confirm-message="Bạn có chắc muốn xóa tài khoản này không?"
+                    data-confirm-ok-label="Xóa tài khoản">
+                    <input type="hidden" name="user_id" value="{{ row.id }}">
+                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium transition-all">
+                      Xóa
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 
-  <section class="panel edit-anchor-target" id="account-editor">
-    <h3>Thêm/Sửa tài khoản vận hành</h3>
-    <form method="post" action="{{ url_for('web.accounts_save') }}" class="account-form" id="accountForm">
+  <!-- Add/Edit Account Form -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6" id="account-editor">
+    <h3 class="text-lg font-semibold text-spa-800 mb-6 flex items-center gap-2">
+      <svg class="w-5 h-5 text-sage-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+      Thêm/Sửa tài khoản vận hành
+    </h3>
+    <form method="post" action="{{ url_for('web.accounts_save') }}" class="space-y-4" id="accountForm">
       <input type="hidden" name="user_id" value="{{ form_data.user_id or '' }}">
-      <input type="text" name="username" class="account-username" placeholder="Username" value="{{ form_data.username }}" required>
-      <select name="role" id="accountRole" required>
-        <option value="" {% if not form_data.role %}selected{% endif %}>Chọn chức vụ</option>
-        <option value="branch_manager" {% if form_data.role == 'branch_manager' %}selected{% endif %}>Quản lý chi nhánh</option>
-        <option value="receptionist" {% if form_data.role == 'receptionist' %}selected{% endif %}>Lễ tân</option>
-        <option value="inventory_controller" {% if form_data.role == 'inventory_controller' %}selected{% endif %}>Kiểm soát kho</option>
-        <option value="technician" {% if form_data.role == 'technician' %}selected{% endif %}>Kỹ thuật viên</option>
-      </select>
-      <select name="branch_id" id="accountBranch" required>
-        <option value="">Chọn chi nhánh</option>
-        {% for b in branch_options %}
-          <option value="{{ b.id }}" {% if form_data.branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>
-        {% endfor %}
-      </select>
-      <select name="staff_id" id="accountStaff" required>
-        <option value="">Chọn nhân sự</option>
-        {% for staff in staff_options %}
-          <option
-            value="{{ staff.id }}"
-            data-branch-id="{{ staff.branch_id }}"
-            data-title="{{ (staff.title or '')|lower }}"
-            {% if form_data.staff_id == staff.id %}selected{% endif %}
-          >{{ staff.full_name }}</option>
-        {% endfor %}
-      </select>
-      <input
-        type="password"
-        name="password"
-        class="account-password"
-        placeholder="{{ 'Mật khẩu mới (tài khoản mới)' if not edit_mode else 'Mật khẩu mới (để trống nếu giữ)' }}"
-        {% if not edit_mode %}required{% endif %}
-      >
-      <select name="is_active" class="account-status">
-        <option value="1" {% if form_data.is_active == '1' %}selected{% endif %}>Đang hoạt động</option>
-        <option value="0" {% if form_data.is_active == '0' %}selected{% endif %}>Ngừng hoạt động</option>
-      </select>
-      <div class="account-actions">
-        <button type="submit" class="account-save">Lưu</button>
-        {% if edit_mode %}
-          <a href="{{ url_for('web.accounts') }}" class="tiny-btn account-cancel">Hủy</a>
-        {% endif %}
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-spa-600 mb-2">Username</label>
+          <input type="text" name="username" placeholder="Nhập username" value="{{ form_data.username }}" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-spa-600 mb-2">Chức vụ</label>
+          <select name="role" id="accountRole" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+            <option value="" {% if not form_data.role %}selected{% endif %}>Chọn chức vụ</option>
+            <option value="branch_manager" {% if form_data.role == 'branch_manager' %}selected{% endif %}>Quản lý chi nhánh</option>
+            <option value="receptionist" {% if form_data.role == 'receptionist' %}selected{% endif %}>Lễ tân</option>
+            <option value="inventory_controller" {% if form_data.role == 'inventory_controller' %}selected{% endif %}>Kiểm soát kho</option>
+            <option value="technician" {% if form_data.role == 'technician' %}selected{% endif %}>Kỹ thuật viên</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-spa-600 mb-2">Chi nhánh</label>
+          <select name="branch_id" id="accountBranch" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+            <option value="">Chọn chi nhánh</option>
+            {% for b in branch_options %}
+              <option value="{{ b.id }}" {% if form_data.branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-spa-600 mb-2">Nhân sự</label>
+          <select name="staff_id" id="accountStaff" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+            <option value="">Chọn nhân sự</option>
+            {% for staff in staff_options %}
+              <option
+                value="{{ staff.id }}"
+                data-branch-id="{{ staff.branch_id }}"
+                data-title="{{ (staff.title or '')|lower }}"
+                {% if form_data.staff_id == staff.id %}selected{% endif %}
+              >{{ staff.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-spa-600 mb-2">
+            {{ 'Mật khẩu mới (tài khoản mới)' if not edit_mode else 'Mật khẩu mới (để trống nếu giữ)' }}
+          </label>
+          <input type="password" name="password" placeholder="Nhập mật khẩu"
+            {% if not edit_mode %}required{% endif %}
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-spa-600 mb-2">Trạng thái</label>
+          <select name="is_active"
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+            <option value="1" {% if form_data.is_active == '1' %}selected{% endif %}>Đang hoạt động</option>
+            <option value="0" {% if form_data.is_active == '0' %}selected{% endif %}>Ngừng hoạt động</option>
+          </select>
+        </div>
+
+        <div class="flex items-end gap-3 lg:col-span-2">
+          <button type="submit"
+            class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-spa-600 to-sage-600 text-white font-medium hover:from-spa-700 hover:to-sage-700 transition-all shadow-md hover:shadow-lg">
+            Lưu
+          </button>
+          {% if edit_mode %}
+            <a href="{{ url_for('web.accounts') }}"
+              class="px-5 py-2.5 rounded-xl border border-spa-200 text-spa-600 hover:bg-spa-50 font-medium transition-all">
+              Hủy
+            </a>
+          {% endif %}
+        </div>
       </div>
     </form>
   </section>
@@ -267,13 +238,32 @@
     })();
   </script>
 
-  <section class="panel">
-    <h3>Đổi mật khẩu</h3>
-    <form method="post" action="{{ url_for('web.accounts_change_password') }}" class="inline">
-      <input type="password" name="current_password" placeholder="Mật khẩu hiện tại" required>
-      <input type="password" name="new_password" placeholder="Mật khẩu mới" required>
-      <input type="password" name="confirm_password" placeholder="Xác nhận mật khẩu mới" required>
-      <button type="submit" class="secondary">Đổi mật khẩu</button>
+  <!-- Change Password Section -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-6 flex items-center gap-2">
+      <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+      Đổi mật khẩu
+    </h3>
+    <form method="post" action="{{ url_for('web.accounts_change_password') }}" class="flex flex-wrap items-end gap-4">
+      <div class="flex-1 min-w-[200px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Mật khẩu hiện tại</label>
+        <input type="password" name="current_password" placeholder="Nhập mật khẩu hiện tại" required
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      </div>
+      <div class="flex-1 min-w-[200px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Mật khẩu mới</label>
+        <input type="password" name="new_password" placeholder="Nhập mật khẩu mới" required
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      </div>
+      <div class="flex-1 min-w-[200px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Xác nhận mật khẩu</label>
+        <input type="password" name="confirm_password" placeholder="Xác nhận mật khẩu mới" required
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      </div>
+      <button type="submit"
+        class="px-5 py-2.5 rounded-xl border border-spa-300 bg-white text-spa-700 hover:bg-spa-50 font-medium transition-all">
+        Đổi mật khẩu
+      </button>
     </form>
   </section>
 {% endblock %}

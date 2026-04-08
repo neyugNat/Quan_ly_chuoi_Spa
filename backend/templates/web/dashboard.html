@@ -1,151 +1,254 @@
 {% extends "web/base.html" %}
 {% block content %}
-  <style>
-    .dashboard-kpi-row {
-      margin-bottom: 12px;
-    }
-  </style>
+  <!-- Welcome Section -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h2 class="text-2xl font-bold text-spa-800">Flawless day, flawless skin!</h2>
+        <p class="text-spa-500 mt-1">{{ today_label_vi }}</p>
+      </div>
+      {% if web_user.is_super_admin %}
+        <form method="get" class="flex items-center gap-3">
+          <select name="branch_id" onchange="this.form.submit()"
+            class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[200px]">
+            <option value="" {% if not selected_branch_id %}selected{% endif %}>Tất cả chi nhánh</option>
+            {% for b in branch_options %}
+              <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+          <noscript><button type="submit" class="px-4 py-2.5 rounded-xl border border-spa-200 text-spa-700 hover:bg-spa-50">Xem</button></noscript>
+        </form>
+      {% endif %}
+    </div>
+  </section>
 
-  <section class="panel">
-    <h2>Flawless day, flawless skin!</h2>
-    <p class="muted">{{ today_label_vi }}</p>
-    {% if web_user.is_super_admin %}
-      <form method="get" class="inline filter-row">
-        <select name="branch_id" onchange="this.form.submit()">
-          <option value="" {% if not selected_branch_id %}selected{% endif %}>Tất cả chi nhánh</option>
-          {% for b in branch_options %}
-            <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+  <!-- KPI Row 1 -->
+  <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-spa-100 to-spa-200 flex items-center justify-center">
+          <svg class="w-6 h-6 text-spa-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        </div>
+        <div>
+          <p class="text-sm text-spa-500">Chi nhánh hoạt động</p>
+          <p class="text-2xl font-bold text-spa-800">{{ branch_count }}</p>
+        </div>
+      </div>
+    </article>
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-sage-100 to-sage-200 flex items-center justify-center">
+          <svg class="w-6 h-6 text-sage-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <div>
+          <p class="text-sm text-spa-500">Nhân sự</p>
+          <p class="text-2xl font-bold text-spa-800">{{ staff_count }}</p>
+        </div>
+      </div>
+    </article>
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-100 to-rose-200 flex items-center justify-center">
+          <svg class="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+        </div>
+        <div>
+          <p class="text-sm text-spa-500">Dịch vụ</p>
+          <p class="text-2xl font-bold text-spa-800">{{ service_count }}</p>
+        </div>
+      </div>
+    </article>
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center">
+          <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <div>
+          <p class="text-sm text-spa-500">Hàng sắp hết</p>
+          <p class="text-2xl font-bold text-amber-600">{{ low_stock_count }}</p>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <!-- KPI Row 2 -->
+  <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <article class="bg-gradient-to-br from-spa-500 to-spa-600 rounded-2xl shadow-lg p-5 text-white">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <div>
+          <p class="text-sm text-spa-100">Hóa đơn hôm nay</p>
+          <p class="text-2xl font-bold">{{ today_invoice_count }}</p>
+        </div>
+      </div>
+    </article>
+    <article class="bg-gradient-to-br from-sage-500 to-sage-600 rounded-2xl shadow-lg p-5 text-white">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div>
+          <p class="text-sm text-sage-100">Doanh thu hôm nay</p>
+          <p class="text-2xl font-bold">{{ fmt_money(today_revenue) }}</p>
+        </div>
+      </div>
+    </article>
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-spa-100 to-spa-200 flex items-center justify-center">
+          <svg class="w-6 h-6 text-spa-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+        <div>
+          <p class="text-sm text-spa-500">Hóa đơn tháng này</p>
+          <p class="text-2xl font-bold text-spa-800">{{ month_invoice_count }}</p>
+        </div>
+      </div>
+    </article>
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-5 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-sage-100 to-sage-200 flex items-center justify-center">
+          <svg class="w-6 h-6 text-sage-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <div>
+          <p class="text-sm text-spa-500">Doanh thu tháng</p>
+          <p class="text-2xl font-bold text-spa-800">{{ fmt_money(month_revenue) }}</p>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <!-- KPI Row 3 (Conditional) -->
+  {% if web_user.is_super_admin and not selected_branch_id %}
+    <section class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <article class="bg-gradient-to-br from-emerald-50 to-sage-50 rounded-2xl shadow-sm border border-sage-200 p-5">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-sage-500 flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+          </div>
+          <div>
+            <p class="text-sm text-sage-600">Chi nhánh doanh thu cao nhất</p>
+            <p class="text-xl font-bold text-sage-800">{{ top_branch_name }}</p>
+          </div>
+        </div>
+      </article>
+      <article class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-sm border border-amber-200 p-5">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+          </div>
+          <div>
+            <p class="text-sm text-amber-600">Chi nhánh doanh thu thấp nhất</p>
+            <p class="text-xl font-bold text-amber-800">{{ weak_branch_name }}</p>
+          </div>
+        </div>
+      </article>
+    </section>
+  {% endif %}
+
+  <!-- Recent Invoices -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-4 flex items-center gap-2">
+      <svg class="w-5 h-5 text-spa-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Hóa đơn gần nhất
+    </h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Mã</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Khách</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Giá trị hóa đơn</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for row in recent_invoices %}
+            <tr class="hover:bg-spa-50/50 transition-colors">
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.code }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.customer_name or '-' }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(row.total_amount) }}</td>
+              <td class="py-3 px-4">
+                <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5
+                  {% if row.status == 'paid' %}bg-emerald-200 text-emerald-800
+                  {% elif row.status == 'pending' %}bg-amber-200 text-amber-800
+                  {% elif row.status in ['cancelled', 'canceled'] %}bg-red-200 text-red-800
+                  {% else %}bg-spa-100 text-spa-700{% endif %}">
+                  {{ invoice_status_labels.get(row.status, row.status) }}
+                </span>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
           {% endfor %}
-        </select>
-        <noscript><button type="submit" class="secondary">Xem</button></noscript>
-      </form>
-    {% endif %}
+        </tbody>
+      </table>
+    </div>
   </section>
 
-  <section class="grid-4 dashboard-kpi-row">
-    <article class="kpi">
-      <div class="label">Chi nhánh hoạt động</div>
-      <div class="value">{{ branch_count }}</div>
-    </article>
-    <article class="kpi">
-      <div class="label">Nhân sự</div>
-      <div class="value">{{ staff_count }}</div>
-    </article>
-    <article class="kpi">
-      <div class="label">Dịch vụ</div>
-      <div class="value">{{ service_count }}</div>
-    </article>
-    <article class="kpi">
-      <div class="label">Hàng sắp hết</div>
-      <div class="value">{{ low_stock_count }}</div>
-    </article>
-  </section>
-
-  <section class="grid-4 dashboard-kpi-row">
-    <article class="kpi">
-      <div class="label">Hóa đơn hôm nay</div>
-      <div class="value">{{ today_invoice_count }}</div>
-    </article>
-    <article class="kpi">
-      <div class="label">Doanh thu hôm nay</div>
-      <div class="value">{{ fmt_money(today_revenue) }}</div>
-    </article>
-    <article class="kpi">
-      <div class="label">Hóa đơn tháng này</div>
-      <div class="value">{{ month_invoice_count }}</div>
-    </article>
-    <article class="kpi">
-      <div class="label">Doanh thu tháng</div>
-      <div class="value">{{ fmt_money(month_revenue) }}</div>
-    </article>
-  </section>
-
-  <section class="grid-4 dashboard-kpi-row">
-    {% if web_user.is_super_admin and not selected_branch_id %}
-      <article class="kpi">
-        <div class="label">Chi nhánh doanh thu cao nhất</div>
-        <div class="value">{{ top_branch_name }}</div>
-      </article>
-      <article class="kpi">
-        <div class="label">Chi nhánh doanh thu thấp nhất</div>
-        <div class="value">{{ weak_branch_name }}</div>
-      </article>
-    {% endif %}
-  </section>
-
-  <section class="panel">
-    <h3>Hóa đơn gần nhất</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Mã</th>
-          <th>Chi nhánh</th>
-          <th>Khách</th>
-          <th>Giá trị hóa đơn</th>
-          <th>Trạng thái</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in recent_invoices %}
-          <tr>
-            <td>{{ row.code }}</td>
-            <td>{{ row.branch.name if row.branch else '-' }}</td>
-            <td>{{ row.customer_name or '-' }}</td>
-            <td>{{ fmt_money(row.total_amount) }}</td>
-            <td><span class="status status-{{ row.status }}">{{ invoice_status_labels.get(row.status, row.status) }}</span></td>
+  <!-- Low Stock Warning -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-4 flex items-center gap-2">
+      <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      Cảnh báo tồn kho thấp
+    </h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Sản phẩm</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tồn hiện tại</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Mức tối thiểu</th>
           </tr>
-        {% else %}
-          <tr><td colspan="5">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for branch_name, item_name, qty, min_stock in low_stock_rows %}
+            <tr class="hover:bg-spa-50/50 transition-colors">
+              <td class="py-3 px-4 text-spa-600">{{ branch_name }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ item_name }}</td>
+              <td class="py-3 px-4">
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">{{ qty|int }}</span>
+              </td>
+              <td class="py-3 px-4 text-spa-600">{{ min_stock|int }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="py-8 text-center text-spa-400">Không có cảnh báo tồn kho thấp.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 
-  <section class="panel">
-    <h3>Cảnh báo tồn kho thấp</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Chi nhánh</th>
-          <th>Sản phẩm</th>
-          <th>Tồn hiện tại</th>
-          <th>Mức tối thiểu</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for branch_name, item_name, qty, min_stock in low_stock_rows %}
-          <tr>
-            <td>{{ branch_name }}</td>
-            <td>{{ item_name }}</td>
-            <td>{{ qty|int }}</td>
-            <td>{{ min_stock|int }}</td>
+  <!-- Top Services -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-4 flex items-center gap-2">
+      <svg class="w-5 h-5 text-sage-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+      Top 5 dịch vụ bán chạy trong tháng
+    </h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Dịch vụ</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Số lượng</th>
           </tr>
-        {% else %}
-          <tr><td colspan="4">Không có cảnh báo tồn kho thấp.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </section>
-
-  <section class="panel">
-    <h3>Top 5 dịch vụ bán chạy trong tháng</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Dịch vụ</th>
-          <th>Số lượng</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for name, qty in top_service_rows %}
-          <tr>
-            <td>{{ name }}</td>
-            <td>{{ qty|int }}</td>
-          </tr>
-        {% else %}
-          <tr><td colspan="2">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for name, qty in top_service_rows %}
+            <tr class="hover:bg-spa-50/50 transition-colors">
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ name }}</td>
+              <td class="py-3 px-4">
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-sage-100 text-sage-700">{{ qty|int }}</span>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="2" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 {% endblock %}

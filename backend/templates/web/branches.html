@@ -1,164 +1,185 @@
 {% extends "web/base.html" %}
 {% block content %}
-  <style>
-    form.inline.branch-form {
-      display: grid;
-      grid-template-columns: 110px minmax(160px, 1.2fr) minmax(180px, 1.5fr) minmax(150px, 1.1fr) minmax(150px, 1.1fr) 170px auto auto;
-      gap: 10px;
-      align-items: center;
-    }
+  <!-- Branches List Section -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h2 class="text-xl font-bold text-spa-800 mb-6 flex items-center gap-2">
+      <svg class="w-6 h-6 text-spa-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+      Chi nhánh
+    </h2>
 
-    form.inline.branch-form > * {
-      min-width: 0;
-    }
-
-    form.inline.branch-form input,
-    form.inline.branch-form select {
-      width: 100%;
-    }
-
-    form.inline.branch-form button {
-      white-space: nowrap;
-    }
-
-    form.inline.branch-form .branch-save-btn {
-      min-height: 42px;
-      padding: 10px 18px;
-      width: fit-content;
-      justify-self: start;
-    }
-
-    form.inline.branch-form .branch-cancel-btn {
-      min-height: 42px;
-      padding: 10px 18px;
-      width: fit-content;
-      justify-self: start;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: inherit;
-    }
-
-    @media (max-width: 1100px) {
-      form.inline.branch-form {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 860px) {
-      form.inline.branch-form {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-  </style>
-
-  <section class="panel">
-    <h2>Chi nhánh</h2>
-    <form method="get" class="inline filter-row">
-      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo mã / tên / SĐT / địa chỉ">
-      <select name="status">
+    <!-- Filter Form -->
+    <form method="get" class="flex flex-wrap items-center gap-3 mb-6 p-4 bg-spa-50 rounded-xl">
+      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo mã / tên / Hotline / địa chỉ"
+        class="flex-1 min-w-[250px] px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      <select name="status"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[180px]">
         <option value="">Tất cả trạng thái</option>
         <option value="active" {% if status == 'active' %}selected{% endif %}>Đang hoạt động</option>
         <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
       </select>
-      <button type="submit" class="secondary">Lọc</button>
-      <a href="{{ url_for('web.branches') }}" class="tiny-btn">Xóa lọc</a>
+      <button type="submit" class="px-5 py-2.5 rounded-xl border border-spa-300 bg-white text-spa-700 hover:bg-spa-50 font-medium transition-all">
+        Lọc
+      </button>
+      <a href="{{ url_for('web.branches') }}" class="px-4 py-2.5 rounded-xl text-spa-500 hover:text-spa-700 hover:bg-spa-100 transition-all">
+        Xóa lọc
+      </a>
     </form>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Mã CN</th>
-          <th>Tên</th>
-          <th>Địa chỉ</th>
-          <th>SĐT</th>
-          <th>Quản lý</th>
-          <th>Trạng thái</th>
-          {% if can_edit %}<th>Hành động</th>{% endif %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-          <tr>
-            <td>{{ row.branch_code or ('CN' ~ row.id) }}</td>
-            <td>{{ row.name }}</td>
-            <td>{{ row.address or "-" }}</td>
-            <td>{{ row.phone or '-' }}</td>
-            <td>{{ row.manager_staff.full_name if row.manager_staff else 'Chưa gán' }}</td>
-            <td>
-              <span class="status status-{{ row.status }}">
-                {{ 'Đang hoạt động' if row.status == 'active' else 'Ngừng hoạt động' }}
-              </span>
-            </td>
-            {% if can_edit %}
-              <td>
-                <div class="inline-links">
-                  <a
-                    class="tiny-btn"
-                    href="{{ url_for('web.branches', edit_id=row.id, page=pager.page, q=q, status=status) }}#branch-editor"
-                  >Sửa</a>
-                  <form
-                    method="post"
-                    action="{{ url_for('web.branches_delete') }}"
-                    class="inline form-compact"
-                    data-confirm-modal="1"
-                    data-confirm-message="Bạn có chắc muốn xóa chi nhánh này không?"
-                    data-confirm-ok-label="Xóa chi nhánh"
-                  >
-                    <input type="hidden" name="branch_id" value="{{ row.id }}">
-                    <input type="hidden" name="q" value="{{ q }}">
-                    <input type="hidden" name="status" value="{{ status }}">
-                    <input type="hidden" name="page" value="{{ pager.page }}">
-                    <button type="submit" class="warn">Xóa</button>
-                  </form>
-                </div>
-              </td>
-            {% endif %}
+    <!-- Branches Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Mã CN</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tên</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Địa chỉ</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Hotline</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Quản lý</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Trạng thái</th>
+            {% if can_edit %}<th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Hành động</th>{% endif %}
           </tr>
-        {% else %}
-          <tr><td colspan="{{ 7 if can_edit else 6 }}">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for row in rows %}
+            <tr class="hover:bg-spa-50/50 transition-colors">
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.branch_code or ('CN' ~ row.id) }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.name }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.address or "-" }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.phone or '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">
+                {% if row.manager_staff %}
+                  {{ row.manager_staff.full_name }}
+                {% else %}
+                  <a
+                    href="{{ url_for('web.staff', branch_id=row.id) }}#staff-editor"
+                    class="inline-flex px-3 py-1.5 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 text-sm font-medium transition-all"
+                  >Thêm quản lý</a>
+                {% endif %}
+              </td>
+              <td class="py-3 px-4">
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-medium
+                  {% if row.status == 'active' %}bg-sage-100 text-sage-700{% else %}bg-spa-200 text-spa-600{% endif %}">
+                  {{ 'Đang hoạt động' if row.status == 'active' else 'Ngừng hoạt động' }}
+                </span>
+              </td>
+              {% if can_edit %}
+                <td class="py-3 px-4">
+                  <div class="flex items-center gap-2">
+                    <a href="{{ url_for('web.branches', edit_id=row.id, page=pager.page, q=q, status=status) }}#branch-editor"
+                      class="px-3 py-1.5 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 text-sm font-medium transition-all">
+                      Sửa
+                    </a>
+                    <form method="post" action="{{ url_for('web.branches_delete') }}" class="inline"
+                      data-confirm-modal="1"
+                      data-confirm-message="Bạn có chắc muốn xóa chi nhánh này không?"
+                      data-confirm-ok-label="Xóa chi nhánh">
+                      <input type="hidden" name="branch_id" value="{{ row.id }}">
+                      <input type="hidden" name="q" value="{{ q }}">
+                      <input type="hidden" name="status" value="{{ status }}">
+                      <input type="hidden" name="page" value="{{ pager.page }}">
+                      <button type="submit" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium transition-all">
+                        Xóa
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              {% endif %}
+            </tr>
+          {% else %}
+            <tr><td colspan="{{ 7 if can_edit else 6 }}" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-    <div class="pager">
+    <!-- Pagination -->
+    <div class="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-spa-100">
       {% if pager.has_prev %}
-        <a href="{{ url_for('web.branches', page=pager.prev_num, q=q, status=status) }}">← Trang trước</a>
+        <a href="{{ url_for('web.branches', page=pager.prev_num, q=q, status=status) }}"
+          class="px-4 py-2 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 font-medium transition-all">
+          ← Trang trước
+        </a>
       {% endif %}
-      <span>Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
+      <span class="text-spa-600">Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
       {% if pager.has_next %}
-        <a href="{{ url_for('web.branches', page=pager.next_num, q=q, status=status) }}">Trang sau →</a>
+        <a href="{{ url_for('web.branches', page=pager.next_num, q=q, status=status) }}"
+          class="px-4 py-2 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 font-medium transition-all">
+          Trang sau →
+        </a>
       {% endif %}
     </div>
   </section>
 
+  <!-- Add/Edit Branch Form -->
   {% if can_edit %}
-    <section class="panel edit-anchor-target" id="branch-editor">
-      <h3>{% if edit_mode %}Cập nhật chi nhánh{% else %}Thêm chi nhánh{% endif %}</h3>
-      <form method="post" action="{{ url_for('web.branches_save') }}" class="inline branch-form">
+    <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6" id="branch-editor">
+      <h3 class="text-lg font-semibold text-spa-800 mb-6 flex items-center gap-2">
+        <svg class="w-5 h-5 text-sage-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        {% if edit_mode %}Cập nhật chi nhánh{% else %}Thêm chi nhánh{% endif %}
+      </h3>
+      <form method="post" action="{{ url_for('web.branches_save') }}" class="flex flex-wrap items-end gap-4">
         <input type="hidden" name="branch_id" value="{{ form_data.branch_id or '' }}">
-        <input type="text" name="branch_code" placeholder="CNx" value="{{ form_data.branch_code }}" required>
-        <input type="text" name="name" placeholder="Tên chi nhánh" value="{{ form_data.name }}" required>
-        <input type="text" name="address" placeholder="Địa chỉ" value="{{ form_data.address }}">
-        <input type="text" name="phone" placeholder="Số điện thoại" value="{{ form_data.phone }}">
+
+        <div class="w-28">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Mã CN</label>
+          <input type="text" name="branch_code" placeholder="CNx" value="{{ form_data.branch_code }}" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+        </div>
+
+        <div class="flex-1 min-w-[180px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Tên chi nhánh</label>
+          <input type="text" name="name" placeholder="Nhập tên chi nhánh" value="{{ form_data.name }}" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+        </div>
+
+        <div class="flex-1 min-w-[200px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Địa chỉ</label>
+          <input type="text" name="address" placeholder="Nhập địa chỉ" value="{{ form_data.address }}"
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+        </div>
+
+        <div class="flex-1 min-w-[160px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Hotline</label>
+          <input type="text" name="phone" placeholder="Hotline" value="{{ form_data.phone }}"
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+        </div>
+
         {% if edit_mode %}
-          <select name="manager_staff_id">
-            <option value="">Chưa gán quản lý</option>
-            {% for staff in manager_options %}
-              <option value="{{ staff.id }}" {% if form_data.manager_staff_id == staff.id %}selected{% endif %}>
-                {{ staff.full_name }}{% if staff.title %} - {{ staff.title }}{% endif %}
-              </option>
-            {% endfor %}
+          <div class="flex-1 min-w-[180px]">
+            <label class="block text-sm font-medium text-spa-600 mb-2">Quản lý</label>
+            <select name="manager_staff_id"
+              class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              <option value="">Chưa gán quản lý</option>
+              {% for staff in manager_options %}
+                <option value="{{ staff.id }}" {% if form_data.manager_staff_id == staff.id %}selected{% endif %}>
+                  {{ staff.full_name }}{% if staff.title %} - {{ staff.title }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
+
+        <div class="flex-1 min-w-[160px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Trạng thái</label>
+          <select name="status"
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+            <option value="active" {% if form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+            <option value="inactive" {% if form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
           </select>
-        {% endif %}
-        <select name="status">
-          <option value="active" {% if form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
-          <option value="inactive" {% if form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
-        </select>
-        <button type="submit" class="branch-save-btn">Lưu</button>
-        {% if edit_mode %}
-          <a href="{{ url_for('web.branches', page=pager.page, q=q, status=status) }}" class="tiny-btn branch-cancel-btn">Hủy</a>
-        {% endif %}
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button type="submit"
+            class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-spa-600 to-sage-600 text-white font-medium hover:from-spa-700 hover:to-sage-700 transition-all shadow-md hover:shadow-lg">
+            Lưu
+          </button>
+          {% if edit_mode %}
+            <a href="{{ url_for('web.branches', page=pager.page, q=q, status=status) }}"
+              class="px-5 py-2.5 rounded-xl border border-spa-200 text-spa-600 hover:bg-spa-50 font-medium transition-all">
+              Hủy
+            </a>
+          {% endif %}
+        </div>
       </form>
     </section>
   {% endif %}

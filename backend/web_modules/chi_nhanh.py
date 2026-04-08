@@ -5,6 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 from backend.extensions import db
+from backend.logs import write_log
 from backend.models import (
     Appointment,
     Branch,
@@ -28,6 +29,12 @@ from backend.web import (
 
 
 BRANCH_CODE_PATTERN = re.compile(r"^CN\d+$")
+MANAGER_TITLE_KEYWORDS = (
+    "quản lý chi nhánh",
+    "quan ly chi nhanh",
+    "quản lý ca",
+    "quan ly ca",
+)
 BRANCH_DEPENDENCY_LABELS = (
     ("nhân sự", Staff),
     ("hóa đơn", Invoice),
@@ -65,8 +72,8 @@ def normalize_branch_code(raw_value: str | None) -> str:
 
 
 def is_manager_title(title: str | None) -> bool:
-    value = parse_text(title).lower()
-    return "quản lý" in value or "quan ly" in value
+    value = parse_text(title).lower().replace("đ", "d")
+    return any(keyword in value for keyword in MANAGER_TITLE_KEYWORDS)
 
 
 def list_branch_manager_candidates(branch_id: int, selected_staff_id: int | None = None) -> list[Staff]:
@@ -76,14 +83,7 @@ def list_branch_manager_candidates(branch_id: int, selected_staff_id: int | None
     else:
         query = query.filter(Staff.status == "active")
 
-    rows = query.order_by(Staff.full_name.asc()).all()
-    return sorted(
-        rows,
-        key=lambda row: (
-            0 if is_manager_title(row.title) else 1,
-            (row.full_name or "").lower(),
-        ),
-    )
+    return [row for row in query.order_by(Staff.full_name.asc()).all() if is_manager_title(row.title)]
 
 
 @web_bp.get("/branches")
@@ -176,6 +176,8 @@ def branches_save():
         if row is None:
             return branches_error("Không tìm thấy chi nhánh.")
 
+        old_manager_staff_id = row.manager_staff_id
+
         manager_staff = None
         if manager_staff_id:
             manager_staff = Staff.query.filter(Staff.id == manager_staff_id, Staff.branch_id == row.id).first()
@@ -183,10 +185,13 @@ def branches_save():
                 return branches_error("Quản lý chi nhánh phải là nhân sự thuộc đúng chi nhánh.")
             if manager_staff.status != "active" and manager_staff.id != (row.manager_staff_id or 0):
                 return branches_error("Quản lý chi nhánh phải là nhân sự đang làm việc.")
+            if not is_manager_title(manager_staff.title):
+                return branches_error("Chỉ có thể gán nhân sự có chức danh Quản lý chi nhánh.")
     else:
         row = Branch()
         db.session.add(row)
         manager_staff = None
+        old_manager_staff_id = None
 
     row.branch_code = branch_code
     row.name = name
@@ -195,6 +200,23 @@ def branches_save():
     row.manager_staff_id = manager_staff.id if manager_staff else None
     row.manager_name = manager_staff.full_name if manager_staff else None
     row.status = status
+
+    if branch_id and old_manager_staff_id != row.manager_staff_id:
+        old_manager_row = db.session.get(Staff, old_manager_staff_id) if old_manager_staff_id else None
+        write_log(
+            "change_branch_manager",
+            branch_id=row.id,
+            entity_type="branch",
+            entity_id=row.id,
+            message=f"Đổi quản lý chi nhánh {row.branch_code or row.name}",
+            details={
+                "old_manager_id": old_manager_staff_id,
+                "old_manager_name": old_manager_row.full_name if old_manager_row else None,
+                "new_manager_id": row.manager_staff_id,
+                "new_manager_name": manager_staff.full_name if manager_staff else None,
+            },
+        )
+
     try:
         db.session.commit()
     except IntegrityError:

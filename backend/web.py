@@ -52,6 +52,7 @@ ROLE_MENU_ACCESS = {
         "invoices",
         "reports",
         "accounts",
+        "activity_logs",
     },
     "branch_manager": {
         "dashboard",
@@ -62,6 +63,7 @@ ROLE_MENU_ACCESS = {
         "inventory",
         "invoices",
         "reports",
+        "activity_logs",
     },
     "receptionist": {"appointments", "invoices"},
     "inventory_controller": {"inventory"},
@@ -303,3 +305,4 @@ from backend.web_modules import kho  # noqa: F401,E402
 from backend.web_modules import hoa_don  # noqa: F401,E402
 from backend.web_modules import bao_cao  # noqa: F401,E402
 from backend.web_modules import tai_khoan  # noqa: F401,E402
+from backend.web_modules import nhat_ky  # noqa: F401,E402

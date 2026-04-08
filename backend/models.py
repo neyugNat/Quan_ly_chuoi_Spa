@@ -60,6 +60,28 @@ class User(db.Model, TimestampMixin):
         return self.role == "super_admin"
 
 
+class ActivityLog(db.Model):
+    __tablename__ = "activity_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    action = db.Column(db.String(64), nullable=False, index=True)
+    action_label = db.Column(db.String(128), nullable=False)
+
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=True, index=True)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    actor_username = db.Column(db.String(64), nullable=True)
+    actor_role = db.Column(db.String(32), nullable=True)
+
+    entity_type = db.Column(db.String(64), nullable=True)
+    entity_id = db.Column(db.Integer, nullable=True, index=True)
+    message = db.Column(db.String(500), nullable=True)
+    details_json = db.Column(db.Text, nullable=True)
+
+    branch = db.relationship("Branch", lazy="joined")
+    actor_user = db.relationship("User", lazy="joined")
+
+
 class Staff(db.Model, TimestampMixin):
     __tablename__ = "staffs"
 
@@ -108,6 +130,20 @@ class Appointment(db.Model, TimestampMixin):
     branch = db.relationship("Branch", lazy="joined")
     service = db.relationship("Service", lazy="joined")
     technician = db.relationship("Staff", lazy="joined")
+    service_items = db.relationship("AppointmentServiceItem", back_populates="appointment", cascade="all,delete-orphan")
+
+
+class AppointmentServiceItem(db.Model):
+    __tablename__ = "appointment_service_items"
+    __table_args__ = (UniqueConstraint("appointment_id", "service_id", name="uq_appointment_service_item"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"), nullable=False, index=True)
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=False, index=True)
+    service_name = db.Column(db.String(255), nullable=False)
+
+    appointment = db.relationship("Appointment", back_populates="service_items", lazy="joined")
+    service = db.relationship("Service", lazy="joined")
 
 
 class InventoryItem(db.Model, TimestampMixin):

@@ -1,164 +1,198 @@
 {% extends "web/base.html" %}
 {% block content %}
-  <section class="panel">
-    <h2>Báo cáo doanh thu</h2>
-    <form method="get" class="inline filter-row">
-      <input type="date" name="from_date" value="{{ from_date.isoformat() if from_date else '' }}">
-      <input type="date" name="to_date" value="{{ to_date.isoformat() if to_date else '' }}">
+  {% set invoice_badge = {
+    'draft': 'bg-spa-100 text-spa-700',
+    'paid': 'bg-emerald-200 text-emerald-800',
+    'canceled': 'bg-red-200 text-red-800'
+  } %}
+
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h2 class="text-xl font-bold text-spa-800 mb-4">Báo cáo doanh thu</h2>
+
+    <form method="get" class="flex flex-wrap items-center gap-3 mb-6">
+      <input
+        type="date"
+        name="from_date"
+        value="{{ from_date.isoformat() if from_date else '' }}"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all"
+      >
+      <input
+        type="date"
+        name="to_date"
+        value="{{ to_date.isoformat() if to_date else '' }}"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all"
+      >
       {% if is_super_admin %}
-        <select name="branch_id">
+        <select
+          name="branch_id"
+          class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[180px]"
+        >
           <option value="">Tất cả chi nhánh</option>
           {% for b in branch_options %}
             <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
           {% endfor %}
         </select>
       {% endif %}
-      <button type="submit" class="secondary">Lọc</button>
-      <a href="{{ url_for('web.reports') }}" class="tiny-btn">Xóa lọc</a>
-      <a href="{{ url_for('web.reports_export_csv', from_date=from_date.isoformat() if from_date else '', to_date=to_date.isoformat() if to_date else '', branch_id=selected_branch_id) }}" class="tiny-btn">Xuất CSV</a>
+      <button type="submit" class="px-5 py-2.5 rounded-xl border border-spa-300 bg-white text-spa-700 hover:bg-spa-50 font-medium transition-all">Lọc</button>
+      <a href="{{ url_for('web.reports') }}" class="px-4 py-2.5 rounded-xl text-spa-500 hover:text-spa-700 hover:bg-spa-100 transition-all">Xóa lọc</a>
+      <a href="{{ url_for('web.reports_export_csv', from_date=from_date.isoformat() if from_date else '', to_date=to_date.isoformat() if to_date else '', branch_id=selected_branch_id) }}" class="px-4 py-2.5 rounded-xl border border-spa-300 bg-white text-spa-700 hover:bg-spa-50 transition-all">Xuất CSV</a>
     </form>
 
-    <div class="grid-6 report-kpi-grid">
-      <article class="kpi">
-        <div class="label">Tổng số hóa đơn</div>
-        <div class="value">{{ total_invoices }}</div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 {{ 'xl:grid-cols-6' if is_super_admin else 'xl:grid-cols-4' }} gap-4">
+      <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
+        <p class="text-sm text-spa-500">Tổng số hóa đơn</p>
+        <p class="text-2xl font-bold text-spa-800 mt-1">{{ total_invoices }}</p>
       </article>
-      <article class="kpi">
-        <div class="label">Số hóa đơn hoàn tất</div>
-        <div class="value">{{ paid_count }}</div>
+      <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
+        <p class="text-sm text-spa-500">Số hóa đơn hoàn tất</p>
+        <p class="text-2xl font-bold text-spa-800 mt-1">{{ paid_count }}</p>
       </article>
-      <article class="kpi">
-        <div class="label">Doanh thu hoàn tất</div>
-        <div class="value">{{ fmt_money(collected_amount) }}</div>
+      <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
+        <p class="text-sm text-spa-500">Doanh thu hoàn tất</p>
+        <p class="text-2xl font-bold text-spa-800 mt-1">{{ fmt_money(collected_amount) }}</p>
       </article>
-      <article class="kpi">
-        <div class="label">Số hóa đơn bị hủy</div>
-        <div class="value">{{ canceled_count }}</div>
+      <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
+        <p class="text-sm text-spa-500">Số hóa đơn bị hủy</p>
+        <p class="text-2xl font-bold text-spa-800 mt-1">{{ canceled_count }}</p>
       </article>
-      <article class="kpi">
-        <div class="label">Chi nhánh doanh thu cao nhất</div>
-        <div class="value">{{ best_branch.name if best_branch else '-' }}</div>
-      </article>
-      <article class="kpi">
-        <div class="label">Chi nhánh doanh thu thấp nhất</div>
-        <div class="value">{{ weak_branch.name if weak_branch else '-' }}</div>
-      </article>
+      {% if is_super_admin %}
+        <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
+          <p class="text-sm text-spa-500">Chi nhánh doanh thu cao nhất</p>
+          <p class="text-xl font-semibold text-spa-800 mt-1">{{ best_branch.name if best_branch else '-' }}</p>
+        </article>
+        <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
+          <p class="text-sm text-spa-500">Chi nhánh doanh thu thấp nhất</p>
+          <p class="text-xl font-semibold text-spa-800 mt-1">{{ weak_branch.name if weak_branch else '-' }}</p>
+        </article>
+      {% endif %}
     </div>
   </section>
 
-  <section class="panel">
-    <h3>Trạng thái hóa đơn</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Trạng thái</th>
-          <th>Số lượng</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in status_items %}
-          <tr>
-            <td><span class="status status-{{ row.status }}">{{ invoice_status_labels.get(row.status, row.status) }}</span></td>
-            <td>{{ row.count }}</td>
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-4">Trạng thái hóa đơn</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Trạng thái</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Số lượng</th>
           </tr>
-        {% else %}
-          <tr><td colspan="2">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for row in status_items %}
+            <tr>
+              <td class="py-3 px-4">
+                <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5 {{ invoice_badge.get(row.status, 'bg-spa-100 text-spa-700') }}">{{ invoice_status_labels.get(row.status, row.status) }}</span>
+              </td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.count }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="2" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 
-  <section class="panel">
-    <h3>Doanh thu 6 tháng gần nhất</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Tháng</th>
-          <th>Doanh thu</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in month_items %}
-          <tr>
-            <td>{{ row.month }}</td>
-            <td>{{ fmt_money(row.revenue) }}</td>
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-4">Doanh thu 6 tháng gần nhất</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tháng</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Doanh thu</th>
           </tr>
-        {% else %}
-          <tr><td colspan="2">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for row in month_items %}
+            <tr>
+              <td class="py-3 px-4 text-spa-800">{{ row.month }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(row.revenue) }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="2" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 
-  <section class="panel">
-    <h3>Doanh thu theo chi nhánh</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Chi nhánh</th>
-          <th>Doanh thu</th>
-          <th>Số hóa đơn</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in branch_items %}
-          <tr>
-            <td>{{ row.name }}</td>
-            <td>{{ fmt_money(row.revenue) }}</td>
-            <td>{{ row.invoice_count }}</td>
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-4">Doanh thu theo chi nhánh</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Doanh thu</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Số hóa đơn</th>
           </tr>
-        {% else %}
-          <tr><td colspan="3">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for row in branch_items %}
+            <tr>
+              <td class="py-3 px-4 text-spa-800">{{ row.name }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(row.revenue) }}</td>
+              <td class="py-3 px-4 text-spa-800">{{ row.invoice_count }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 
-  <section class="panel">
-    <h3>Top dịch vụ bán chạy</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Dịch vụ</th>
-          <th>Số lượng</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for service_name, qty in top_service_rows %}
-          <tr>
-            <td>{{ service_name }}</td>
-            <td>{{ qty|int }}</td>
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-4">Top dịch vụ bán chạy</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Dịch vụ</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Số lượng</th>
           </tr>
-        {% else %}
-          <tr><td colspan="2">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for service_name, qty in top_service_rows %}
+            <tr>
+              <td class="py-3 px-4 text-spa-800">{{ service_name }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ qty|int }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="2" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 
-  <section class="panel">
-    <h3>Danh sách tồn kho thấp</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Chi nhánh</th>
-          <th>Sản phẩm</th>
-          <th>Tồn hiện tại</th>
-          <th>Mức tối thiểu</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for branch_name, item_name, qty, min_stock in low_stock_rows %}
-          <tr>
-            <td>{{ branch_name }}</td>
-            <td>{{ item_name }}</td>
-            <td>{{ qty|int }}</td>
-            <td>{{ min_stock|int }}</td>
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-4">Danh sách hàng sắp hết</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Sản phẩm</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tồn hiện tại</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Mức tối thiểu</th>
           </tr>
-        {% else %}
-          <tr><td colspan="4">Không có cảnh báo tồn thấp.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for branch_name, item_name, qty, min_stock in low_stock_rows %}
+            <tr>
+              <td class="py-3 px-4 text-spa-800">{{ branch_name }}</td>
+              <td class="py-3 px-4 text-spa-800">{{ item_name }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ qty|int }}</td>
+              <td class="py-3 px-4 text-spa-800">{{ min_stock|int }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="py-8 text-center text-spa-400">Không có cảnh báo tồn thấp.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 {% endblock %}

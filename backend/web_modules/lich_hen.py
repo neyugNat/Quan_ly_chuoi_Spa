@@ -1,10 +1,12 @@
 import re
+from datetime import datetime
 
 from flask import g, flash, redirect, render_template, request, url_for
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 
 from backend.extensions import db
-from backend.models import Appointment, Service, Staff
+from backend.logs import write_log
+from backend.models import Appointment, AppointmentServiceItem, Service, Staff
 from backend.web import (
     get_current_branch_scope,
     list_scope_branches,
@@ -25,9 +27,82 @@ APPOINTMENT_STATUS_LABELS = {
     "pending": "Chờ thực hiện",
     "completed": "Đã hoàn thành",
     "cancelled": "Đã hủy",
+    "overdue": "Quá hạn",
 }
 
 TIME_PATTERN = re.compile(r"^\d{2}:\d{2}$")
+PHONE_PATTERN = re.compile(r"^\d{8,15}$")
+
+
+def normalize_staff_title(value: str | None) -> str:
+    return parse_text(value).lower().replace("đ", "d")
+
+
+def is_technician_title(value: str | None) -> bool:
+    title = normalize_staff_title(value)
+    return "kỹ thuật viên" in title or "ky thuat vien" in title
+
+
+def normalize_phone(value: str | None) -> str:
+    return re.sub(r"\D+", "", parse_text(value))
+
+
+def list_active_technicians(branch_id: int) -> list[Staff]:
+    rows = Staff.query.filter_by(branch_id=branch_id, status="active").order_by(Staff.full_name.asc()).all()
+    return [row for row in rows if is_technician_title(row.title)]
+
+
+def normalize_service_ids(values: list[str], fallback_value: str | None) -> list[int]:
+    normalized: list[int] = []
+    selected_ids = set()
+
+    raw_values = values[:] if values else []
+    if not raw_values and fallback_value is not None:
+        raw_values = [fallback_value]
+
+    for raw_value in raw_values:
+        service_id = parse_int(raw_value)
+        if not service_id or service_id in selected_ids:
+            continue
+        selected_ids.add(service_id)
+        normalized.append(service_id)
+
+    return normalized
+
+
+def build_redirect_args() -> dict:
+    return {
+        "q": parse_text(request.form.get("q") or request.args.get("q")),
+        "status": normalize_choice(request.form.get("status") or request.args.get("status"), set(APPOINTMENT_STATUS_LABELS), ""),
+        "branch_id": parse_int(request.form.get("branch_id") or request.args.get("branch_id")),
+        "from_date": parse_text(request.form.get("from_date") or request.args.get("from_date")),
+        "to_date": parse_text(request.form.get("to_date") or request.args.get("to_date")),
+        "page": parse_page(request.form.get("page") or request.args.get("page"), default=1),
+    }
+
+
+def appointments_redirect(message: str, category: str = "error"):
+    if message:
+        flash(message, category)
+    return redirect(url_for("web.appointments", **build_redirect_args()))
+
+
+def auto_mark_overdue_appointments(scope_ids: list[int]) -> None:
+    now = datetime.now()
+    current_date = now.date()
+    current_time = now.strftime("%H:%M")
+
+    overdue_query = Appointment.query.filter(
+        Appointment.branch_id.in_(scope_ids),
+        Appointment.status == "pending",
+        or_(
+            Appointment.appointment_date < current_date,
+            and_(Appointment.appointment_date == current_date, Appointment.appointment_time < current_time),
+        ),
+    )
+    affected_rows = overdue_query.update({"status": "overdue"}, synchronize_session=False)
+    if affected_rows:
+        db.session.commit()
 
 
 def normalize_time(value: str | None) -> str:
@@ -53,6 +128,8 @@ def appointments():
     if not scope_ids:
         return redirect(url_for("web.login"))
 
+    auto_mark_overdue_appointments(scope_ids)
+
     user = g.web_user
     q = parse_text(request.args.get("q"))
     status = normalize_choice(request.args.get("status"), set(APPOINTMENT_STATUS_LABELS), "")
@@ -72,7 +149,7 @@ def appointments():
                 Appointment.customer_phone.ilike(keyword),
             )
         )
-    if status:
+    if status and user.role != "technician":
         query = query.filter(Appointment.status == status)
     if from_date:
         query = query.filter(Appointment.appointment_date >= from_date)
@@ -102,6 +179,7 @@ def appointments():
         scope_label = "Tất cả chi nhánh" if user.is_super_admin else branch_map.get(g.active_branch_id, "Chi nhánh")
 
     can_create_appointment = user.role == "receptionist"
+    can_cancel_appointment = user.role in {"super_admin", "branch_manager", "receptionist"}
     form_branch_id = g.active_branch_id if g.active_branch_id in scope_ids else selected_branch_id
     if form_branch_id is None and scope_ids:
         form_branch_id = scope_ids[0]
@@ -110,7 +188,7 @@ def appointments():
     technician_rows = []
     if can_create_appointment and form_branch_id:
         service_rows = Service.query.filter_by(branch_id=form_branch_id, status="active").order_by(Service.name.asc()).all()
-        technician_rows = Staff.query.filter_by(branch_id=form_branch_id, status="active").order_by(Staff.full_name.asc()).all()
+        technician_rows = list_active_technicians(form_branch_id)
 
     return render_template(
         "web/appointments.html",
@@ -125,6 +203,7 @@ def appointments():
         scope_label=scope_label,
         status_labels=APPOINTMENT_STATUS_LABELS,
         can_create_appointment=can_create_appointment,
+        can_cancel_appointment=can_cancel_appointment,
         service_rows=service_rows,
         technician_rows=technician_rows,
         technician_scope_warning=technician_scope_warning,
@@ -141,16 +220,24 @@ def appointments_create():
         return redirect(url_for("web.appointments"))
 
     customer_name = parse_text(request.form.get("customer_name"))
-    customer_phone = parse_optional_text(request.form.get("customer_phone"))
-    service_id = parse_int(request.form.get("service_id"))
+    customer_phone = normalize_phone(request.form.get("customer_phone"))
+    service_ids = normalize_service_ids(request.form.getlist("service_id[]"), request.form.get("service_id"))
     technician_id = parse_int(request.form.get("technician_id"))
     appointment_date = parse_date(request.form.get("appointment_date"))
     appointment_time = normalize_time(request.form.get("appointment_time"))
-    status = normalize_choice(request.form.get("status"), set(APPOINTMENT_STATUS_LABELS), "pending")
     note = parse_optional_text(request.form.get("note"))
 
     if not customer_name:
         flash("Tên khách không được để trống.", "error")
+        return redirect(url_for("web.appointments"))
+    if not customer_phone:
+        flash("SĐT khách không được để trống.", "error")
+        return redirect(url_for("web.appointments"))
+    if not PHONE_PATTERN.fullmatch(customer_phone):
+        flash("SĐT khách phải gồm 8-15 chữ số.", "error")
+        return redirect(url_for("web.appointments"))
+    if not service_ids:
+        flash("Vui lòng chọn ít nhất một dịch vụ.", "error")
         return redirect(url_for("web.appointments"))
     if appointment_date is None:
         flash("Ngày hẹn không hợp lệ.", "error")
@@ -159,32 +246,104 @@ def appointments_create():
         flash("Giờ hẹn không hợp lệ (định dạng HH:MM).", "error")
         return redirect(url_for("web.appointments"))
 
-    service = Service.query.filter_by(id=service_id, branch_id=branch_id, status="active").first() if service_id else None
-    if service is None:
+    service_rows = (
+        Service.query.filter(Service.id.in_(service_ids), Service.branch_id == branch_id, Service.status == "active")
+        .order_by(Service.name.asc())
+        .all()
+    )
+    service_map = {row.id: row for row in service_rows}
+    if len(service_map) != len(service_ids):
         flash("Dịch vụ không hợp lệ.", "error")
         return redirect(url_for("web.appointments"))
+
+    ordered_services = [service_map[service_id] for service_id in service_ids]
 
     technician = (
         Staff.query.filter_by(id=technician_id, branch_id=branch_id, status="active").first() if technician_id else None
     )
-    if technician is None:
+    if technician is None or not is_technician_title(technician.title):
         flash("Kỹ thuật viên không hợp lệ.", "error")
         return redirect(url_for("web.appointments"))
 
-    db.session.add(
-        Appointment(
-            branch_id=branch_id,
-            customer_name=customer_name,
-            customer_phone=customer_phone,
-            service_id=service.id,
-            technician_id=technician.id,
-            appointment_date=appointment_date,
-            appointment_time=appointment_time,
-            status=status,
-            note=note,
-            created_by=g.web_user.username,
-        )
+    appointment = Appointment(
+        branch_id=branch_id,
+        customer_name=customer_name,
+        customer_phone=customer_phone,
+        service_id=ordered_services[0].id,
+        technician_id=technician.id,
+        appointment_date=appointment_date,
+        appointment_time=appointment_time,
+        status="pending",
+        note=note,
+        created_by=g.web_user.username,
     )
+    db.session.add(appointment)
+    db.session.flush()
+
+    for service_row in ordered_services:
+        appointment.service_items.append(
+            AppointmentServiceItem(
+                appointment_id=appointment.id,
+                service_id=service_row.id,
+                service_name=service_row.name,
+            )
+        )
+
+    write_log(
+        "create_appointment",
+        branch_id=branch_id,
+        entity_type="appointment",
+        entity_id=appointment.id,
+        message=f"Tạo lịch hẹn cho {customer_name}",
+    )
+
     db.session.commit()
     flash("Đã tạo lịch hẹn.", "success")
     return redirect(url_for("web.appointments"))
+
+
+@web_bp.post("/appointments/cancel")
+@roles_required("super_admin", "branch_manager", "receptionist")
+def appointments_cancel():
+    scope_ids = get_current_branch_scope()
+    if not scope_ids:
+        return appointments_redirect("Tài khoản không có phạm vi chi nhánh hợp lệ.")
+
+    appointment_id = parse_int(request.form.get("appointment_id"))
+    cancel_action = normalize_choice(request.form.get("cancel_action"), {"cancelled"}, "")
+    cancel_note = parse_optional_text(request.form.get("cancel_note"))
+    if not appointment_id:
+        return appointments_redirect("Lịch hẹn không hợp lệ.")
+    if cancel_action != "cancelled":
+        return appointments_redirect("Vui lòng chọn thao tác hủy lịch.")
+    if not cancel_note:
+        return appointments_redirect("Vui lòng nhập ghi chú khi hủy lịch.")
+
+    appointment = Appointment.query.filter(
+        Appointment.id == appointment_id,
+        Appointment.branch_id.in_(scope_ids),
+    ).first()
+    if appointment is None:
+        return appointments_redirect("Không tìm thấy lịch hẹn trong phạm vi của bạn.")
+    if appointment.status == "cancelled":
+        return appointments_redirect("Lịch hẹn đã ở trạng thái Đã hủy.", "info")
+    if appointment.status != "pending":
+        return appointments_redirect("Chỉ có thể hủy lịch khi đang ở trạng thái Chờ thực hiện.")
+
+    if appointment.note:
+        appointment.note = f"{appointment.note} | Hủy: {cancel_note}"
+    else:
+        appointment.note = f"Hủy: {cancel_note}"
+    appointment.status = "cancelled"
+
+    write_log(
+        "cancel_appointment",
+        branch_id=appointment.branch_id,
+        entity_type="appointment",
+        entity_id=appointment.id,
+        message=f"Hủy lịch hẹn #{appointment.id}",
+        details={"reason": cancel_note},
+    )
+
+    db.session.commit()
+    return appointments_redirect("Đã cập nhật lịch hẹn thành Đã hủy.", "success")

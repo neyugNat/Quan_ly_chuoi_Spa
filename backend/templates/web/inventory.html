@@ -1,194 +1,140 @@
 {% extends "web/base.html" %}
 {% block content %}
-  <style>
-    .inventory-inline {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 10px;
-    }
+  <!-- Inventory List Section -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h2 class="text-xl font-bold text-spa-800 mb-6 flex items-center gap-2">
+      <svg class="w-6 h-6 text-spa-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+      Kho
+    </h2>
 
-    .inventory-inline input[type="text"],
-    .inventory-inline input[type="number"],
-    .inventory-inline select,
-    .inventory-inline button {
-      min-height: 40px;
-      padding: 8px 12px;
-    }
-
-    .inventory-inline input[type="text"],
-    .inventory-inline input[type="number"],
-    .inventory-inline select {
-      flex: 1 1 170px;
-      min-width: 0;
-    }
-
-    .inventory-inline .inv-q {
-      flex: 0 1 360px;
-    }
-
-    .inventory-inline .inv-branch {
-      flex: 0 1 300px;
-    }
-
-    .inventory-inline .inv-group {
-      flex: 0 1 260px;
-    }
-
-    .inventory-inline .low-flag {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      white-space: nowrap;
-    }
-
-    .inventory-inline .inventory-save-btn,
-    .inventory-inline .inventory-cancel-btn {
-      min-height: 40px;
-      padding: 8px 12px;
-      font-size: inherit;
-      white-space: nowrap;
-    }
-
-    .inventory-inline .inventory-cancel-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .inventory-inline .low-flag input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      margin: 0;
-      accent-color: #334155;
-    }
-
-    .inventory-inline label,
-    .inventory-inline .tiny-btn,
-    .inventory-inline button {
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
-
-    @media (min-width: 1280px) {
-      .inventory-inline {
-        flex-wrap: nowrap;
-      }
-
-      .inventory-inline .inv-q {
-        flex: 0 1 340px;
-      }
-
-      .inventory-inline .inv-branch {
-        flex: 0 1 260px;
-      }
-
-      .inventory-inline .inv-group {
-        flex: 0 1 230px;
-      }
-    }
-  </style>
-
-  <section class="panel">
-    <h2>Kho</h2>
-    <form method="get" class="inline inventory-inline filter-row">
-      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên sản phẩm" class="inv-q">
-      <select name="group_name" class="inv-group">
+    <!-- Filter Form -->
+    <form method="get" class="flex flex-wrap items-center gap-3 mb-6 p-4 bg-spa-50 rounded-xl">
+      <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên sản phẩm"
+        class="flex-1 min-w-[200px] max-w-[360px] px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      <select name="group_name"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[180px]">
         <option value="">Tất cả nhóm</option>
         {% for g in group_options %}
           <option value="{{ g }}" {% if g == group_name %}selected{% endif %}>{{ g }}</option>
         {% endfor %}
       </select>
       {% if is_super_admin %}
-        <select name="branch_id" class="inv-branch">
+        <select name="branch_id"
+          class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[180px]">
           <option value="">Tất cả chi nhánh</option>
           {% for b in branch_options %}
             <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
           {% endfor %}
         </select>
       {% endif %}
-      <label class="low-flag"><input type="checkbox" name="low" value="1" {% if low %}checked{% endif %}> Hàng sắp hết</label>
-      <button type="submit" class="secondary">Lọc</button>
-      <a href="{{ url_for('web.inventory') }}" class="tiny-btn">Xóa lọc</a>
+      <label class="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-spa-200 cursor-pointer hover:bg-spa-50 transition-all">
+        <input type="checkbox" name="low" value="1" {% if low %}checked{% endif %}
+          class="w-4 h-4 text-spa-600 border-spa-300 rounded focus:ring-spa-500">
+        <span class="text-spa-700 text-sm">Hàng sắp hết</span>
+      </label>
+      <button type="submit" class="px-5 py-2.5 rounded-xl border border-spa-300 bg-white text-spa-700 hover:bg-spa-50 font-medium transition-all">
+        Lọc
+      </button>
+      <a href="{{ url_for('web.inventory') }}" class="px-4 py-2.5 rounded-xl text-spa-500 hover:text-spa-700 hover:bg-spa-100 transition-all">
+        Xóa lọc
+      </a>
     </form>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Chi nhánh</th>
-          <th>Sản phẩm</th>
-          <th>Nhóm</th>
-          <th>Đơn vị</th>
-          <th>Tồn hiện tại</th>
-          <th>Mức tối thiểu</th>
-          <th>Trạng thái</th>
-          <th>Hành động</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-          <tr>
-            <td>{{ row.branch.name if row.branch else '-' }}</td>
-            <td>{{ row.item.name if row.item else '-' }}</td>
-            <td>{{ row.item.group_name if row.item else '-' }}</td>
-            <td>{{ row.item.unit if row.item else '-' }}</td>
-            <td>{{ row.quantity|int }}</td>
-            <td>{{ row.item.min_stock|int if row.item else '-' }}</td>
-            <td>
-              {% if row.item %}
-                <span class="status status-{{ row.item.status }}">
-                  {{ 'Đang hoạt động' if row.item.status == 'active' else 'Ngừng hoạt động' }}
-                </span>
-              {% else %}
-                -
-              {% endif %}
-            </td>
-            <td>
-              <div class="inline-links">
-                <a
-                  class="tiny-btn"
-                  href="{{ url_for('web.inventory', edit_stock_id=row.id, page=pager.page, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}#stock-editor"
-                >Sửa</a>
-                <form
-                  method="post"
-                  action="{{ url_for('web.inventory_stocks_delete') }}"
-                  class="inline form-compact"
-                  data-confirm-modal="1"
-                  data-confirm-message="Bạn có chắc muốn xóa dòng tồn kho này không?"
-                  data-confirm-ok-label="Xóa dòng kho"
-                >
-                  <input type="hidden" name="stock_id" value="{{ row.id }}">
-                  <input type="hidden" name="q" value="{{ q }}">
-                  <input type="hidden" name="group_name" value="{{ group_name }}">
-                  <input type="hidden" name="low" value="{{ 1 if low else '' }}">
-                  <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
-                  <input type="hidden" name="page" value="{{ pager.page }}">
-                  <button type="submit" class="warn">Xóa</button>
-                </form>
-              </div>
-            </td>
+    <!-- Inventory Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Sản phẩm</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Nhóm</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Đơn vị</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tồn hiện tại</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Mức tối thiểu</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Trạng thái</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Hành động</th>
           </tr>
-        {% else %}
-          <tr><td colspan="8">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for row in rows %}
+            <tr class="hover:bg-spa-50/50 transition-colors">
+              <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.item.name if row.item else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.item.group_name if row.item else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.item.unit if row.item else '-' }}</td>
+              <td class="py-3 px-4">
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-medium
+                  {% if row.item and row.quantity < row.item.min_stock %}bg-red-100 text-red-700{% else %}bg-sage-100 text-sage-700{% endif %}">
+                  {{ row.quantity|int }}
+                </span>
+              </td>
+              <td class="py-3 px-4 text-spa-600">{{ row.item.min_stock|int if row.item else '-' }}</td>
+              <td class="py-3 px-4">
+                {% if row.item %}
+                  <span class="inline-flex px-3 py-1 rounded-full text-xs font-medium
+                    {% if row.item.status == 'active' %}bg-sage-100 text-sage-700{% else %}bg-spa-200 text-spa-600{% endif %}">
+                    {{ 'Đang hoạt động' if row.item.status == 'active' else 'Ngừng hoạt động' }}
+                  </span>
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2">
+                  <a href="{{ url_for('web.inventory', edit_stock_id=row.id, page=pager.page, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}#stock-editor"
+                    class="px-3 py-1.5 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 text-sm font-medium transition-all">
+                    Sửa
+                  </a>
+                  <form method="post" action="{{ url_for('web.inventory_stocks_delete') }}" class="inline"
+                    data-confirm-modal="1"
+                    data-confirm-message="Bạn có chắc muốn xóa dòng tồn kho này không?"
+                    data-confirm-ok-label="Xóa dòng kho">
+                    <input type="hidden" name="stock_id" value="{{ row.id }}">
+                    <input type="hidden" name="q" value="{{ q }}">
+                    <input type="hidden" name="group_name" value="{{ group_name }}">
+                    <input type="hidden" name="low" value="{{ 1 if low else '' }}">
+                    <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
+                    <input type="hidden" name="page" value="{{ pager.page }}">
+                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium transition-all">
+                      Xóa
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="8" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-    <div class="pager">
+    <!-- Pagination -->
+    <div class="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-spa-100">
       {% if pager.has_prev %}
-        <a href="{{ url_for('web.inventory', page=pager.prev_num, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}">← Trang trước</a>
+        <a href="{{ url_for('web.inventory', page=pager.prev_num, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}"
+          class="px-4 py-2 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 font-medium transition-all">
+          ← Trang trước
+        </a>
       {% endif %}
-      <span>Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
+      <span class="text-spa-600">Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
       {% if pager.has_next %}
-        <a href="{{ url_for('web.inventory', page=pager.next_num, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}">Trang sau →</a>
+        <a href="{{ url_for('web.inventory', page=pager.next_num, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}"
+          class="px-4 py-2 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 font-medium transition-all">
+          Trang sau →
+        </a>
       {% endif %}
     </div>
   </section>
 
+  <!-- Edit Stock Form (Conditional) -->
   {% if stock_edit_mode %}
-    <section class="panel edit-anchor-target" id="stock-editor">
-      <h3>Sửa dữ liệu kho</h3>
-      <form method="post" action="{{ url_for('web.inventory_stocks_save') }}" class="inline inventory-inline">
+    <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6" id="stock-editor">
+      <h3 class="text-lg font-semibold text-spa-800 mb-6 flex items-center gap-2">
+        <svg class="w-5 h-5 text-sage-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        Sửa dữ liệu kho
+      </h3>
+      <form method="post" action="{{ url_for('web.inventory_stocks_save') }}" class="flex flex-wrap items-end gap-4">
         <input type="hidden" name="stock_id" value="{{ stock_form_data.stock_id }}">
         <input type="hidden" name="q" value="{{ q }}">
         <input type="hidden" name="group_name" value="{{ group_name }}">
@@ -196,93 +142,181 @@
         <input type="hidden" name="page" value="{{ pager.page }}">
 
         {% if is_super_admin %}
-          <select name="branch_id" required>
-            {% for b in branch_options %}
-              <option value="{{ b.id }}" {% if b.id == stock_form_data.branch_id %}selected{% endif %}>{{ b.name }}</option>
-            {% endfor %}
-          </select>
+          <div class="flex-1 min-w-[180px]">
+            <label class="block text-sm font-medium text-spa-600 mb-2">Chi nhánh</label>
+            <select name="branch_id" required
+              class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              {% for b in branch_options %}
+                <option value="{{ b.id }}" {% if b.id == stock_form_data.branch_id %}selected{% endif %}>{{ b.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
         {% else %}
           <input type="hidden" name="branch_id" value="{{ stock_form_data.branch_id }}">
-          <input type="text" value="{{ stock_form_data.branch_name }}" disabled>
+          <div class="flex-1 min-w-[180px]">
+            <label class="block text-sm font-medium text-spa-600 mb-2">Chi nhánh</label>
+            <input type="text" value="{{ stock_form_data.branch_name }}" disabled
+              class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-spa-50 text-spa-500">
+          </div>
         {% endif %}
 
-        <input type="text" name="item_name" placeholder="Sản phẩm" value="{{ stock_form_data.item_name }}" required>
-        <select name="group_name">
-          <option value="">Không nhóm</option>
-          {% for g in group_options %}
-            <option value="{{ g }}" {% if g == stock_form_data.group_name %}selected{% endif %}>{{ g }}</option>
-          {% endfor %}
-        </select>
-        <input type="text" name="unit" placeholder="Đơn vị" value="{{ stock_form_data.unit }}" required>
-        <input type="number" name="quantity" min="0" step="1" placeholder="Tồn hiện tại" value="{{ stock_form_data.quantity }}" required>
-        <input type="number" name="min_stock" min="0" step="1" placeholder="Mức tối thiểu" value="{{ stock_form_data.min_stock }}" required>
-        <select name="status" required>
-          <option value="active" {% if stock_form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
-          <option value="inactive" {% if stock_form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
-        </select>
+        <div class="flex-1 min-w-[180px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Sản phẩm</label>
+          <input type="text" name="item_name" placeholder="Tên sản phẩm" value="{{ stock_form_data.item_name }}" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+        </div>
 
-        <button type="submit" class="inventory-save-btn">Lưu thay đổi</button>
-        <a href="{{ url_for('web.inventory', page=pager.page, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}" class="tiny-btn inventory-cancel-btn">Hủy</a>
+        <div class="flex-1 min-w-[160px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Nhóm</label>
+          <select name="group_name"
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+            <option value="">Không nhóm</option>
+            {% for g in group_options %}
+              <option value="{{ g }}" {% if g == stock_form_data.group_name %}selected{% endif %}>{{ g }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="flex-1 min-w-[120px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Đơn vị</label>
+          <input type="text" name="unit" placeholder="Đơn vị" value="{{ stock_form_data.unit }}" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+        </div>
+
+        <div class="flex-1 min-w-[120px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Tồn hiện tại</label>
+          <input type="number" name="quantity" min="0" step="1" placeholder="0" value="{{ stock_form_data.quantity }}" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+        </div>
+
+        <div class="flex-1 min-w-[120px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Mức tối thiểu</label>
+          <input type="number" name="min_stock" min="0" step="1" placeholder="0" value="{{ stock_form_data.min_stock }}" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+        </div>
+
+        <div class="flex-1 min-w-[160px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Trạng thái</label>
+          <select name="status" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+            <option value="active" {% if stock_form_data.status == 'active' %}selected{% endif %}>Đang hoạt động</option>
+            <option value="inactive" {% if stock_form_data.status == 'inactive' %}selected{% endif %}>Ngừng hoạt động</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button type="submit"
+            class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-spa-600 to-sage-600 text-white font-medium hover:from-spa-700 hover:to-sage-700 transition-all shadow-md hover:shadow-lg">
+            Lưu thay đổi
+          </button>
+          <a href="{{ url_for('web.inventory', page=pager.page, q=q, group_name=group_name, low=1 if low else None, branch_id=selected_branch_id) }}"
+            class="px-5 py-2.5 rounded-xl border border-spa-200 text-spa-600 hover:bg-spa-50 font-medium transition-all">
+            Hủy
+          </a>
+        </div>
       </form>
     </section>
   {% endif %}
 
-  <section class="panel">
-    <h3>Giao dịch kho gần nhất</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Thời gian</th>
-          <th>Chi nhánh</th>
-          <th>Sản phẩm</th>
-          <th>Loại</th>
-          <th>Số lượng (+/-)</th>
-          <th>Ghi chú</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in tx_rows %}
-          <tr>
-            <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M') if row.created_at else '-' }}</td>
-            <td>{{ row.branch.name if row.branch else '-' }}</td>
-            <td>{{ row.item.name if row.item else '-' }}</td>
-            <td>
-              {% if row.type == 'in' %}Nhập kho{% elif row.type == 'out' %}Xuất kho{% else %}Điều chỉnh{% endif %}
-            </td>
-            <td>{{ row.quantity|int }}</td>
-            <td>{{ row.note or '-' }}</td>
+  <!-- Recent Transactions -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-4 flex items-center gap-2">
+      <svg class="w-5 h-5 text-spa-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Giao dịch kho gần nhất
+    </h3>
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Thời gian</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Sản phẩm</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Loại</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Số lượng (+/-)</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Ghi chú</th>
           </tr>
-        {% else %}
-          <tr><td colspan="6">Không có lịch sử giao dịch.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for row in tx_rows %}
+            <tr class="hover:bg-spa-50/50 transition-colors">
+              <td class="py-3 px-4 text-spa-600">{{ row.created_at.strftime('%d/%m/%Y %H:%M') if row.created_at else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.item.name if row.item else '-' }}</td>
+              <td class="py-3 px-4">
+                <span class="inline-flex px-3 py-1 rounded-full text-xs font-medium
+                  {% if row.type == 'in' %}bg-sage-100 text-sage-700
+                  {% elif row.type == 'out' %}bg-amber-100 text-amber-700
+                  {% else %}bg-spa-100 text-spa-700{% endif %}">
+                  {% if row.type == 'in' %}Nhập kho{% elif row.type == 'out' %}Xuất kho{% else %}Điều chỉnh{% endif %}
+                </span>
+              </td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.quantity|int }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.note or '-' }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="py-8 text-center text-spa-400">Không có lịch sử giao dịch.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 
-  <section class="panel">
-    <h3>Nhập/Xuất/Điều chỉnh tồn kho</h3>
-    <form method="post" action="{{ url_for('web.inventory_txn') }}" class="inline inventory-inline">
+  <!-- Add Transaction Form -->
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6">
+    <h3 class="text-lg font-semibold text-spa-800 mb-6 flex items-center gap-2">
+      <svg class="w-5 h-5 text-sage-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+      Nhập/Xuất/Điều chỉnh tồn kho
+    </h3>
+    <form method="post" action="{{ url_for('web.inventory_txn') }}" class="flex flex-wrap items-end gap-4">
       {% if is_super_admin %}
-        <select name="branch_id" required>
-          {% for b in branch_options %}
-            <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+        <div class="flex-1 min-w-[180px]">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Chi nhánh</label>
+          <select name="branch_id" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+            {% for b in branch_options %}
+              <option value="{{ b.id }}" {% if b.id == selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endif %}
+
+      <div class="flex-1 min-w-[200px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Sản phẩm</label>
+        <select name="item_id" required
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+          <option value="">Chọn sản phẩm</option>
+          {% for item in item_rows %}
+            <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
           {% endfor %}
         </select>
-      {% endif %}
-      <select name="item_id" required>
-        <option value="">Chọn sản phẩm</option>
-        {% for item in item_rows %}
-          <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
-        {% endfor %}
-      </select>
-      <select name="type" required>
-        <option value="in">Nhập kho</option>
-        <option value="out">Xuất kho</option>
-        <option value="adjust">Điều chỉnh về số lượng mới</option>
-      </select>
-      <input type="number" name="quantity" min="0" step="1" placeholder="Số lượng" required>
-      <input type="text" name="note" placeholder="Ghi chú">
-      <button type="submit">Cập nhật kho</button>
+      </div>
+
+      <div class="flex-1 min-w-[180px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Loại giao dịch</label>
+        <select name="type" required
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+          <option value="in">Nhập kho</option>
+          <option value="out">Xuất kho</option>
+          <option value="adjust">Điều chỉnh về số lượng mới</option>
+        </select>
+      </div>
+
+      <div class="flex-1 min-w-[120px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Số lượng</label>
+        <input type="number" name="quantity" min="0" step="1" placeholder="0" required
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      </div>
+
+      <div class="flex-1 min-w-[180px]">
+        <label class="block text-sm font-medium text-spa-600 mb-2">Ghi chú</label>
+        <input type="text" name="note" placeholder="Ghi chú (tùy chọn)"
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      </div>
+
+      <button type="submit"
+        class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-spa-600 to-sage-600 text-white font-medium hover:from-spa-700 hover:to-sage-700 transition-all shadow-md hover:shadow-lg">
+        Cập nhật kho
+      </button>
     </form>
   </section>
 {% endblock %}

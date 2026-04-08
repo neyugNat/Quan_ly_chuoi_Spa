@@ -4,6 +4,7 @@ from flask import g, flash, redirect, render_template, request, url_for
 from sqlalchemy.exc import IntegrityError
 
 from backend.extensions import db
+from backend.logs import write_log
 from backend.models import InventoryItem, InventoryStock, InventoryTransaction
 from backend.web import (
     collect_non_empty_text,
@@ -242,6 +243,19 @@ def inventory_stocks_save():
                 note="Sửa dữ liệu kho",
             )
         )
+
+    write_log(
+        "update_inventory_stock",
+        branch_id=target_branch_id,
+        entity_type="inventory_stock",
+        entity_id=row.id,
+        message=f"Sửa kho cho sản phẩm {row.item.name}",
+        details={
+            "old_qty": format_integer_input(old_qty),
+            "new_qty": format_integer_input(new_qty),
+            "delta": format_integer_input(delta),
+        },
+    )
 
     try:
         db.session.commit()

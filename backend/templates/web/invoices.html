@@ -1,258 +1,423 @@
 {% extends "web/base.html" %}
 {% block content %}
-  <section class="grid-6 invoice-kpi-grid">
-    <article class="kpi">
-      <div class="label">Tổng số hóa đơn</div>
-      <div class="value">{{ kpi.total_count }}</div>
+  {% set invoice_badge = {
+    'draft': 'bg-spa-100 text-spa-700',
+    'paid': 'bg-emerald-200 text-emerald-800',
+    'canceled': 'bg-red-200 text-red-800'
+  } %}
+
+  <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4 mb-6">
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
+      <p class="text-sm text-spa-500">Tổng số hóa đơn</p>
+      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.total_count }}</p>
     </article>
-    <article class="kpi">
-      <div class="label">Số hóa đơn đã hoàn tất</div>
-      <div class="value">{{ kpi.paid_count }}</div>
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
+      <p class="text-sm text-spa-500">Số hóa đơn đã hoàn tất</p>
+      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.paid_count }}</p>
     </article>
-    <article class="kpi kpi-money">
-      <div class="label">Giá trị đã hoàn tất</div>
-      <div class="value">{{ fmt_money(kpi.completed_value) }}</div>
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
+      <p class="text-sm text-spa-500">Giá trị đã hoàn tất</p>
+      <p class="text-2xl font-bold text-spa-800 mt-1">{{ fmt_money(kpi.completed_value) }}</p>
     </article>
-    <article class="kpi">
-      <div class="label">Số hóa đơn nháp</div>
-      <div class="value">{{ kpi.draft_count }}</div>
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
+      <p class="text-sm text-spa-500">Số hóa đơn nháp</p>
+      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.draft_count }}</p>
     </article>
-    <article class="kpi">
-      <div class="label">Số hóa đơn bị hủy</div>
-      <div class="value">{{ kpi.canceled_count }}</div>
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
+      <p class="text-sm text-spa-500">Số hóa đơn bị hủy</p>
+      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.canceled_count }}</p>
     </article>
-    <article class="kpi kpi-ratio">
-      <div class="label">Tỷ lệ hoàn tất (Không nháp)</div>
-      <div class="value">{{ kpi.completion_ratio }}%</div>
+    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
+      <p class="text-sm text-spa-500">Tỷ lệ hoàn tất (Không nháp)</p>
+      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.completion_ratio }}%</p>
     </article>
   </section>
 
-  <section class="panel">
-    <form method="get" class="inline filter-row">
-      <input type="text" name="q" value="{{ filters.q }}" placeholder="Tìm mã hóa đơn / tên khách / SĐT">
-      <select name="status">
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <form method="get" class="flex flex-wrap items-center gap-3">
+      <input
+        type="text"
+        name="q"
+        value="{{ filters.q }}"
+        placeholder="Tìm mã hóa đơn / tên khách / SĐT"
+        class="flex-1 min-w-[220px] px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all"
+      >
+      <select
+        name="status"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[170px]"
+      >
         <option value="">Tất cả trạng thái</option>
         <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>Nháp</option>
         <option value="paid" {% if filters.status == 'paid' %}selected{% endif %}>Đã thanh toán</option>
         <option value="canceled" {% if filters.status == 'canceled' %}selected{% endif %}>Đã hủy</option>
       </select>
       {% if is_super_admin %}
-        <select name="branch_id">
+        <select
+          name="branch_id"
+          class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[180px]"
+        >
           <option value="">Tất cả chi nhánh</option>
           {% for b in branch_options %}
             <option value="{{ b.id }}" {% if b.id == filters.selected_branch_id %}selected{% endif %}>{{ b.name }}</option>
           {% endfor %}
         </select>
       {% else %}
-        <input type="text" value="{{ scope_label }}" disabled>
+        <input
+          type="text"
+          value="{{ scope_label }}"
+          disabled
+          class="px-4 py-2.5 rounded-xl border border-spa-200 bg-spa-50 text-spa-500 min-w-[180px]"
+        >
       {% endif %}
-      <input type="date" name="from_date" value="{{ filters.from_date.isoformat() if filters.from_date else '' }}">
-      <input type="date" name="to_date" value="{{ filters.to_date.isoformat() if filters.to_date else '' }}">
-      <button type="submit" class="secondary">Lọc</button>
-      <a href="{{ url_for('web.invoices') }}" class="tiny-btn">Xóa lọc</a>
+      <input
+        type="date"
+        name="from_date"
+        value="{{ filters.from_date.isoformat() if filters.from_date else '' }}"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all"
+      >
+      <input
+        type="date"
+        name="to_date"
+        value="{{ filters.to_date.isoformat() if filters.to_date else '' }}"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all"
+      >
+      <button type="submit" class="px-5 py-2.5 rounded-xl border border-spa-300 bg-white text-spa-700 hover:bg-spa-50 font-medium transition-all">Lọc</button>
+      <a href="{{ url_for('web.invoices') }}" class="px-4 py-2.5 rounded-xl text-spa-500 hover:text-spa-700 hover:bg-spa-100 transition-all">Xóa lọc</a>
       {% if can_export_csv %}
         <a
           href="{{ url_for('web.invoices_export_csv', q=filters.q, status=filters.status, branch_id=filters.selected_branch_id, from_date=filters.from_date.isoformat() if filters.from_date else '', to_date=filters.to_date.isoformat() if filters.to_date else '') }}"
-          class="tiny-btn"
+          class="px-4 py-2.5 rounded-xl border border-spa-300 bg-white text-spa-700 hover:bg-spa-50 transition-all"
         >Xuất CSV</a>
       {% endif %}
     </form>
   </section>
 
-  <section class="panel">
-    <table>
-      <thead>
-        <tr>
-          <th>Mã</th>
-          <th>Chi nhánh</th>
-          <th>Khách</th>
-          <th>SĐT</th>
-          <th>Tổng tiền</th>
-          <th>Trạng thái</th>
-          <th>Tạo lúc</th>
-          <th>Nhân sự</th>
-          <th>Thao tác</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in invoice_rows %}
-          <tr>
-            <td>{{ row.code }}</td>
-            <td>{{ row.branch.name if row.branch else '-' }}</td>
-            <td>{{ row.customer_name or '-' }}</td>
-            <td>{{ row.customer_phone or '-' }}</td>
-            <td>{{ fmt_money(row.total_amount) }}</td>
-            <td><span class="status status-{{ row.status }}">{{ invoice_status_labels.get(row.status, row.status) }}</span></td>
-            <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M') if row.created_at else '-' }}</td>
-            <td>{{ row.staff.full_name if row.staff else '-' }}</td>
-            <td>
-              <a
-                class="tiny-btn"
-                href="{{ url_for('web.invoices', view_id=row.id, q=filters.q, status=filters.status, branch_id=filters.selected_branch_id, from_date=filters.from_date.isoformat() if filters.from_date else '', to_date=filters.to_date.isoformat() if filters.to_date else '', page=pager.page) }}#invoice-detail"
-              >Xem</a>
-            </td>
+  <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-spa-100">
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Mã</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Khách</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">SĐT</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tổng tiền</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Trạng thái</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tạo lúc</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Nhân sự</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Thao tác</th>
           </tr>
-        {% else %}
-          <tr><td colspan="9">Không có dữ liệu.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody class="divide-y divide-spa-50">
+          {% for row in invoice_rows %}
+            <tr class="hover:bg-spa-50/50 transition-colors">
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.code }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.customer_name or '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.customer_phone or '-' }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(row.total_amount) }}</td>
+              <td class="py-3 px-4">
+                <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5 {{ invoice_badge.get(row.status, 'bg-spa-100 text-spa-700') }}">{{ invoice_status_labels.get(row.status, row.status) }}</span>
+              </td>
+              <td class="py-3 px-4 text-spa-600">{{ row.created_at.strftime('%d/%m/%Y %H:%M') if row.created_at else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.staff.full_name if row.staff else '-' }}</td>
+              <td class="py-3 px-4">
+                <a
+                  class="px-3 py-1.5 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 text-sm font-medium transition-all"
+                  href="{{ url_for('web.invoices', view_id=row.id, q=filters.q, status=filters.status, branch_id=filters.selected_branch_id, from_date=filters.from_date.isoformat() if filters.from_date else '', to_date=filters.to_date.isoformat() if filters.to_date else '', page=pager.page) }}"
+                >Xem</a>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="9" class="py-8 text-center text-spa-400">Không có dữ liệu.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-    <div class="pager">
+    <div class="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-spa-100">
       {% if pager.has_prev %}
         <a
           href="{{ url_for('web.invoices', page=pager.prev_num, q=filters.q, status=filters.status, branch_id=filters.selected_branch_id, from_date=filters.from_date.isoformat() if filters.from_date else '', to_date=filters.to_date.isoformat() if filters.to_date else '', view_id=selected_invoice.id if selected_invoice else None) }}"
+          class="px-4 py-2 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 font-medium transition-all"
         >← Trang trước</a>
       {% endif %}
-      <span>Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
+      <span class="text-spa-600">Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
       {% if pager.has_next %}
         <a
           href="{{ url_for('web.invoices', page=pager.next_num, q=filters.q, status=filters.status, branch_id=filters.selected_branch_id, from_date=filters.from_date.isoformat() if filters.from_date else '', to_date=filters.to_date.isoformat() if filters.to_date else '', view_id=selected_invoice.id if selected_invoice else None) }}"
+          class="px-4 py-2 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 font-medium transition-all"
         >Trang sau →</a>
       {% endif %}
     </div>
   </section>
 
   {% if selected_invoice %}
-    <section class="panel edit-anchor-target" id="invoice-detail">
-      <h3>Chi tiết hóa đơn {{ selected_invoice.code }}</h3>
+    <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6" id="invoice-detail">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h3 class="text-lg font-semibold text-spa-800">Chi tiết hóa đơn {{ selected_invoice.code }}</h3>
+        <a
+          href="{{ url_for('web.invoices', q=filters.q, status=filters.status, branch_id=filters.selected_branch_id, from_date=filters.from_date.isoformat() if filters.from_date else '', to_date=filters.to_date.isoformat() if filters.to_date else '', page=pager.page, scroll_top=1) }}"
+          class="px-4 py-2 rounded-lg border border-spa-200 bg-white text-spa-700 hover:bg-spa-50 text-sm font-medium transition-all"
+        >Đóng xem chi tiết</a>
+      </div>
 
-      <table>
-        <tbody>
-          <tr>
-            <th>Mã hóa đơn</th>
-            <td>{{ selected_invoice.code }}</td>
-            <th>Chi nhánh</th>
-            <td>{{ selected_invoice.branch.name if selected_invoice.branch else '-' }}</td>
-          </tr>
-          <tr>
-            <th>Khách</th>
-            <td>{{ selected_invoice.customer_name or '-' }}</td>
-            <th>SĐT</th>
-            <td>{{ selected_invoice.customer_phone or '-' }}</td>
-          </tr>
-          <tr>
-            <th>Nhân sự phụ trách</th>
-            <td>{{ selected_invoice.staff.full_name if selected_invoice.staff else '-' }}</td>
-            <th>Tạo lúc</th>
-            <td>{{ selected_invoice.created_at.strftime('%d/%m/%Y %H:%M') if selected_invoice.created_at else '-' }}</td>
-          </tr>
-          <tr>
-            <th>Tổng tiền</th>
-            <td>{{ fmt_money(selected_invoice.total_amount) }}</td>
-            <th>Tạm tính / Giảm giá</th>
-            <td>{{ fmt_money(selected_invoice.subtotal_amount) }} / {{ fmt_money(selected_invoice.discount_amount) }}</td>
-          </tr>
-          <tr>
-            <th>Trạng thái</th>
-            <td><span class="status status-{{ selected_invoice.status }}">{{ invoice_status_labels.get(selected_invoice.status, selected_invoice.status) }}</span></td>
-            <th>Người thao tác cuối</th>
-            <td>{{ selected_invoice.last_action_by or '-' }}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Dịch vụ</th>
-            <th>Số lượng</th>
-            <th>Đơn giá</th>
-            <th>Thành tiền</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in selected_invoice.items %}
+      <div class="overflow-x-auto mb-4">
+        <table class="w-full">
+          <tbody class="divide-y divide-spa-50">
             <tr>
-              <td>{{ item.service_name }}</td>
-              <td>{{ item.qty|int }}</td>
-              <td>{{ fmt_money(item.unit_price) }}</td>
-              <td>{{ fmt_money(item.line_total) }}</td>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Mã hóa đơn</th>
+              <td class="py-3 px-4 text-spa-800">{{ selected_invoice.code }}</td>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
+              <td class="py-3 px-4 text-spa-800">{{ selected_invoice.branch.name if selected_invoice.branch else '-' }}</td>
             </tr>
-          {% else %}
-            <tr><td colspan="4">Không có dòng dịch vụ.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            <tr>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Khách</th>
+              <td class="py-3 px-4 text-spa-800">{{ selected_invoice.customer_name or '-' }}</td>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">SĐT</th>
+              <td class="py-3 px-4 text-spa-800">{{ selected_invoice.customer_phone or '-' }}</td>
+            </tr>
+            <tr>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Nhân sự phụ trách</th>
+              <td class="py-3 px-4 text-spa-800">{{ selected_invoice.staff.full_name if selected_invoice.staff else '-' }}</td>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tạo lúc</th>
+              <td class="py-3 px-4 text-spa-800">{{ selected_invoice.created_at.strftime('%d/%m/%Y %H:%M') if selected_invoice.created_at else '-' }}</td>
+            </tr>
+            <tr>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tổng tiền</th>
+              <td class="py-3 px-4 text-spa-800">{{ fmt_money(selected_invoice.total_amount) }}</td>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tạm tính / Giảm giá</th>
+              <td class="py-3 px-4 text-spa-800">{{ fmt_money(selected_invoice.subtotal_amount) }} / {{ fmt_money(selected_invoice.discount_amount) }}</td>
+            </tr>
+            <tr>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Trạng thái</th>
+              <td class="py-3 px-4">
+                <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5 {{ invoice_badge.get(selected_invoice.status, 'bg-spa-100 text-spa-700') }}">{{ invoice_status_labels.get(selected_invoice.status, selected_invoice.status) }}</span>
+              </td>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tài khoản thao tác cuối</th>
+              <td class="py-3 px-4 text-spa-800">{{ selected_invoice.last_action_by or '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="overflow-x-auto mb-3">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b-2 border-spa-100">
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Dịch vụ</th>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Số lượng</th>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Đơn giá</th>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-spa-50">
+            {% for item in selected_invoice.items %}
+              <tr>
+                <td class="py-3 px-4 text-spa-800">{{ item.service_name }}</td>
+                <td class="py-3 px-4 text-spa-600">{{ item.qty|int }}</td>
+                <td class="py-3 px-4 text-spa-600">{{ fmt_money(item.unit_price) }}</td>
+                <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(item.line_total) }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="4" class="py-8 text-center text-spa-400">Không có dòng dịch vụ.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
       {% if selected_invoice.status == 'canceled' %}
-        <p class="muted">
+        <p class="text-sm text-spa-500 mb-2">
           Lý do hủy: {{ selected_invoice.canceled_reason or '-' }}
           | Thời gian hủy: {{ selected_invoice.canceled_at.strftime('%d/%m/%Y %H:%M') if selected_invoice.canceled_at else '-' }}
         </p>
       {% endif %}
 
-      {% if selected_invoice.note %}<p class="muted">Ghi chú hóa đơn: {{ selected_invoice.note }}</p>{% endif %}
+      {% if selected_invoice.note %}<p class="text-sm text-spa-500">Ghi chú hóa đơn: {{ selected_invoice.note }}</p>{% endif %}
     </section>
   {% endif %}
 
-  {% if is_super_admin %}
-    <section class="panel">
-      <h3>Ghi chú quản trị</h3>
-      <p class="muted">
-        Hóa đơn là dữ liệu phát sinh từ cấp vận hành chi nhánh. Super admin sử dụng trang này để kiểm tra,
-        đối soát, giám sát và phân tích giao dịch toàn chuỗi thay vì thao tác thu ngân hằng ngày.
-      </p>
-    </section>
-  {% elif can_create_invoice or can_void_invoice %}
-    <section class="panel">
-      <h3>Thao tác vận hành chi nhánh</h3>
-      <p class="muted">Các thao tác dưới đây chỉ áp dụng cho hóa đơn thuộc chi nhánh bạn đang quản lí.</p>
+  {% if can_create_invoice or can_void_invoice %}
+    <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6">
+      <h3 class="text-lg font-semibold text-spa-800 mb-2">Thao tác vận hành chi nhánh</h3>
+      <p class="text-sm text-spa-500 mb-4">Các thao tác dưới đây chỉ áp dụng cho hóa đơn thuộc chi nhánh bạn đang quản lí.</p>
 
-      <div class="ops-grid">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {% if can_create_invoice %}
-          <article class="mini-panel">
-            <h4>Tạo hóa đơn</h4>
-            <form method="post" action="{{ url_for('web.invoices_create') }}" class="stack-form">
-              <input type="text" name="customer_name" placeholder="Tên khách (optional)">
-              <input type="text" name="customer_phone" placeholder="SĐT khách (optional)">
-              <select name="staff_id" required>
-                <option value="" selected disabled>Chọn nhân sự phụ trách</option>
-                {% for staff in staff_rows %}
-                  <option value="{{ staff.id }}">{{ staff.full_name }}</option>
-                {% endfor %}
-              </select>
+          <article class="rounded-xl border border-spa-200 bg-spa-50/40 p-4">
+            <h4 class="text-spa-800 font-semibold mb-3">Tạo hóa đơn</h4>
+            <form method="post" action="{{ url_for('web.invoices_create') }}" class="grid gap-3">
+              <input type="text" name="customer_name" placeholder="Tên khách" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              <input type="text" name="customer_phone" placeholder="SĐT khách" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
 
-              <div class="line-block">
-                <select name="service_id[]" required>
-                  <option value="">Dịch vụ dòng 1</option>
-                  {% for service in service_rows %}
-                    <option value="{{ service.id }}">{{ service.name }} - {{ fmt_money(service.price) }}</option>
+              {% if can_select_staff %}
+                <select name="staff_id" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                  <option value="" selected disabled>Chọn nhân sự phụ trách</option>
+                  {% for staff in staff_rows %}
+                    <option value="{{ staff.id }}">{{ staff.full_name }} - NV{{ staff.id }}</option>
                   {% endfor %}
                 </select>
-                <input type="number" name="qty[]" min="1" step="1" value="1" required>
+              {% else %}
+                <input type="hidden" name="staff_id" value="{{ operator_staff.id if operator_staff else '' }}">
+                <input type="text" value="{{ operator_staff_label }}" disabled class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-spa-50 text-spa-600">
+              {% endif %}
+
+              <div id="invoice-service-lines" class="grid gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3 invoice-service-line">
+                  <select name="service_id[]" required data-service-select class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                    <option value="">Chọn dịch vụ</option>
+                    {% for service in service_rows %}
+                      <option value="{{ service.id }}" data-price="{{ service.price }}">{{ service.name }} - {{ fmt_money(service.price) }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="number" name="qty[]" min="1" step="1" value="1" required data-qty-input class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                </div>
               </div>
 
-              <div class="line-block">
-                <select name="service_id[]">
-                  <option value="">Dịch vụ dòng 2 (optional)</option>
-                  {% for service in service_rows %}
-                    <option value="{{ service.id }}">{{ service.name }} - {{ fmt_money(service.price) }}</option>
-                  {% endfor %}
-                </select>
-                <input type="number" name="qty[]" min="1" step="1" value="1">
-              </div>
+              <template id="invoice-service-line-template">
+                <div class="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3 invoice-service-line">
+                  <select name="service_id[]" data-service-select class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                    <option value="">Chọn dịch vụ</option>
+                    {% for service in service_rows %}
+                      <option value="{{ service.id }}" data-price="{{ service.price }}">{{ service.name }} - {{ fmt_money(service.price) }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="number" name="qty[]" min="1" step="1" value="1" data-qty-input class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                </div>
+              </template>
 
-              <input type="number" name="discount_amount" min="0" step="1000" value="0" required>
-              <input type="text" name="note" placeholder="Ghi chú hóa đơn">
-              <button type="submit">Tạo hóa đơn</button>
+              <button type="button" id="add-service-line" class="w-fit px-4 py-2 rounded-lg border border-spa-200 bg-white text-spa-700 hover:bg-spa-50 transition-all">Thêm dịch vụ</button>
+
+              <input type="hidden" name="discount_amount" value="0">
+              <div id="invoice-total-display" class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-400">Thành tiền</div>
+              <input type="text" name="note" placeholder="Ghi chú hóa đơn" class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              <button type="submit" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-spa-600 to-sage-600 text-white font-medium hover:from-spa-700 hover:to-sage-700 transition-all">Tạo hóa đơn</button>
             </form>
           </article>
         {% endif %}
 
         {% if can_void_invoice %}
-          <article class="mini-panel">
-            <h4>Hủy hóa đơn</h4>
-            <form method="post" action="{{ url_for('web.invoices_void') }}" class="stack-form">
-              <input type="number" name="invoice_id" placeholder="ID hóa đơn" required>
-              <input type="text" name="cancel_reason" placeholder="Lý do hủy" required>
-              <button type="submit" class="warn">Hủy hóa đơn</button>
+          <article class="rounded-xl border border-spa-200 bg-spa-50/40 p-4">
+            <h4 class="text-spa-800 font-semibold mb-3">Hủy hóa đơn</h4>
+            <form method="post" action="{{ url_for('web.invoices_void') }}" class="grid gap-3">
+              <input type="number" name="invoice_id" placeholder="ID hóa đơn" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              <input type="text" name="cancel_reason" placeholder="Lý do hủy" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              <button type="submit" class="px-5 py-2.5 rounded-xl bg-rose-600 text-white font-medium hover:bg-rose-700 transition-all">Hủy hóa đơn</button>
             </form>
           </article>
         {% endif %}
       </div>
-
-      <p class="muted">MVP hiện tại chưa tự động trừ kho theo hóa đơn; kho được quản lí thủ công tại module Kho.</p>
     </section>
   {% endif %}
+
+  <script>
+    (function () {
+      var scrollContainer = document.querySelector("main");
+      if (!scrollContainer) {
+        return;
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      if (params.get("scroll_top") === "1") {
+        scrollContainer.scrollTop = 0;
+        params.delete("scroll_top");
+        var cleanQuery = params.toString();
+        var cleanUrl = window.location.pathname + (cleanQuery ? "?" + cleanQuery : "");
+        window.history.replaceState({}, "", cleanUrl);
+      }
+
+      var detailSection = document.getElementById("invoice-detail");
+      if (detailSection) {
+        detailSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    })();
+
+    (function () {
+      var form = document.querySelector("form[action='{{ url_for('web.invoices_create') }}']");
+      if (!form) {
+        return;
+      }
+
+      var linesContainer = document.getElementById("invoice-service-lines");
+      var lineTemplate = document.getElementById("invoice-service-line-template");
+      var addServiceButton = document.getElementById("add-service-line");
+      var totalDisplay = document.getElementById("invoice-total-display");
+      if (!linesContainer || !lineTemplate || !addServiceButton || !totalDisplay) {
+        return;
+      }
+
+      function parseNumber(value) {
+        var parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function formatMoney(value) {
+        return new Intl.NumberFormat("vi-VN").format(Math.round(value)) + " VND";
+      }
+
+      function updateTotalDisplay() {
+        var total = 0;
+        var hasSelectedService = false;
+        var lines = linesContainer.querySelectorAll(".invoice-service-line");
+
+        lines.forEach(function (line) {
+          var serviceSelect = line.querySelector("[data-service-select]");
+          var qtyInput = line.querySelector("[data-qty-input]");
+          if (!serviceSelect || !qtyInput || !serviceSelect.value) {
+            return;
+          }
+
+          var selectedOption = serviceSelect.options[serviceSelect.selectedIndex];
+          var price = parseNumber(selectedOption ? selectedOption.getAttribute("data-price") : 0);
+          var qty = parseNumber(qtyInput.value);
+          if (qty <= 0) {
+            qty = 1;
+          }
+
+          total += price * qty;
+          hasSelectedService = true;
+        });
+
+        if (!hasSelectedService) {
+          totalDisplay.textContent = "Thành tiền";
+          totalDisplay.classList.remove("text-spa-700", "font-medium");
+          totalDisplay.classList.add("text-spa-400");
+          return;
+        }
+
+        totalDisplay.textContent = formatMoney(total);
+        totalDisplay.classList.remove("text-spa-400");
+        totalDisplay.classList.add("text-spa-700", "font-medium");
+      }
+
+      function bindLineEvents(line) {
+        var serviceSelect = line.querySelector("[data-service-select]");
+        var qtyInput = line.querySelector("[data-qty-input]");
+
+        if (serviceSelect) {
+          serviceSelect.addEventListener("change", updateTotalDisplay);
+        }
+        if (qtyInput) {
+          qtyInput.addEventListener("input", updateTotalDisplay);
+          qtyInput.addEventListener("change", function () {
+            if (!qtyInput.value || parseNumber(qtyInput.value) <= 0) {
+              qtyInput.value = "1";
+            }
+            updateTotalDisplay();
+          });
+        }
+      }
+
+      linesContainer.querySelectorAll(".invoice-service-line").forEach(bindLineEvents);
+
+      addServiceButton.addEventListener("click", function () {
+        var clonedNode = lineTemplate.content.firstElementChild.cloneNode(true);
+        linesContainer.appendChild(clonedNode);
+        bindLineEvents(clonedNode);
+        updateTotalDisplay();
+      });
+
+      updateTotalDisplay();
+    })();
+  </script>
 {% endblock %}

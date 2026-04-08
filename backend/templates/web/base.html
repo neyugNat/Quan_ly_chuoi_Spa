@@ -4,72 +4,187 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ title or "Quản Lý Chuỗi Spa" }}</title>
-    <link rel="stylesheet" href="{{ url_for('web.static', filename='style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              spa: {
+                50: '#eef4ff',
+                100: '#dce8ff',
+                200: '#b9d1ff',
+                300: '#90b4ff',
+                400: '#6c95f7',
+                500: '#4d77dd',
+                600: '#3a62c5',
+                700: '#2d4f9f',
+                800: '#264481',
+                900: '#233b6d',
+              },
+              sage: {
+                50: '#edf8f6',
+                100: '#d4f0ea',
+                200: '#a9e1d7',
+                300: '#79ccb8',
+                400: '#4ab59a',
+                500: '#2f9d84',
+                600: '#257f6d',
+                700: '#1f6658',
+                800: '#1d5348',
+                900: '#1a453d',
+              },
+              rose: {
+                50: '#f5f2ff',
+                100: '#ece5ff',
+                200: '#ddd2ff',
+                300: '#c7b1ff',
+                400: '#ab86ff',
+                500: '#9160f2',
+                600: '#7b46d8',
+                700: '#6739b3',
+                800: '#553192',
+                900: '#482d78',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+      .sidebar-link {
+        transition: all 0.2s ease;
+      }
+      .sidebar-link:hover {
+        transform: translateX(4px);
+      }
+    </style>
   </head>
-  <body>
-    <header class="topbar">
-      <h1>Quản Lý Chuỗi Spa</h1>
-      <div>
-        {% if web_user %}
-          <span>{{ web_user.username }} ({{ role_label(web_user.role) }})</span>
-          <form method="post" action="{{ url_for('web.logout') }}" style="display:inline">
-            <button type="submit" class="secondary">Đăng xuất</button>
-          </form>
-        {% endif %}
+  <body class="bg-spa-50 h-screen overflow-hidden">
+    <header class="fixed inset-x-0 top-0 z-40 bg-gradient-to-r from-spa-700 via-spa-600 to-sage-600 text-white shadow-lg">
+      <div class="max-w-full mx-auto h-[72px] px-6 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold tracking-wide flex items-center gap-3">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1-8.313-12.454z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3"/>
+          </svg>
+          Quản Lý Chuỗi Spa
+        </h1>
+        <div class="flex items-center gap-4">
+          {% if web_user %}
+            <span class="text-spa-100 text-sm">
+              <span class="font-medium text-white">{{ web_user.username }}</span>
+              <span class="text-spa-200 mx-1">|</span>
+              <span class="text-spa-200">{{ role_label(web_user.role) }}</span>
+            </span>
+            <form method="post" action="{{ url_for('web.logout') }}" class="inline">
+              <button type="submit" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 backdrop-blur-sm border border-white/20">
+                Đăng xuất
+              </button>
+            </form>
+          {% endif %}
+        </div>
       </div>
     </header>
-    <div class="layout">
-      <aside class="sidebar">
-        {% if can_access_menu('dashboard') %}
-          <a href="{{ url_for('web.dashboard') }}" class="{% if request.path.startswith('/web/dashboard') %}active{% endif %}">Tổng quan</a>
-        {% endif %}
-        {% if can_access_menu('branches') %}
-          <a href="{{ url_for('web.branches') }}" class="{% if request.path.startswith('/web/branches') %}active{% endif %}">Chi nhánh</a>
-        {% endif %}
-        {% if can_access_menu('staff') %}
-          <a href="{{ url_for('web.staff') }}" class="{% if request.path.startswith('/web/staff') %}active{% endif %}">Nhân sự</a>
-        {% endif %}
-        {% if can_access_menu('services') %}
-          <a href="{{ url_for('web.services') }}" class="{% if request.path.startswith('/web/services') %}active{% endif %}">Dịch vụ</a>
-        {% endif %}
-        {% if can_access_menu('appointments') %}
-          <a href="{{ url_for('web.appointments') }}" class="{% if request.path.startswith('/web/appointments') %}active{% endif %}">Lịch hẹn</a>
-        {% endif %}
-        {% if can_access_menu('inventory') %}
-          <a href="{{ url_for('web.inventory') }}" class="{% if request.path.startswith('/web/inventory') %}active{% endif %}">Kho</a>
-        {% endif %}
-        {% if can_access_menu('invoices') %}
-          <a href="{{ url_for('web.invoices') }}" class="{% if request.path.startswith('/web/invoices') %}active{% endif %}">Hóa đơn</a>
-        {% endif %}
-        {% if can_access_menu('reports') %}
-          <a href="{{ url_for('web.reports') }}" class="{% if request.path.startswith('/web/reports') %}active{% endif %}">Báo cáo</a>
-        {% endif %}
-        {% if can_access_menu('accounts') %}
-          <a href="{{ url_for('web.accounts') }}" class="{% if request.path.startswith('/web/accounts') %}active{% endif %}">Tài khoản</a>
-        {% endif %}
+
+    <aside class="fixed top-[72px] left-0 bottom-0 z-30 w-64 bg-white shadow-xl border-r border-spa-100 overflow-y-auto">
+        <nav class="py-6 px-4 space-y-1">
+          {% if can_access_menu('dashboard') %}
+            <a href="{{ url_for('web.dashboard') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-spa-700 hover:bg-spa-100 {% if request.path.startswith('/web/dashboard') %}bg-spa-100 text-spa-800 font-semibold shadow-sm{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+              Tổng quan
+            </a>
+          {% endif %}
+          {% if can_access_menu('branches') %}
+            <a href="{{ url_for('web.branches') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-spa-700 hover:bg-spa-100 {% if request.path.startswith('/web/branches') %}bg-spa-100 text-spa-800 font-semibold shadow-sm{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+              Chi nhánh
+            </a>
+          {% endif %}
+          {% if can_access_menu('staff') %}
+            <a href="{{ url_for('web.staff') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-spa-700 hover:bg-spa-100 {% if request.path.startswith('/web/staff') %}bg-spa-100 text-spa-800 font-semibold shadow-sm{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+              Nhân sự
+            </a>
+          {% endif %}
+          {% if can_access_menu('services') %}
+            <a href="{{ url_for('web.services') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-spa-700 hover:bg-spa-100 {% if request.path.startswith('/web/services') %}bg-spa-100 text-spa-800 font-semibold shadow-sm{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+              Dịch vụ
+            </a>
+          {% endif %}
+          {% if can_access_menu('appointments') %}
+            <a href="{{ url_for('web.appointments') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-spa-700 hover:bg-spa-100 {% if request.path.startswith('/web/appointments') %}bg-spa-100 text-spa-800 font-semibold shadow-sm{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              Lịch hẹn
+            </a>
+          {% endif %}
+          {% if can_access_menu('inventory') %}
+            <a href="{{ url_for('web.inventory') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-spa-700 hover:bg-spa-100 {% if request.path.startswith('/web/inventory') %}bg-spa-100 text-spa-800 font-semibold shadow-sm{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+              Kho
+            </a>
+          {% endif %}
+          {% if can_access_menu('invoices') %}
+            <a href="{{ url_for('web.invoices') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-spa-700 hover:bg-spa-100 {% if request.path.startswith('/web/invoices') %}bg-spa-100 text-spa-800 font-semibold shadow-sm{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Hóa đơn
+            </a>
+          {% endif %}
+          {% if can_access_menu('reports') %}
+            <a href="{{ url_for('web.reports') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-spa-700 hover:bg-spa-100 {% if request.path.startswith('/web/reports') %}bg-spa-100 text-spa-800 font-semibold shadow-sm{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+              Báo cáo
+            </a>
+          {% endif %}
+          {% if can_access_menu('activity_logs') %}
+            <a href="{{ url_for('web.activity_logs') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-spa-700 hover:bg-spa-100 {% if request.path.startswith('/web/activity-logs') %}bg-spa-100 text-spa-800 font-semibold shadow-sm{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Nhật ký hệ thống
+            </a>
+          {% endif %}
+          {% if can_access_menu('accounts') %}
+            <a href="{{ url_for('web.accounts') }}" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-xl text-spa-700 hover:bg-spa-100 {% if request.path.startswith('/web/accounts') %}bg-spa-100 text-spa-800 font-semibold shadow-sm{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Tài khoản
+            </a>
+          {% endif %}
+        </nav>
       </aside>
-      <main class="content">
-        <div class="flash-wrap">
+
+      <main class="fixed top-[72px] left-64 right-0 bottom-0 overflow-y-auto p-8">
+        <div class="max-w-7xl mx-auto">
           {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-              {% for category, message in messages %}
-                <div class="flash {{ category }}">{{ message }}</div>
-              {% endfor %}
+              <div class="mb-6 space-y-3">
+                {% for category, message in messages %}
+                  <div class="px-5 py-4 rounded-xl shadow-sm border {% if category == 'error' %}bg-red-50 border-red-200 text-red-800{% elif category == 'success' %}bg-sage-50 border-sage-200 text-sage-800{% else %}bg-spa-100 border-spa-200 text-spa-800{% endif %}">
+                    {{ message }}
+                  </div>
+                {% endfor %}
+              </div>
             {% endif %}
           {% endwith %}
+
+          {% block content %}{% endblock %}
         </div>
-
-        {% block content %}{% endblock %}
       </main>
-    </div>
 
-    <div class="confirm-modal" id="globalConfirmModal" aria-hidden="true">
-      <div class="confirm-modal-card" role="dialog" aria-modal="true" aria-labelledby="globalConfirmTitle" aria-describedby="globalConfirmMessage">
-        <h3 class="confirm-modal-title" id="globalConfirmTitle">Xác nhận thao tác</h3>
-        <p class="confirm-modal-message" id="globalConfirmMessage"></p>
-        <div class="confirm-modal-actions">
-          <button type="button" id="globalConfirmCancel" class="confirm-btn-cancel">Hủy bỏ</button>
-          <button type="button" id="globalConfirmOk" class="confirm-btn-delete">Xóa</button>
+    <!-- Confirm Modal -->
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50" id="globalConfirmModal" aria-hidden="true">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md mx-4 transform transition-all" role="dialog" aria-modal="true" aria-labelledby="globalConfirmTitle" aria-describedby="globalConfirmMessage">
+        <h3 class="text-xl font-semibold text-spa-800 mb-3" id="globalConfirmTitle">Xác nhận thao tác</h3>
+        <p class="text-spa-600 mb-6" id="globalConfirmMessage"></p>
+        <div class="flex gap-3 justify-end">
+          <button type="button" id="globalConfirmCancel" class="px-5 py-2.5 rounded-xl border border-spa-200 text-spa-700 hover:bg-spa-50 transition-colors font-medium">Hủy bỏ</button>
+          <button type="button" id="globalConfirmOk" class="px-5 py-2.5 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors font-medium">Xóa</button>
         </div>
       </div>
     </div>
@@ -87,7 +202,8 @@
         }
 
         function closeModal() {
-          modal.classList.remove("open");
+          modal.classList.add("hidden");
+          modal.classList.remove("flex");
           modal.setAttribute("aria-hidden", "true");
           pendingForm = null;
         }
@@ -98,7 +214,8 @@
             form.getAttribute("data-confirm-message") ||
             "Bạn có chắc muốn tiếp tục thao tác này không?";
           okBtn.textContent = form.getAttribute("data-confirm-ok-label") || "Xóa";
-          modal.classList.add("open");
+          modal.classList.remove("hidden");
+          modal.classList.add("flex");
           modal.setAttribute("aria-hidden", "false");
           cancelBtn.focus();
         }
@@ -142,7 +259,7 @@
         });
 
         document.addEventListener("keydown", function (event) {
-          if (event.key === "Escape" && modal.classList.contains("open")) {
+          if (event.key === "Escape" && !modal.classList.contains("hidden")) {
             closeModal();
           }
         });
