@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import g, flash, redirect, render_template, request, url_for
 from sqlalchemy import and_, or_
@@ -9,7 +9,9 @@ from backend.logs import write_log
 from backend.models import Appointment, AppointmentServiceItem, Service, Staff
 from backend.web import (
     get_current_branch_scope,
+    is_valid_phone,
     list_scope_branches,
+    normalize_phone_digits,
     normalize_choice,
     paginate,
     parse_date,
@@ -31,7 +33,6 @@ APPOINTMENT_STATUS_LABELS = {
 }
 
 TIME_PATTERN = re.compile(r"^\d{2}:\d{2}$")
-PHONE_PATTERN = re.compile(r"^\d{8,15}$")
 
 
 def normalize_staff_title(value: str | None) -> str:
@@ -44,7 +45,7 @@ def is_technician_title(value: str | None) -> bool:
 
 
 def normalize_phone(value: str | None) -> str:
-    return re.sub(r"\D+", "", parse_text(value))
+    return normalize_phone_digits(value)
 
 
 def list_active_technicians(branch_id: int) -> list[Staff]:
@@ -88,20 +89,39 @@ def appointments_redirect(message: str, category: str = "error"):
 
 
 def auto_mark_overdue_appointments(scope_ids: list[int]) -> None:
-    now = datetime.now()
-    current_date = now.date()
-    current_time = now.strftime("%H:%M")
-
-    overdue_query = Appointment.query.filter(
-        Appointment.branch_id.in_(scope_ids),
-        Appointment.status == "pending",
-        or_(
-            Appointment.appointment_date < current_date,
-            and_(Appointment.appointment_date == current_date, Appointment.appointment_time < current_time),
-        ),
+    overdue_threshold = datetime.now() - timedelta(hours=6)
+    pending_rows = (
+        Appointment.query.filter(
+            Appointment.branch_id.in_(scope_ids),
+            Appointment.status == "pending",
+            Appointment.appointment_date <= overdue_threshold.date(),
+        )
+        .order_by(Appointment.appointment_date.asc(), Appointment.appointment_time.asc(), Appointment.id.asc())
+        .all()
     )
-    affected_rows = overdue_query.update({"status": "overdue"}, synchronize_session=False)
-    if affected_rows:
+
+    affected_rows = 0
+    for row in pending_rows:
+        if not row.appointment_date:
+            continue
+
+        appointment_time_text = parse_text(row.appointment_time)
+        if not TIME_PATTERN.fullmatch(appointment_time_text):
+            continue
+
+        try:
+            appointment_dt = datetime.strptime(
+                f"{row.appointment_date.isoformat()} {appointment_time_text}",
+                "%Y-%m-%d %H:%M",
+            )
+        except ValueError:
+            continue
+
+        if appointment_dt <= overdue_threshold:
+            row.status = "overdue"
+            affected_rows += 1
+
+    if affected_rows > 0:
         db.session.commit()
 
 
@@ -119,6 +139,23 @@ def normalize_time(value: str | None) -> str:
         return ""
 
     return f"{hour_value:02d}:{minute_value:02d}"
+
+
+def load_ordered_services(branch_id: int, service_ids: list[int]) -> list[Service]:
+    service_rows = (
+        Service.query.filter(Service.id.in_(service_ids), Service.branch_id == branch_id, Service.status == "active")
+        .order_by(Service.name.asc())
+        .all()
+    )
+    service_map = {row.id: row for row in service_rows}
+    if len(service_map) != len(service_ids):
+        return []
+    return [service_map[service_id] for service_id in service_ids]
+
+
+def load_valid_technician(branch_id: int, technician_id: int | None) -> Staff | None:
+    technician = Staff.query.filter_by(id=technician_id, branch_id=branch_id, status="active").first() if technician_id else None
+    return technician if technician and is_technician_title(technician.title) else None
 
 
 @web_bp.get("/appointments")
@@ -216,8 +253,7 @@ def appointments_create():
     scope_ids = get_current_branch_scope()
     branch_id = g.active_branch_id
     if branch_id not in scope_ids:
-        flash("Tài khoản không có phạm vi chi nhánh hợp lệ.", "error")
-        return redirect(url_for("web.appointments"))
+        return appointments_redirect("Tài khoản không có phạm vi chi nhánh hợp lệ.")
 
     customer_name = parse_text(request.form.get("customer_name"))
     customer_phone = normalize_phone(request.form.get("customer_phone"))
@@ -228,42 +264,25 @@ def appointments_create():
     note = parse_optional_text(request.form.get("note"))
 
     if not customer_name:
-        flash("Tên khách không được để trống.", "error")
-        return redirect(url_for("web.appointments"))
+        return appointments_redirect("Tên khách không được để trống.")
     if not customer_phone:
-        flash("SĐT khách không được để trống.", "error")
-        return redirect(url_for("web.appointments"))
-    if not PHONE_PATTERN.fullmatch(customer_phone):
-        flash("SĐT khách phải gồm 8-15 chữ số.", "error")
-        return redirect(url_for("web.appointments"))
+        return appointments_redirect("SĐT khách không được để trống.")
+    if not is_valid_phone(customer_phone):
+        return appointments_redirect("SĐT khách phải gồm 8-15 chữ số.")
     if not service_ids:
-        flash("Vui lòng chọn ít nhất một dịch vụ.", "error")
-        return redirect(url_for("web.appointments"))
+        return appointments_redirect("Vui lòng chọn ít nhất một dịch vụ.")
     if appointment_date is None:
-        flash("Ngày hẹn không hợp lệ.", "error")
-        return redirect(url_for("web.appointments"))
+        return appointments_redirect("Ngày hẹn không hợp lệ.")
     if not appointment_time:
-        flash("Giờ hẹn không hợp lệ (định dạng HH:MM).", "error")
-        return redirect(url_for("web.appointments"))
+        return appointments_redirect("Giờ hẹn không hợp lệ (định dạng HH:MM).")
 
-    service_rows = (
-        Service.query.filter(Service.id.in_(service_ids), Service.branch_id == branch_id, Service.status == "active")
-        .order_by(Service.name.asc())
-        .all()
-    )
-    service_map = {row.id: row for row in service_rows}
-    if len(service_map) != len(service_ids):
-        flash("Dịch vụ không hợp lệ.", "error")
-        return redirect(url_for("web.appointments"))
+    ordered_services = load_ordered_services(branch_id, service_ids)
+    if not ordered_services:
+        return appointments_redirect("Dịch vụ không hợp lệ.")
 
-    ordered_services = [service_map[service_id] for service_id in service_ids]
-
-    technician = (
-        Staff.query.filter_by(id=technician_id, branch_id=branch_id, status="active").first() if technician_id else None
-    )
-    if technician is None or not is_technician_title(technician.title):
-        flash("Kỹ thuật viên không hợp lệ.", "error")
-        return redirect(url_for("web.appointments"))
+    technician = load_valid_technician(branch_id, technician_id)
+    if technician is None:
+        return appointments_redirect("Kỹ thuật viên không hợp lệ.")
 
     appointment = Appointment(
         branch_id=branch_id,

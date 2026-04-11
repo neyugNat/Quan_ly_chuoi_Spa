@@ -5,19 +5,11 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import UniqueConstraint, inspect, text
 
-from werkzeug.security import check_password_hash, generate_password_hash
-
 from backend.extensions import db
 
 
 class TimestampMixin:
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-    )
 
 
 class Branch(db.Model, TimestampMixin):
@@ -28,7 +20,6 @@ class Branch(db.Model, TimestampMixin):
     name = db.Column(db.String(255), nullable=False, unique=True)
     address = db.Column(db.String(500), nullable=True)
     phone = db.Column(db.String(32), nullable=True, unique=True)
-    manager_name = db.Column(db.String(255), nullable=True)
     manager_staff_id = db.Column(db.Integer, db.ForeignKey("staffs.id"), nullable=True, index=True)
     status = db.Column(db.String(32), nullable=False, default="active")
 
@@ -50,10 +41,10 @@ class User(db.Model, TimestampMixin):
     staff = db.relationship("Staff", lazy="joined")
 
     def set_password(self, raw_password: str) -> None:
-        self.password_hash = generate_password_hash(raw_password)
+        self.password_hash = raw_password or ""
 
     def verify_password(self, raw_password: str) -> bool:
-        return check_password_hash(self.password_hash, raw_password)
+        return (self.password_hash or "") == (raw_password or "")
 
     @property
     def is_super_admin(self) -> bool:
@@ -92,7 +83,6 @@ class Staff(db.Model, TimestampMixin):
     title = db.Column(db.String(64), nullable=True)
     status = db.Column(db.String(32), nullable=False, default="active")
     start_date = db.Column(db.Date, nullable=True)
-    note = db.Column(db.String(500), nullable=True)
 
     branch = db.relationship("Branch", foreign_keys=[branch_id], lazy="joined")
 
@@ -107,7 +97,6 @@ class Service(db.Model, TimestampMixin):
     price = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     duration_minutes = db.Column(db.Integer, nullable=False, default=60)
     status = db.Column(db.String(32), nullable=False, default="active")
-    description = db.Column(db.String(500), nullable=True)
 
     branch = db.relationship("Branch", lazy="joined")
 
@@ -197,7 +186,7 @@ class Invoice(db.Model, TimestampMixin):
     subtotal_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     discount_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     total_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
-    status = db.Column(db.String(32), nullable=False, default="draft", index=True)
+    status = db.Column(db.String(32), nullable=False, default="paid", index=True)
     note = db.Column(db.String(500), nullable=True)
     canceled_reason = db.Column(db.String(500), nullable=True)
     canceled_at = db.Column(db.DateTime, nullable=True)
@@ -242,7 +231,7 @@ def recalc_invoice(invoice: Invoice) -> None:
     invoice.total_amount = total
     if invoice.status == "canceled":
         return
-    if invoice.status not in {"draft", "paid"}:
+    if invoice.status != "paid":
         invoice.status = "paid"
 
 
@@ -270,11 +259,9 @@ def migrate_remove_partial_payment_schema() -> None:
                     UPDATE invoices
                     SET status = CASE
                         WHEN status = 'canceled' THEN 'canceled'
-                        WHEN COALESCE(total_amount, 0) > 0
-                             AND COALESCE(paid_amount, 0) >= COALESCE(total_amount, 0) THEN 'paid'
-                        ELSE 'draft'
+                        ELSE 'paid'
                     END
-                    WHERE status != 'canceled'
+                    WHERE status IS NULL OR status != 'canceled'
                     """
                 )
             )
@@ -283,8 +270,8 @@ def migrate_remove_partial_payment_schema() -> None:
             text(
                 """
                 UPDATE invoices
-                SET status = 'draft'
-                WHERE status IS NULL OR status NOT IN ('draft', 'paid', 'canceled')
+                SET status = 'paid'
+                WHERE status IS NULL OR status NOT IN ('paid', 'canceled')
                 """
             )
         )
@@ -475,6 +462,32 @@ def migrate_backfill_user_staff_id() -> None:
                 )
 
 
+def migrate_cleanup_unused_columns() -> None:
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+    drop_plan = {
+        "branches": ["manager_name", "updated_at"],
+        "users": ["updated_at"],
+        "staffs": ["note", "updated_at"],
+        "services": ["description", "updated_at"],
+        "appointments": ["updated_at"],
+        "inventory_items": ["updated_at"],
+        "inventory_stocks": ["updated_at"],
+        "invoices": ["updated_at"],
+    }
+
+    with db.engine.begin() as conn:
+        for table_name, columns in drop_plan.items():
+            if table_name not in table_names:
+                continue
+
+            existing_columns = {col["name"] for col in inspector.get_columns(table_name)}
+            for column_name in columns:
+                if column_name not in existing_columns:
+                    continue
+                conn.execute(text(f"ALTER TABLE {table_name} DROP COLUMN {column_name}"))
+
+
 def migrate_normalize_service_prices_and_invoices() -> None:
     inspector = inspect(db.engine)
     table_names = set(inspector.get_table_names())
@@ -524,14 +537,20 @@ def migrate_normalize_service_prices_and_invoices() -> None:
 
 
 def ensure_seed_data() -> None:
-    def upsert_branch(name: str, address: str, phone: str, manager_name: str) -> Branch:
-        branch = Branch.query.filter_by(name=name).first()
+    def upsert_branch(branch_code: str, name: str, address: str, phone: str, manager_name: str) -> Branch:
+        branch = None
+        if branch_code:
+            branch = Branch.query.filter_by(branch_code=branch_code).first()
+        if branch is None and phone:
+            branch = Branch.query.filter_by(phone=phone).first()
+        if branch is None:
+            branch = Branch.query.filter_by(name=name).first()
         if branch is None:
             branch = Branch(name=name)
             db.session.add(branch)
+        branch.branch_code = branch_code
         branch.address = address
         branch.phone = phone
-        branch.manager_name = manager_name
         branch.status = "active"
         return branch
 
@@ -553,93 +572,367 @@ def ensure_seed_data() -> None:
         user.set_password(password)
         return user
 
-    b1 = upsert_branch("Chi nhánh 1", "Quận 1, TP.HCM", "02873001001", "Nguyễn Minh")
-    b2 = upsert_branch("Chi nhánh 2", "Quận 7, TP.HCM", "02873002002", "Trần An")
+    branch_seed = [
+        {
+            "code": "CN1",
+            "name": "Chi nhánh 1",
+            "address": "126 Nguyễn Trãi, Quận 1, TP.HCM",
+            "phone": "02873001001",
+            "manager_name": "Phạm Khắc Sang",
+        },
+        {
+            "code": "CN2",
+            "name": "Chi nhánh 2",
+            "address": "88 Nguyễn Thị Thập, Quận 7, TP.HCM",
+            "phone": "02873002002",
+            "manager_name": "Vũ Quốc Nghĩa",
+        },
+        {
+            "code": "CN3",
+            "name": "Chi nhánh 3",
+            "address": "45 Võ Văn Ngân, TP. Thủ Đức, TP.HCM",
+            "phone": "02873003003",
+            "manager_name": "Nguyễn Quang Tấn",
+        },
+    ]
+
+    branch_map: dict[str, Branch] = {}
+    for payload in branch_seed:
+        branch = upsert_branch(
+            payload["code"],
+            payload["name"],
+            payload["address"],
+            payload["phone"],
+            payload["manager_name"],
+        )
+        branch_map[payload["code"]] = branch
+
     db.session.flush()
-    if not b1.branch_code:
-        b1.branch_code = f"CN{b1.id}"
-    if not b2.branch_code:
-        b2.branch_code = f"CN{b2.id}"
 
     upsert_user("admin", "super_admin", None, "admin123", staff_id=None)
 
     if Staff.query.count() == 0:
-        db.session.add(
-            Staff(
-                branch_id=b1.id,
-                full_name="Nhân viên Demo 1",
-                phone="0900000001",
-                title="Kỹ thuật viên",
-                status="active",
-                start_date=date(2024, 1, 10),
+        staff_seed = [
+            # Active branch managers (IDs are created in this exact order).
+            {
+                "branch_code": "CN1",
+                "full_name": "Phạm Khắc Sang",
+                "phone": "0911000001",
+                "title": "Quản lý chi nhánh",
+                "status": "active",
+                "start_date": date(2024, 1, 15),
+            },
+            {
+                "branch_code": "CN2",
+                "full_name": "Vũ Quốc Nghĩa",
+                "phone": "0911000002",
+                "title": "Quản lý chi nhánh",
+                "status": "active",
+                "start_date": date(2024, 2, 12),
+            },
+            {
+                "branch_code": "CN3",
+                "full_name": "Nguyễn Quang Tấn",
+                "phone": "0911000003",
+                "title": "Quản lý chi nhánh",
+                "status": "active",
+                "start_date": date(2024, 3, 8),
+            },
+            # Active receptionists (1 per branch).
+            {
+                "branch_code": "CN1",
+                "full_name": "Trần Mai Hương",
+                "phone": "0912000001",
+                "title": "Lễ tân",
+                "status": "active",
+                "start_date": date(2024, 1, 18),
+            },
+            {
+                "branch_code": "CN2",
+                "full_name": "Nguyễn Yến Nhi",
+                "phone": "0912000002",
+                "title": "Lễ tân",
+                "status": "active",
+                "start_date": date(2024, 2, 16),
+            },
+            {
+                "branch_code": "CN3",
+                "full_name": "Lê Thu Hà",
+                "phone": "0912000003",
+                "title": "Lễ tân",
+                "status": "active",
+                "start_date": date(2024, 3, 12),
+            },
+            # Active technicians (3 per branch).
+            {
+                "branch_code": "CN1",
+                "full_name": "Võ Hoàng Nam",
+                "phone": "0913000001",
+                "title": "Kỹ thuật viên",
+                "status": "active",
+                "start_date": date(2024, 1, 20),
+            },
+            {
+                "branch_code": "CN1",
+                "full_name": "Phan Gia Bảo",
+                "phone": "0913000002",
+                "title": "Kỹ thuật viên",
+                "status": "active",
+                "start_date": date(2024, 1, 22),
+            },
+            {
+                "branch_code": "CN1",
+                "full_name": "Đỗ Minh Châu",
+                "phone": "0913000003",
+                "title": "Kỹ thuật viên",
+                "status": "active",
+                "start_date": date(2024, 1, 25),
+            },
+            {
+                "branch_code": "CN2",
+                "full_name": "Bùi Quang Huy",
+                "phone": "0913000004",
+                "title": "Kỹ thuật viên",
+                "status": "active",
+                "start_date": date(2024, 2, 18),
+            },
+            {
+                "branch_code": "CN2",
+                "full_name": "Trịnh Khánh Ly",
+                "phone": "0913000005",
+                "title": "Kỹ thuật viên",
+                "status": "active",
+                "start_date": date(2024, 2, 20),
+            },
+            {
+                "branch_code": "CN2",
+                "full_name": "Hồ Nhật Nam",
+                "phone": "0913000006",
+                "title": "Kỹ thuật viên",
+                "status": "active",
+                "start_date": date(2024, 2, 23),
+            },
+            {
+                "branch_code": "CN3",
+                "full_name": "Đặng Anh Khoa",
+                "phone": "0913000007",
+                "title": "Kỹ thuật viên",
+                "status": "active",
+                "start_date": date(2024, 3, 14),
+            },
+            {
+                "branch_code": "CN3",
+                "full_name": "Tạ Diễm My",
+                "phone": "0913000008",
+                "title": "Kỹ thuật viên",
+                "status": "active",
+                "start_date": date(2024, 3, 16),
+            },
+            {
+                "branch_code": "CN3",
+                "full_name": "Phạm Quốc Khôi",
+                "phone": "0913000009",
+                "title": "Kỹ thuật viên",
+                "status": "active",
+                "start_date": date(2024, 3, 18),
+            },
+            # Active inventory controllers (1 per branch).
+            {
+                "branch_code": "CN1",
+                "full_name": "Nguyễn Thanh Bình",
+                "phone": "0914000001",
+                "title": "Kiểm soát kho",
+                "status": "active",
+                "start_date": date(2024, 1, 28),
+            },
+            {
+                "branch_code": "CN2",
+                "full_name": "Vũ Bảo Trâm",
+                "phone": "0914000002",
+                "title": "Kiểm soát kho",
+                "status": "active",
+                "start_date": date(2024, 2, 26),
+            },
+            {
+                "branch_code": "CN3",
+                "full_name": "Trần Duy Khánh",
+                "phone": "0914000003",
+                "title": "Kiểm soát kho",
+                "status": "active",
+                "start_date": date(2024, 3, 20),
+            },
+            # Additional inactive records for realism.
+            {
+                "branch_code": "CN1",
+                "full_name": "Hoàng Đức An",
+                "phone": "0915000001",
+                "title": "Kỹ thuật viên",
+                "status": "inactive",
+                "start_date": date(2024, 2, 2),
+            },
+            {
+                "branch_code": "CN2",
+                "full_name": "Lâm Ngọc Hân",
+                "phone": "0915000002",
+                "title": "Kỹ thuật viên",
+                "status": "inactive",
+                "start_date": date(2024, 3, 2),
+            },
+            {
+                "branch_code": "CN3",
+                "full_name": "Cao Minh Phúc",
+                "phone": "0915000003",
+                "title": "Kỹ thuật viên",
+                "status": "inactive",
+                "start_date": date(2024, 4, 2),
+            },
+            {
+                "branch_code": "CN1",
+                "full_name": "Phạm Tú Anh",
+                "phone": "0915000004",
+                "title": "Lễ tân",
+                "status": "inactive",
+                "start_date": date(2024, 2, 6),
+            },
+            {
+                "branch_code": "CN3",
+                "full_name": "Nguyễn Gia Hân",
+                "phone": "0915000005",
+                "title": "Lễ tân",
+                "status": "inactive",
+                "start_date": date(2024, 4, 6),
+            },
+            {
+                "branch_code": "CN2",
+                "full_name": "Lý Minh Khoa",
+                "phone": "0915000006",
+                "title": "Kiểm soát kho",
+                "status": "inactive",
+                "start_date": date(2024, 3, 5),
+            },
+            {
+                "branch_code": "CN3",
+                "full_name": "Trần Quốc Bảo",
+                "phone": "0915000007",
+                "title": "Quản lý chi nhánh",
+                "status": "inactive",
+                "start_date": date(2024, 4, 8),
+            },
+        ]
+
+        for payload in staff_seed:
+            branch = branch_map[payload["branch_code"]]
+            db.session.add(
+                Staff(
+                    branch_id=branch.id,
+                    full_name=payload["full_name"],
+                    phone=payload["phone"],
+                    title=payload["title"],
+                    status=payload["status"],
+                    start_date=payload["start_date"],
+                )
             )
-        )
-        db.session.add(
-            Staff(
-                branch_id=b2.id,
-                full_name="Nhân viên Demo 2",
-                phone="0900000002",
-                title="Kỹ thuật viên",
+        db.session.flush()
+
+    manager_by_branch = {
+        "CN1": "Phạm Khắc Sang",
+        "CN2": "Vũ Quốc Nghĩa",
+        "CN3": "Nguyễn Quang Tấn",
+    }
+
+    for branch_code, manager_name in manager_by_branch.items():
+        branch = branch_map[branch_code]
+        manager_staff = Staff.query.filter_by(
+            branch_id=branch.id,
+            full_name=manager_name,
+            title="Quản lý chi nhánh",
+            status="active",
+        ).first()
+        branch.manager_staff_id = manager_staff.id if manager_staff else None
+
+    def get_active_staff(branch_code: str, title: str, offset: int = 0) -> Staff | None:
+        rows = (
+            Staff.query.filter_by(
+                branch_id=branch_map[branch_code].id,
                 status="active",
-                start_date=date(2024, 3, 1),
+                title=title,
             )
+            .order_by(Staff.id.asc())
+            .all()
         )
-        db.session.add(
-            Staff(
-                branch_id=b1.id,
-                full_name="Lê Hà",
-                phone="0900000003",
-                title="Quản lý ca",
-                status="active",
-                start_date=date(2024, 2, 15),
+        if offset < 0 or offset >= len(rows):
+            return None
+        return rows[offset]
+
+    manager_staff_cn1 = get_active_staff("CN1", "Quản lý chi nhánh")
+    manager_staff_cn2 = get_active_staff("CN2", "Quản lý chi nhánh")
+    manager_staff_cn3 = get_active_staff("CN3", "Quản lý chi nhánh")
+
+    if manager_staff_cn1:
+        upsert_user("manager", "branch_manager", manager_staff_cn1.branch_id, "manager123", manager_staff_cn1.id)
+    if manager_staff_cn2:
+        upsert_user("manager2", "branch_manager", manager_staff_cn2.branch_id, "manager123", manager_staff_cn2.id)
+    if manager_staff_cn3:
+        upsert_user("manager3", "branch_manager", manager_staff_cn3.branch_id, "manager123", manager_staff_cn3.id)
+
+    for idx, branch_code in enumerate(("CN1", "CN2", "CN3"), start=1):
+        receptionist = get_active_staff(branch_code, "Lễ tân")
+        inventory_controller = get_active_staff(branch_code, "Kiểm soát kho")
+        technician = get_active_staff(branch_code, "Kỹ thuật viên")
+
+        if receptionist:
+            upsert_user(
+                f"letan{idx}",
+                "receptionist",
+                receptionist.branch_id,
+                "letan123",
+                receptionist.id,
             )
-        )
+        if inventory_controller:
+            upsert_user(
+                f"kho{idx}",
+                "inventory_controller",
+                inventory_controller.branch_id,
+                "kho12345",
+                inventory_controller.id,
+            )
+        if technician:
+            upsert_user(
+                f"ktv{idx}",
+                "technician",
+                technician.branch_id,
+                "ktv12345",
+                technician.id,
+            )
 
     if Service.query.count() == 0:
-        db.session.add(
-            Service(
-                branch_id=b1.id,
-                name="Chăm sóc da mặt",
-                group_name="Da mặt",
-                price=Decimal("300000"),
-                duration_minutes=60,
-                status="active",
-                description="Làm sạch và cấp ẩm cơ bản",
-            )
-        )
-        db.session.add(
-            Service(
-                branch_id=b1.id,
-                name="Massage body",
-                group_name="Body",
-                price=Decimal("450000"),
-                duration_minutes=90,
-                status="active",
-                description="Thư giãn toàn thân",
-            )
-        )
-        db.session.add(
-            Service(
-                branch_id=b2.id,
-                name="Trị liệu cổ vai gáy",
-                group_name="Trị liệu",
-                price=Decimal("400000"),
-                duration_minutes=75,
-                status="active",
-                description="Giảm đau mỏi vùng cổ vai gáy",
-            )
-        )
-        db.session.add(
-            Service(
-                branch_id=b2.id,
-                name="Gội đầu dưỡng sinh",
-                group_name="Body",
-                price=Decimal("250000"),
-                duration_minutes=45,
-                status="active",
-                description="Thư giãn da đầu và cổ",
-            )
-        )
+        service_catalog = [
+            ("Chăm sóc da chuyên sâu", "Da mặt", Decimal("800000"), 60, "active"),
+            ("Peel da sinh học", "Da mặt", Decimal("1200000"), 45, "active"),
+            ("Nặn mụn chuẩn y khoa", "Da mặt", Decimal("500000"), 90, "inactive"),
+            ("Massage Body tinh dầu", "Body", Decimal("700000"), 60, "active"),
+            ("Tẩy tế bào chết toàn thân", "Body", Decimal("400000"), 40, "active"),
+            ("Gội đầu dưỡng sinh VIP", "Thư giãn", Decimal("300000"), 45, "active"),
+            ("Massage đá nóng Volcano", "Thư giãn", Decimal("900000"), 90, "active"),
+            ("Ngâm chân thảo dược", "Thư giãn", Decimal("200000"), 30, "inactive"),
+            ("Trị liệu cổ vai gáy", "Trị liệu", Decimal("800000"), 60, "active"),
+            ("Thông kinh lạc chuyên sâu", "Trị liệu", Decimal("1300000"), 120, "active"),
+            ("Phục hồi thắt lưng cột sống", "Trị liệu", Decimal("1000000"), 90, "active"),
+        ]
+
+        for branch in Branch.query.order_by(Branch.id.asc()).all():
+            for name, group_name, price, duration_minutes, status in service_catalog:
+                db.session.add(
+                    Service(
+                        branch_id=branch.id,
+                        name=name,
+                        group_name=group_name,
+                        price=price,
+                        duration_minutes=duration_minutes,
+                        status=status,
+                    )
+                )
+        db.session.flush()
 
     if InventoryItem.query.count() == 0:
         db.session.add(
@@ -671,49 +964,28 @@ def ensure_seed_data() -> None:
         )
     db.session.flush()
 
-    primary_technician = (
-        Staff.query.filter_by(branch_id=b1.id, status="active").order_by(Staff.id.asc()).first()
-    )
-    if primary_technician is None:
-        primary_technician = Staff(
-            branch_id=b1.id,
-            full_name="KTV Demo CN1",
-            phone="0900000011",
-            title="Kỹ thuật viên",
-            status="active",
-            start_date=date(2024, 4, 1),
-        )
-        db.session.add(primary_technician)
-        db.session.flush()
-
-    branch_one_staffs = Staff.query.filter_by(branch_id=b1.id, status="active").order_by(Staff.id.asc()).all()
-    if not branch_one_staffs:
-        branch_one_staffs = [primary_technician]
-
-    manager_staff = branch_one_staffs[1] if len(branch_one_staffs) > 1 else branch_one_staffs[0]
-    reception_staff = branch_one_staffs[0]
-    inventory_staff = branch_one_staffs[2] if len(branch_one_staffs) > 2 else branch_one_staffs[0]
-
-    branch_two_manager = Staff.query.filter_by(branch_id=b2.id, status="active").order_by(Staff.id.asc()).first()
-    b1.manager_staff_id = manager_staff.id if manager_staff else None
-    b1.manager_name = manager_staff.full_name if manager_staff else None
-    b2.manager_staff_id = branch_two_manager.id if branch_two_manager else None
-    b2.manager_name = branch_two_manager.full_name if branch_two_manager else None
-
-    upsert_user("manager", "branch_manager", b1.id, "manager123", staff_id=manager_staff.id)
-    upsert_user("letan1", "receptionist", b1.id, "letan123", staff_id=reception_staff.id)
-    upsert_user("kho1", "inventory_controller", b1.id, "kho12345", staff_id=inventory_staff.id)
-    upsert_user("ktv1", "technician", b1.id, "ktv12345", staff_id=primary_technician.id)
-
     if InventoryStock.query.count() == 0:
         item_rows = InventoryItem.query.order_by(InventoryItem.id.asc()).all()
         stock_plan = {
-            "Chi nhánh 1": {"Tinh dầu massage": Decimal("12"), "Kem dưỡng da": Decimal("4"), "Khăn spa": Decimal("25")},
-            "Chi nhánh 2": {"Tinh dầu massage": Decimal("6"), "Kem dưỡng da": Decimal("10"), "Khăn spa": Decimal("18")},
+            "CN1": {
+                "Tinh dầu massage": Decimal("14"),
+                "Kem dưỡng da": Decimal("10"),
+                "Khăn spa": Decimal("30"),
+            },
+            "CN2": {
+                "Tinh dầu massage": Decimal("12"),
+                "Kem dưỡng da": Decimal("9"),
+                "Khăn spa": Decimal("28"),
+            },
+            "CN3": {
+                "Tinh dầu massage": Decimal("11"),
+                "Kem dưỡng da": Decimal("8"),
+                "Khăn spa": Decimal("26"),
+            },
         }
-        branch_rows = {branch.name: branch for branch in Branch.query.order_by(Branch.id.asc()).all()}
-        for branch_name, branch_data in stock_plan.items():
-            branch = branch_rows.get(branch_name)
+
+        for branch_code, branch_data in stock_plan.items():
+            branch = branch_map.get(branch_code)
             if branch is None:
                 continue
             for item in item_rows:
@@ -731,164 +1003,232 @@ def ensure_seed_data() -> None:
                         item_id=item.id,
                         type="adjust",
                         quantity=qty,
-                        note="Khởi tạo dữ liệu demo",
                     )
                 )
         db.session.flush()
 
     if Invoice.query.count() == 0:
-        staff_b1 = Staff.query.filter_by(branch_id=b1.id, status="active").order_by(Staff.id.asc()).first()
-        staff_b2 = Staff.query.filter_by(branch_id=b2.id, status="active").order_by(Staff.id.asc()).first()
-        service_b1 = Service.query.filter_by(branch_id=b1.id, status="active").order_by(Service.id.asc()).all()
-        service_b2 = Service.query.filter_by(branch_id=b2.id, status="active").order_by(Service.id.asc()).all()
+        from random import Random
 
-        def seed_invoice(
-            *,
-            branch: Branch,
-            customer_name: str,
-            customer_phone: str,
-            staff: Staff | None,
-            lines: list[tuple[Service, Decimal]],
-            discount: Decimal,
-            days_ago: int,
-            canceled: bool = False,
-            status: str = "paid",
-            note: str | None = None,
-        ) -> None:
-            created_at = datetime.utcnow() - timedelta(days=days_ago)
-            invoice = Invoice(
-                code="TMP",
-                branch_id=branch.id,
-                customer_name=customer_name,
-                customer_phone=customer_phone,
-                staff_id=staff.id if staff else None,
-                discount_amount=discount,
-                status=status if status in {"draft", "paid"} else "paid",
-                note=note,
-                last_action_by="seed",
-                created_at=created_at,
-                updated_at=created_at,
+        rng = Random(20260410)
+        customer_pool = [
+            "Ngọc Bích",
+            "Thanh Huyền",
+            "Mỹ Linh",
+            "Kiều Trinh",
+            "Anh Duy",
+            "Nhật Hạ",
+            "Hoài Nam",
+            "Hà Phương",
+            "Phương Vy",
+            "Minh Tú",
+            "Thu Thảo",
+            "Bảo Trân",
+            "Như Quỳnh",
+            "Gia Hân",
+            "Khánh Linh",
+            "Mai Phương",
+            "Kim Ngân",
+            "Thanh Tú",
+            "Bích Trâm",
+            "Tuấn Anh",
+        ]
+        canceled_reasons = [
+            "Khách đổi lịch cá nhân",
+            "Khách bận công tác đột xuất",
+            "Khách yêu cầu chuyển sang chi nhánh khác",
+            "Khách muốn dời sang tuần sau",
+        ]
+        invoice_note_pool = [
+            None,
+            None,
+            "Khách mới",
+            "Khách đặt qua fanpage",
+            "Khách đặt qua hotline",
+            "Khách thành viên VIP",
+            "Khách quay lại theo lịch chăm sóc",
+        ]
+
+        def resolve_branch_ready_date(branch_id: int) -> date:
+            required_titles = {
+                "Quản lý chi nhánh",
+                "Lễ tân",
+                "Kỹ thuật viên",
+                "Kiểm soát kho",
+            }
+            rows = (
+                Staff.query.filter(
+                    Staff.branch_id == branch_id,
+                    Staff.status == "active",
+                    Staff.title.in_(required_titles),
+                )
+                .order_by(Staff.start_date.asc(), Staff.id.asc())
+                .all()
             )
-            db.session.add(invoice)
-            db.session.flush()
-            invoice.code = f"HD{invoice.id:06d}"
+            dates = [row.start_date for row in rows if row.start_date is not None]
+            if not dates:
+                return date.today() - timedelta(days=120)
+            return max(dates)
 
-            for service, qty in lines:
-                invoice.items.append(
-                    InvoiceItem(
-                        service_id=service.id,
-                        service_name=service.name,
-                        qty=qty,
-                        unit_price=service.price,
-                    )
+        def split_candidate_dates(start_date: date, end_date: date) -> tuple[list[date], list[date], list[date]]:
+            early_april_dates: list[date] = []
+            april_remaining_dates: list[date] = []
+            other_dates: list[date] = []
+
+            cursor = start_date
+            while cursor <= end_date:
+                if cursor.month == 4 and cursor.day <= 10:
+                    early_april_dates.append(cursor)
+                elif cursor.month == 4:
+                    april_remaining_dates.append(cursor)
+                else:
+                    other_dates.append(cursor)
+                cursor += timedelta(days=1)
+
+            return early_april_dates, april_remaining_dates, other_dates
+
+        def pick_weighted_invoice_date(
+            early_april_dates: list[date],
+            april_remaining_dates: list[date],
+            other_dates: list[date],
+        ) -> date:
+            weighted_buckets = [
+                (early_april_dates, 0.60),
+                (april_remaining_dates, 0.20),
+                (other_dates, 0.20),
+            ]
+            available_buckets = [(rows, weight) for rows, weight in weighted_buckets if rows]
+            if not available_buckets:
+                return date.today()
+
+            total_weight = sum(weight for _, weight in available_buckets)
+            roll = rng.random() * total_weight
+            running = 0.0
+            for rows, weight in available_buckets:
+                running += weight
+                if roll <= running:
+                    return rows[rng.randrange(len(rows))]
+
+            tail_rows = available_buckets[-1][0]
+            return tail_rows[rng.randrange(len(tail_rows))]
+
+        for branch in Branch.query.order_by(Branch.id.asc()).all():
+            receptionist_rows = (
+                Staff.query.filter_by(
+                    branch_id=branch.id,
+                    status="active",
+                    title="Lễ tân",
+                )
+                .order_by(Staff.id.asc())
+                .all()
+            )
+            service_rows = (
+                Service.query.filter_by(branch_id=branch.id, status="active")
+                .order_by(Service.id.asc())
+                .all()
+            )
+            if not receptionist_rows or not service_rows:
+                continue
+
+            today = date.today()
+            six_month_window_start = today - timedelta(days=183)
+            ready_date = resolve_branch_ready_date(branch.id)
+            start_date = max(six_month_window_start, ready_date)
+            if start_date > today:
+                start_date = today - timedelta(days=7)
+
+            early_april_dates, april_remaining_dates, other_dates = split_candidate_dates(start_date, today)
+            invoice_count = rng.randint(18, 28)
+
+            for _ in range(invoice_count):
+                created_date = pick_weighted_invoice_date(early_april_dates, april_remaining_dates, other_dates)
+                created_at = datetime.combine(created_date, datetime.min.time()) + timedelta(
+                    hours=rng.randint(8, 20),
+                    minutes=rng.choice([0, 10, 15, 20, 30, 40, 45, 50]),
                 )
 
-            recalc_invoice(invoice)
-            if canceled:
-                invoice.status = "canceled"
-                invoice.canceled_reason = note or "Khách đổi lịch"
-                invoice.canceled_at = created_at
+                customer_name = rng.choice(customer_pool)
+                customer_phone = f"0{rng.randint(300000000, 999999999)}"
+                operator_staff = rng.choice(receptionist_rows)
+                discount = Decimal(str(rng.choice([0, 0, 0, 20000, 30000, 50000, 80000, 100000, 150000]))).quantize(
+                    Decimal("0.01")
+                )
 
-        if staff_b1 and staff_b2 and service_b1 and service_b2:
-            seed_invoice(
-                branch=b1,
-                customer_name="Khách lẻ A",
-                customer_phone="0901000001",
-                staff=staff_b1,
-                lines=[(service_b1[0], Decimal("1.00"))],
-                discount=Decimal("0.00"),
-                days_ago=1,
-            )
-            seed_invoice(
-                branch=b1,
-                customer_name="Khách lẻ B",
-                customer_phone="0901000002",
-                staff=staff_b1,
-                lines=[(service_b1[0], Decimal("1.00")), (service_b1[1], Decimal("1.00"))],
-                discount=Decimal("50000.00"),
-                days_ago=2,
-            )
-            seed_invoice(
-                branch=b1,
-                customer_name="Khách walk-in",
-                customer_phone="",
-                staff=staff_b1,
-                lines=[(service_b1[1], Decimal("1.00"))],
-                discount=Decimal("0.00"),
-                days_ago=10,
-                status="draft",
-                note="Đặt cọc sau",
-            )
-            seed_invoice(
-                branch=b2,
-                customer_name="Khách VIP",
-                customer_phone="0902000001",
-                staff=staff_b2,
-                lines=[(service_b2[0], Decimal("2.00"))],
-                discount=Decimal("30000.00"),
-                days_ago=12,
-            )
-            seed_invoice(
-                branch=b2,
-                customer_name="Khách lẻ C",
-                customer_phone="0902000002",
-                staff=staff_b2,
-                lines=[(service_b2[1], Decimal("1.00"))],
-                discount=Decimal("0.00"),
-                days_ago=15,
-                canceled=True,
-                note="Khách đổi lịch",
-            )
+                invoice = Invoice(
+                    code="TMP",
+                    branch_id=branch.id,
+                    customer_name=customer_name,
+                    customer_phone=customer_phone,
+                    staff_id=operator_staff.id,
+                    discount_amount=discount,
+                    status="paid",
+                    note=rng.choice(invoice_note_pool),
+                    last_action_by="seed",
+                    created_at=created_at,
+                )
+                db.session.add(invoice)
+                db.session.flush()
+                invoice.code = f"HD{invoice.id:06d}"
+
+                line_count = min(len(service_rows), rng.randint(1, 4))
+                selected_services = rng.sample(service_rows, k=line_count)
+                for service in selected_services:
+                    qty = Decimal(str(rng.choice([1, 1, 1, 2, 2, 3]))).quantize(Decimal("0.01"))
+                    invoice.items.append(
+                        InvoiceItem(
+                            service_id=service.id,
+                            service_name=service.name,
+                            qty=qty,
+                            unit_price=service.price,
+                        )
+                    )
+
+                recalc_invoice(invoice)
+                if rng.random() < 0.18:
+                    invoice.status = "canceled"
+                    invoice.canceled_reason = rng.choice(canceled_reasons)
+                    canceled_at = created_at + timedelta(hours=rng.randint(1, 36))
+                    if canceled_at > datetime.now():
+                        canceled_at = datetime.now()
+                    invoice.canceled_at = canceled_at
 
     if Appointment.query.count() == 0:
-        service_b1 = Service.query.filter_by(branch_id=b1.id, status="active").order_by(Service.id.asc()).all()
-        service_b2 = Service.query.filter_by(branch_id=b2.id, status="active").order_by(Service.id.asc()).all()
-        staff_b1 = Staff.query.filter_by(branch_id=b1.id, status="active").order_by(Staff.id.asc()).all()
-        staff_b2 = Staff.query.filter_by(branch_id=b2.id, status="active").order_by(Staff.id.asc()).all()
+        for idx, branch in enumerate(Branch.query.order_by(Branch.id.asc()).all(), start=1):
+            service_rows = Service.query.filter_by(branch_id=branch.id, status="active").order_by(Service.id.asc()).all()
+            technician_rows = (
+                Staff.query.filter_by(branch_id=branch.id, status="active", title="Kỹ thuật viên")
+                .order_by(Staff.id.asc())
+                .all()
+            )
+            if not service_rows or not technician_rows:
+                continue
 
-        if service_b1 and staff_b1:
             db.session.add(
                 Appointment(
-                    branch_id=b1.id,
-                    customer_name="Ngọc Anh",
-                    customer_phone="0903111111",
-                    service_id=service_b1[0].id,
-                    technician_id=staff_b1[0].id,
+                    branch_id=branch.id,
+                    customer_name=f"Khách hẹn CN{idx}A",
+                    customer_phone=f"094{idx}111111",
+                    service_id=service_rows[0].id,
+                    technician_id=technician_rows[0].id,
                     appointment_date=date.today(),
                     appointment_time="09:00",
                     status="pending",
-                    note="Khách đặt qua hotline",
-                    created_by="letan1",
+                    note="Khách đặt qua fanpage",
+                    created_by=f"letan{idx}",
                 )
             )
             db.session.add(
                 Appointment(
-                    branch_id=b1.id,
-                    customer_name="Mai Trinh",
-                    customer_phone="0903222222",
-                    service_id=service_b1[0].id,
-                    technician_id=staff_b1[0].id,
+                    branch_id=branch.id,
+                    customer_name=f"Khách hẹn CN{idx}B",
+                    customer_phone=f"094{idx}222222",
+                    service_id=service_rows[min(1, len(service_rows) - 1)].id,
+                    technician_id=technician_rows[min(1, len(technician_rows) - 1)].id,
                     appointment_date=date.today() - timedelta(days=1),
                     appointment_time="14:30",
                     status="completed",
-                    note="Đã thực hiện",
-                    created_by="letan1",
-                )
-            )
-
-        if service_b2 and staff_b2:
-            db.session.add(
-                Appointment(
-                    branch_id=b2.id,
-                    customer_name="Khánh Linh",
-                    customer_phone="0903333333",
-                    service_id=service_b2[0].id,
-                    technician_id=staff_b2[0].id,
-                    appointment_date=date.today() + timedelta(days=1),
-                    appointment_time="10:15",
-                    status="cancelled",
-                    note="Khách bận việc",
-                    created_by="manager",
+                    note="Đã hoàn thành liệu trình",
+                    created_by=f"letan{idx}",
                 )
             )
 

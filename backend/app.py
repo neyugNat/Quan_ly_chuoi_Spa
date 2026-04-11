@@ -1,5 +1,6 @@
 import click
 from flask import Flask, redirect, url_for
+from sqlalchemy import text
 
 from backend.config import Config
 from backend.extensions import db
@@ -8,6 +9,7 @@ from backend.models import (
     migrate_add_branch_code,
     migrate_add_branch_manager_staff_id,
     migrate_backfill_user_staff_id,
+    migrate_cleanup_unused_columns,
     migrate_add_user_staff_id,
     migrate_remove_partial_payment_schema,
 )
@@ -20,6 +22,7 @@ def run_schema_migrations() -> None:
     migrate_add_user_staff_id()
     migrate_backfill_user_staff_id()
     migrate_remove_partial_payment_schema()
+    migrate_cleanup_unused_columns()
 
 
 def create_app():
@@ -53,9 +56,18 @@ def create_app():
     @app.cli.command("reset-db")
     @click.option("--seed/--no-seed", default=True)
     def reset_db_command(seed: bool):
+        if db.engine.dialect.name == "sqlite":
+            with db.engine.begin() as conn:
+                conn.execute(text("PRAGMA foreign_keys=OFF"))
+
         db.drop_all()
         db.create_all()
         run_schema_migrations()
+
+        if db.engine.dialect.name == "sqlite":
+            with db.engine.begin() as conn:
+                conn.execute(text("PRAGMA foreign_keys=ON"))
+
         if seed:
             ensure_seed_data()
         print("reset-db: ok")

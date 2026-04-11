@@ -7,6 +7,29 @@
       Tài khoản vận hành chi nhánh
     </h2>
 
+    <form method="get" class="flex flex-wrap items-center gap-3 mb-6 p-4 bg-spa-50 rounded-xl">
+      <select name="filter_role"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[220px]">
+        <option value="">Tất cả chức vụ</option>
+        {% for role_key in account_role_options %}
+          <option value="{{ role_key }}" {% if filters.filter_role == role_key %}selected{% endif %}>{{ role_label(role_key) }}</option>
+        {% endfor %}
+      </select>
+      <select name="filter_branch_id"
+        class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[240px]">
+        <option value="">Tất cả chi nhánh</option>
+        {% for b in branch_options %}
+          <option value="{{ b.id }}" {% if filters.filter_branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="px-5 py-2.5 rounded-xl border border-spa-300 bg-white text-spa-700 hover:bg-spa-50 font-medium transition-all">
+        Lọc
+      </button>
+      <a href="{{ url_for('web.accounts') }}" class="px-4 py-2.5 rounded-xl text-spa-500 hover:text-spa-700 hover:bg-spa-100 transition-all">
+        Xóa lọc
+      </a>
+    </form>
+
     <!-- Accounts Table -->
     <div class="overflow-x-auto">
       <table class="w-full">
@@ -35,7 +58,7 @@
               </td>
               <td class="py-3 px-4">
                 <div class="flex items-center gap-2">
-                  <a href="{{ url_for('web.accounts', edit_id=row.id) }}#account-editor"
+                  <a href="{{ url_for('web.accounts', edit_id=row.id, filter_role=filters.filter_role, filter_branch_id=filters.filter_branch_id) }}#account-editor"
                     class="px-3 py-1.5 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 text-sm font-medium transition-all">
                     Sửa
                   </a>
@@ -44,6 +67,8 @@
                     data-confirm-message="Bạn có chắc muốn xóa tài khoản này không?"
                     data-confirm-ok-label="Xóa tài khoản">
                     <input type="hidden" name="user_id" value="{{ row.id }}">
+                    <input type="hidden" name="filter_role" value="{{ filters.filter_role }}">
+                    <input type="hidden" name="filter_branch_id" value="{{ filters.filter_branch_id or '' }}">
                     <button type="submit" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium transition-all">
                       Xóa
                     </button>
@@ -67,6 +92,8 @@
     </h3>
     <form method="post" action="{{ url_for('web.accounts_save') }}" class="space-y-4" id="accountForm">
       <input type="hidden" name="user_id" value="{{ form_data.user_id or '' }}">
+      <input type="hidden" name="filter_role" value="{{ filters.filter_role }}">
+      <input type="hidden" name="filter_branch_id" value="{{ filters.filter_branch_id or '' }}">
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
@@ -140,7 +167,7 @@
             Lưu
           </button>
           {% if edit_mode %}
-            <a href="{{ url_for('web.accounts') }}"
+            <a href="{{ url_for('web.accounts', filter_role=filters.filter_role, filter_branch_id=filters.filter_branch_id) }}"
               class="px-5 py-2.5 rounded-xl border border-spa-200 text-spa-600 hover:bg-spa-50 font-medium transition-all">
               Hủy
             </a>
@@ -242,9 +269,11 @@
   <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6">
     <h3 class="text-lg font-semibold text-spa-800 mb-6 flex items-center gap-2">
       <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-      Đổi mật khẩu
+      Đổi mật khẩu quản trị
     </h3>
     <form method="post" action="{{ url_for('web.accounts_change_password') }}" class="flex flex-wrap items-end gap-4">
+      <input type="hidden" name="filter_role" value="{{ filters.filter_role }}">
+      <input type="hidden" name="filter_branch_id" value="{{ filters.filter_branch_id or '' }}">
       <div class="flex-1 min-w-[200px]">
         <label class="block text-sm font-medium text-spa-600 mb-2">Mật khẩu hiện tại</label>
         <input type="password" name="current_password" placeholder="Nhập mật khẩu hiện tại" required
@@ -262,7 +291,7 @@
       </div>
       <button type="submit"
         class="px-5 py-2.5 rounded-xl border border-spa-300 bg-white text-spa-700 hover:bg-spa-50 font-medium transition-all">
-        Đổi mật khẩu
+        Đổi mật khẩu quản trị
       </button>
     </form>
   </section>

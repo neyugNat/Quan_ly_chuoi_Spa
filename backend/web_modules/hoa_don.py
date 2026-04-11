@@ -1,6 +1,5 @@
 import csv
 import io
-import re
 from datetime import datetime
 from decimal import Decimal
 
@@ -13,6 +12,8 @@ from backend.models import Branch, Invoice, InvoiceItem, Service, Staff, User, r
 from backend.web import (
     INVOICE_STATUS_LABELS,
     get_current_branch_scope,
+    is_valid_phone,
+    normalize_phone_digits,
     normalize_choice,
     paginate,
     parse_date,
@@ -27,8 +28,7 @@ from backend.web import (
     web_bp,
 )
 
-
-PHONE_PATTERN = re.compile(r"^\d{8,15}$")
+INVOICE_STAFF_TITLE_KEYWORDS = ("quan ly chi nhanh", "thu ngan", "le tan")
 
 
 def invoices_error(message: str):
@@ -40,18 +40,13 @@ def normalize_staff_title(value: str | None) -> str:
     return parse_text(value).lower().replace("đ", "d")
 
 
-def is_branch_manager_title(value: str | None) -> bool:
+def is_invoice_staff_title(value: str | None) -> bool:
     title = normalize_staff_title(value)
-    return "quan ly chi nhanh" in title
-
-
-def is_cashier_title(value: str | None) -> bool:
-    title = normalize_staff_title(value)
-    return "thu ngan" in title or "le tan" in title
+    return any(keyword in title for keyword in INVOICE_STAFF_TITLE_KEYWORDS)
 
 
 def normalize_phone(value: str | None) -> str:
-    return re.sub(r"\D+", "", parse_text(value))
+    return normalize_phone_digits(value)
 
 
 def resolve_operator_staff(branch_id: int | None) -> Staff | None:
@@ -81,11 +76,7 @@ def list_staff_candidates_for_invoice(branch_id: int, operator_staff: Staff | No
     selected_ids: set[int] = set()
     candidates: list[Staff] = []
     for row in rows:
-        if (
-            row.id in role_staff_ids
-            or is_branch_manager_title(row.title)
-            or is_cashier_title(row.title)
-        ) and row.id not in selected_ids:
+        if (row.id in role_staff_ids or is_invoice_staff_title(row.title)) and row.id not in selected_ids:
             candidates.append(row)
             selected_ids.add(row.id)
 
@@ -141,23 +132,22 @@ def calc_kpi(filtered_query):
     total_count = filtered_query.count()
     canceled_count = filtered_query.filter(Invoice.status == "canceled").count()
     paid_count = filtered_query.filter(Invoice.status == "paid").count()
-    draft_count = filtered_query.filter(Invoice.status == "draft").count()
 
     completed_value = (
         filtered_query.filter(Invoice.status == "paid")
         .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
         .scalar()
     )
-    completion_base = paid_count + canceled_count
-    completion_ratio = round((paid_count * 100.0 / completion_base), 1) if completion_base else 0.0
+    paid_ratio = round((paid_count * 100.0 / total_count), 1) if total_count else 0.0
+    canceled_ratio = round((canceled_count * 100.0 / total_count), 1) if total_count else 0.0
 
     return {
         "total_count": total_count,
         "paid_count": paid_count,
         "completed_value": completed_value,
-        "draft_count": draft_count,
         "canceled_count": canceled_count,
-        "completion_ratio": completion_ratio,
+        "paid_ratio": paid_ratio,
+        "canceled_ratio": canceled_ratio,
     }
 
 
@@ -339,7 +329,7 @@ def invoices_create():
         return invoices_error("Vui lòng nhập tên khách.")
     if not customer_phone:
         return invoices_error("Vui lòng nhập SĐT khách.")
-    if not PHONE_PATTERN.fullmatch(customer_phone):
+    if not is_valid_phone(customer_phone):
         return invoices_error("SĐT khách phải gồm 8-15 chữ số.")
 
     service_ids = request.form.getlist("service_id[]")

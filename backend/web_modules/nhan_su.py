@@ -2,10 +2,8 @@ from flask import g, flash, redirect, render_template, request, url_for
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
-from backend.extensions import db
 from backend.models import Branch, Invoice, Staff
 from backend.web import (
-    collect_non_empty_text,
     list_scope_branches,
     normalize_choice,
     paginate,
@@ -21,37 +19,27 @@ from backend.web import (
 
 
 STAFF_TITLE_DEFAULTS = [
-    "Quản lý",
     "Quản lý chi nhánh",
     "Lễ tân",
-    "Kiểm soát kho",
     "Kỹ thuật viên",
-    "Quản lý ca",
+    "Kiểm soát kho",
 ]
 
 
+def staff_error(message: str, **query):
+    flash(message, "error")
+    return redirect(url_for("web.staff", **query))
+
+
+def find_staff_in_scope(scope_ids: list[int], staff_id: int | None) -> Staff | None:
+    if not staff_id:
+        return None
+    return Staff.query.filter(Staff.id == staff_id, Staff.branch_id.in_(scope_ids)).first()
+
+
 def build_staff_title_options(scope_ids: list[int]) -> list[str]:
-    if not scope_ids:
-        return STAFF_TITLE_DEFAULTS[:]
-
-    title_rows = (
-        db.session.query(Staff.title)
-        .filter(
-            Staff.branch_id.in_(scope_ids),
-            Staff.title.isnot(None),
-            Staff.title != "",
-        )
-        .distinct()
-        .order_by(Staff.title.asc())
-        .all()
-    )
-    dynamic_titles = collect_non_empty_text(title_rows)
-
-    options: list[str] = []
-    for title in STAFF_TITLE_DEFAULTS + dynamic_titles:
-        if title and title not in options:
-            options.append(title)
-    return options
+    _ = scope_ids
+    return STAFF_TITLE_DEFAULTS[:]
 
 
 @web_bp.get("/staff")
@@ -104,9 +92,10 @@ def staff():
         "phone": edit_row.phone if edit_row else "",
         "title": edit_row.title if edit_row else "",
         "start_date": edit_row.start_date.isoformat() if edit_row and edit_row.start_date else "",
-        "note": edit_row.note if edit_row else "",
         "status": edit_row.status if edit_row else "active",
     }
+    if form_data["title"] and form_data["title"] not in title_options:
+        title_options.insert(0, form_data["title"])
 
     return render_template(
         "web/staff.html",
@@ -141,31 +130,25 @@ def staff_save():
     if g.web_user.is_super_admin:
         selected_branch_id = parse_int(request.form.get("branch_id"))
         if selected_branch_id not in scope_ids:
-            flash("Chi nhánh không hợp lệ.", "error")
-            return redirect(url_for("web.staff"))
+            return staff_error("Chi nhánh không hợp lệ.")
         branch_id = selected_branch_id
     else:
         branch_id = active_branch_id
 
     if not branch_id:
-        flash("Tài khoản không có phạm vi chi nhánh hợp lệ.", "error")
-        return redirect(url_for("web.staff"))
+        return staff_error("Tài khoản không có phạm vi chi nhánh hợp lệ.")
 
     if not full_name:
-        flash("Tên nhân sự không được để trống.", "error")
-        return redirect(url_for("web.staff"))
+        return staff_error("Tên nhân sự không được để trống.", branch_id=branch_id)
     if not phone:
-        flash("Số điện thoại nhân sự không được để trống.", "error")
-        return redirect(url_for("web.staff"))
-    if not phone.isdigit() or len(phone) < 8 or len(phone) > 15:
-        flash("Số điện thoại nhân sự không hợp lệ.", "error")
-        return redirect(url_for("web.staff"))
+        return staff_error("Số điện thoại nhân sự không được để trống.", branch_id=branch_id)
+    if not phone.isdigit() or not 8 <= len(phone) <= 15:
+        return staff_error("Số điện thoại nhân sự không hợp lệ.", branch_id=branch_id)
 
     if staff_id:
-        row = Staff.query.filter(Staff.id == staff_id, Staff.branch_id.in_(scope_ids)).first()
+        row = find_staff_in_scope(scope_ids, staff_id)
         if row is None:
-            flash("Không tìm thấy nhân sự.", "error")
-            return redirect(url_for("web.staff"))
+            return staff_error("Không tìm thấy nhân sự.")
     else:
         row = Staff(branch_id=branch_id)
         db.session.add(row)
@@ -180,8 +163,7 @@ def staff_save():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        flash("Số điện thoại đã tồn tại trong hệ thống.", "error")
-        return redirect(url_for("web.staff"))
+        return staff_error("Số điện thoại đã tồn tại trong hệ thống.", branch_id=branch_id)
 
     flash("Đã lưu nhân sự.", "success")
     return redirect(url_for("web.staff", branch_id=branch_id))
@@ -194,20 +176,20 @@ def staff_delete():
     active_branch_id = getattr(g, "active_branch_id", None)
 
     staff_id = parse_int(request.form.get("staff_id"))
-    row = Staff.query.filter(Staff.id == staff_id, Staff.branch_id.in_(scope_ids)).first() if staff_id else None
+    row = find_staff_in_scope(scope_ids, staff_id)
     if row is None:
-        flash("Không tìm thấy nhân sự.", "error")
-        return redirect(url_for("web.staff"))
+        return staff_error("Không tìm thấy nhân sự.")
 
     if not g.web_user.is_super_admin and row.branch_id != active_branch_id:
-        flash("Bạn không có quyền xóa nhân sự của chi nhánh này.", "error")
-        return redirect(url_for("web.staff", branch_id=active_branch_id))
+        return staff_error("Bạn không có quyền xóa nhân sự của chi nhánh này.", branch_id=active_branch_id)
 
-    q = parse_text(request.form.get("q"))
-    title = parse_text(request.form.get("title"))
-    status = normalize_choice(request.form.get("status"), {"active", "inactive"}, "")
-    selected_branch_id = parse_int(request.form.get("branch_id"))
-    page = parse_page(request.form.get("page"), default=1)
+    filters = {
+        "q": parse_text(request.form.get("q")),
+        "title": parse_text(request.form.get("title")),
+        "status": normalize_choice(request.form.get("status"), {"active", "inactive"}, ""),
+        "branch_id": parse_int(request.form.get("branch_id")),
+        "page": parse_page(request.form.get("page"), default=1),
+    }
 
     has_invoice_ref = (
         Invoice.query.filter(Invoice.staff_id == row.id).with_entities(Invoice.id).first() is not None
@@ -229,16 +211,7 @@ def staff_delete():
             db.session.rollback()
             flash("Không thể xóa nhân sự vì đang có dữ liệu liên quan.", "error")
 
-    return redirect(
-        url_for(
-            "web.staff",
-            page=page,
-            q=q,
-            title=title,
-            status=status,
-            branch_id=selected_branch_id,
-        )
-    )
+    return redirect(url_for("web.staff", **filters))
 
 
 @web_bp.post("/staff/toggle")
@@ -246,10 +219,9 @@ def staff_delete():
 def staff_toggle():
     scope_ids = getattr(g, "scope_branch_ids", [])
     staff_id = parse_int(request.form.get("staff_id"))
-    row = Staff.query.filter(Staff.id == staff_id, Staff.branch_id.in_(scope_ids)).first() if staff_id else None
+    row = find_staff_in_scope(scope_ids, staff_id)
     if row is None:
-        flash("Không tìm thấy nhân sự.", "error")
-        return redirect(url_for("web.staff"))
+        return staff_error("Không tìm thấy nhân sự.")
 
     row.status = "inactive" if row.status == "active" else "active"
     db.session.commit()

@@ -404,11 +404,6 @@ button.warn {
   color: var(--red-text);
 }
 
-.status-draft {
-  background: #e2e8f0;
-  color: #334155;
-}
-
 .status-active {
   background: var(--green-bg);
   color: var(--green-text);

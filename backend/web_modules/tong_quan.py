@@ -8,6 +8,25 @@ from backend.models import Branch, InventoryItem, InventoryStock, Invoice, Invoi
 from backend.web import get_current_branch_scope, list_scope_branches, parse_int, parse_text, roles_required, web_bp
 
 
+def query_branch_revenue_by_month(data_scope, month_key, desc: bool = True):
+    query = (
+        db.session.query(
+            Branch.name,
+            func.coalesce(func.sum(Invoice.total_amount), 0).label("revenue"),
+        )
+        .join(Invoice, Invoice.branch_id == Branch.id)
+        .filter(
+            Branch.id.in_(data_scope),
+            Invoice.status == "paid",
+            func.strftime("%Y-%m", Invoice.created_at) == month_key,
+        )
+        .group_by(Branch.id, Branch.name)
+    )
+    order_expr = func.coalesce(func.sum(Invoice.total_amount), 0)
+    query = query.order_by(order_expr.desc() if desc else order_expr.asc())
+    return query.first()
+
+
 @web_bp.get("/dashboard")
 @roles_required("super_admin", "branch_manager")
 def dashboard():
@@ -107,37 +126,8 @@ def dashboard():
         .scalar()
     )
 
-    top_branch_row = (
-        db.session.query(
-            Branch.name,
-            func.coalesce(func.sum(Invoice.total_amount), 0).label("revenue"),
-        )
-        .join(Invoice, Invoice.branch_id == Branch.id)
-        .filter(
-            Branch.id.in_(data_scope),
-            Invoice.status == "paid",
-            func.strftime("%Y-%m", Invoice.created_at) == month_key,
-        )
-        .group_by(Branch.id, Branch.name)
-        .order_by(func.coalesce(func.sum(Invoice.total_amount), 0).desc())
-        .first()
-    )
-
-    weak_branch_row = (
-        db.session.query(
-            Branch.name,
-            func.coalesce(func.sum(Invoice.total_amount), 0).label("revenue"),
-        )
-        .join(Invoice, Invoice.branch_id == Branch.id)
-        .filter(
-            Branch.id.in_(data_scope),
-            Invoice.status == "paid",
-            func.strftime("%Y-%m", Invoice.created_at) == month_key,
-        )
-        .group_by(Branch.id, Branch.name)
-        .order_by(func.coalesce(func.sum(Invoice.total_amount), 0).asc())
-        .first()
-    )
+    top_branch_row = query_branch_revenue_by_month(data_scope, month_key, desc=True)
+    weak_branch_row = query_branch_revenue_by_month(data_scope, month_key, desc=False)
 
     recent_invoices = (
         Invoice.query.filter(Invoice.branch_id.in_(data_scope))

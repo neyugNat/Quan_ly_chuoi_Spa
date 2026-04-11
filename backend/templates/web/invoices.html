@@ -1,12 +1,11 @@
 {% extends "web/base.html" %}
 {% block content %}
   {% set invoice_badge = {
-    'draft': 'bg-spa-100 text-spa-700',
     'paid': 'bg-emerald-200 text-emerald-800',
     'canceled': 'bg-red-200 text-red-800'
   } %}
 
-  <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4 mb-6">
+  <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
     <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
       <p class="text-sm text-spa-500">Tổng số hóa đơn</p>
       <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.total_count }}</p>
@@ -20,16 +19,8 @@
       <p class="text-2xl font-bold text-spa-800 mt-1">{{ fmt_money(kpi.completed_value) }}</p>
     </article>
     <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
-      <p class="text-sm text-spa-500">Số hóa đơn nháp</p>
-      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.draft_count }}</p>
-    </article>
-    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
-      <p class="text-sm text-spa-500">Số hóa đơn bị hủy</p>
-      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.canceled_count }}</p>
-    </article>
-    <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
-      <p class="text-sm text-spa-500">Tỷ lệ hoàn tất (Không nháp)</p>
-      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.completion_ratio }}%</p>
+      <p class="text-sm text-spa-500">Tỷ lệ hóa đơn đã thanh toán</p>
+      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.paid_ratio }}%</p>
     </article>
   </section>
 
@@ -47,7 +38,6 @@
         class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[170px]"
       >
         <option value="">Tất cả trạng thái</option>
-        <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>Nháp</option>
         <option value="paid" {% if filters.status == 'paid' %}selected{% endif %}>Đã thanh toán</option>
         <option value="canceled" {% if filters.status == 'canceled' %}selected{% endif %}>Đã hủy</option>
       </select>

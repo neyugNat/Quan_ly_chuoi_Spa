@@ -16,6 +16,15 @@
     <form method="get" class="flex flex-wrap items-center gap-3 mb-6 p-4 bg-spa-50 rounded-xl">
       <input type="text" name="q" value="{{ q }}" placeholder="Tìm theo tên dịch vụ"
         class="flex-1 min-w-[200px] px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+      {% if is_super_admin %}
+        <select name="branch_id"
+          class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[210px]">
+          <option value="">Tất cả chi nhánh</option>
+          {% for b in branch_options %}
+            <option value="{{ b.id }}" {% if selected_branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      {% endif %}
       <select name="group"
         class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all min-w-[180px]">
         <option value="">Tất cả nhóm dịch vụ</option>
@@ -100,14 +109,14 @@
     <!-- Pagination -->
     <div class="flex items-center justify-center gap-4 mt-6 pt-4 border-t border-spa-100">
       {% if pager.has_prev %}
-        <a href="{{ url_for('web.services', page=pager.prev_num, q=q, group=group_name, status=status) }}"
+        <a href="{{ url_for('web.services', page=pager.prev_num, q=q, group=group_name, status=status, branch_id=selected_branch_id) }}"
           class="px-4 py-2 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 font-medium transition-all">
           ← Trang trước
         </a>
       {% endif %}
       <span class="text-spa-600">Trang {{ pager.page }} / {{ pager.pages or 1 }}</span>
       {% if pager.has_next %}
-        <a href="{{ url_for('web.services', page=pager.next_num, q=q, group=group_name, status=status) }}"
+        <a href="{{ url_for('web.services', page=pager.next_num, q=q, group=group_name, status=status, branch_id=selected_branch_id) }}"
           class="px-4 py-2 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 font-medium transition-all">
           Trang sau →
         </a>

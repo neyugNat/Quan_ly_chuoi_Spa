@@ -56,6 +56,121 @@ def apply_invoice_date_filters(query, from_date, to_date):
     return query
 
 
+def build_invoice_base(report_scope, from_date, to_date):
+    invoice_base = Invoice.query.filter(Invoice.branch_id.in_(report_scope))
+    return apply_invoice_date_filters(invoice_base, from_date, to_date)
+
+
+def summarize_invoices(invoice_base):
+    non_canceled_base = invoice_base.filter(Invoice.status != "canceled")
+    canceled_base = invoice_base.filter(Invoice.status == "canceled")
+    return {
+        "total_invoice_value": non_canceled_base.with_entities(func.coalesce(func.sum(Invoice.total_amount), 0)).scalar(),
+        "paid_count": invoice_base.filter(Invoice.status == "paid").with_entities(func.count(Invoice.id)).scalar(),
+        "canceled_count": invoice_base.filter(Invoice.status == "canceled").with_entities(func.count(Invoice.id)).scalar(),
+        "collected_amount": non_canceled_base.filter(Invoice.status == "paid")
+        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
+        .scalar(),
+        "canceled_value": canceled_base
+        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
+        .scalar(),
+        "total_invoices": invoice_base.with_entities(func.count(Invoice.id)).scalar(),
+    }
+
+
+def query_status_rows(invoice_base):
+    return (
+        invoice_base.with_entities(Invoice.status, func.count(Invoice.id))
+        .group_by(Invoice.status)
+        .order_by(Invoice.status.asc())
+        .all()
+    )
+
+
+def branch_join_conditions(from_date, to_date, *, exclude_canceled=False):
+    conditions = [Invoice.branch_id == Branch.id]
+    if exclude_canceled:
+        conditions.append(Invoice.status != "canceled")
+    if from_date:
+        conditions.append(func.date(Invoice.created_at) >= from_date.isoformat())
+    if to_date:
+        conditions.append(func.date(Invoice.created_at) <= to_date.isoformat())
+    return conditions
+
+
+def query_branch_rows_for_report(report_scope, from_date, to_date):
+    return (
+        db.session.query(
+            Branch.id,
+            Branch.name,
+            func.coalesce(func.sum(case((Invoice.status == "paid", Invoice.total_amount), else_=0)), 0).label("revenue"),
+            func.count(Invoice.id).label("invoice_count"),
+        )
+        .filter(Branch.id.in_(report_scope))
+        .outerjoin(Invoice, and_(*branch_join_conditions(from_date, to_date, exclude_canceled=True)))
+        .group_by(Branch.id, Branch.name)
+        .order_by(Branch.name.asc())
+        .all()
+    )
+
+
+def query_branch_rows_for_export(report_scope, from_date, to_date):
+    return (
+        db.session.query(
+            Branch.name,
+            func.count(Invoice.id).label("invoice_count"),
+            func.coalesce(func.sum(case((Invoice.status == "canceled", 1), else_=0)), 0).label("canceled_count"),
+            func.coalesce(func.sum(case((Invoice.status != "canceled", Invoice.total_amount), else_=0)), 0).label("total_value"),
+            func.coalesce(func.sum(case((Invoice.status == "paid", Invoice.total_amount), else_=0)), 0).label("collected"),
+            func.coalesce(func.sum(case((Invoice.status == "canceled", Invoice.total_amount), else_=0)), 0).label("canceled_value"),
+        )
+        .filter(Branch.id.in_(report_scope))
+        .outerjoin(Invoice, and_(*branch_join_conditions(from_date, to_date)))
+        .group_by(Branch.id, Branch.name)
+        .order_by(Branch.name.asc())
+        .all()
+    )
+
+
+def query_top_service_rows(report_scope, from_date, to_date, limit):
+    top_service_rows = (
+        db.session.query(
+            InvoiceItem.service_name,
+            func.coalesce(func.sum(InvoiceItem.qty), 0).label("qty"),
+        )
+        .join(Invoice, Invoice.id == InvoiceItem.invoice_id)
+        .filter(Invoice.branch_id.in_(report_scope), Invoice.status != "canceled")
+    )
+    top_service_rows = apply_invoice_date_filters(top_service_rows, from_date, to_date)
+    return (
+        top_service_rows.group_by(InvoiceItem.service_name)
+        .order_by(func.coalesce(func.sum(InvoiceItem.qty), 0).desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def query_low_stock_rows(report_scope, limit):
+    return (
+        db.session.query(
+            Branch.name,
+            InventoryItem.name,
+            InventoryStock.quantity,
+            InventoryItem.min_stock,
+        )
+        .join(InventoryStock, InventoryStock.branch_id == Branch.id)
+        .join(InventoryItem, InventoryItem.id == InventoryStock.item_id)
+        .filter(
+            Branch.id.in_(report_scope),
+            InventoryItem.status == "active",
+            InventoryStock.quantity <= InventoryItem.min_stock,
+        )
+        .order_by(Branch.name.asc(), InventoryStock.quantity.asc())
+        .limit(limit)
+        .all()
+    )
+
+
 @web_bp.get("/reports")
 @roles_required("super_admin", "branch_manager")
 def reports():
@@ -71,31 +186,10 @@ def reports():
 
     report_scope = [selected_branch_id] if selected_branch_id else scope_ids
 
-    invoice_base = Invoice.query.filter(Invoice.branch_id.in_(report_scope))
-    invoice_base = apply_invoice_date_filters(invoice_base, from_date, to_date)
-    non_canceled_invoice_base = invoice_base.filter(Invoice.status != "canceled")
+    invoice_base = build_invoice_base(report_scope, from_date, to_date)
+    invoice_summary = summarize_invoices(invoice_base)
 
-    total_invoice_value = non_canceled_invoice_base.with_entities(func.coalesce(func.sum(Invoice.total_amount), 0)).scalar()
-    paid_count = invoice_base.filter(Invoice.status == "paid").with_entities(func.count(Invoice.id)).scalar()
-    canceled_count = invoice_base.filter(Invoice.status == "canceled").with_entities(func.count(Invoice.id)).scalar()
-    collected_amount = (
-        non_canceled_invoice_base.filter(Invoice.status == "paid")
-        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
-        .scalar()
-    )
-    receivable_amount = (
-        non_canceled_invoice_base.filter(Invoice.status == "draft")
-        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
-        .scalar()
-    )
-    total_invoices = invoice_base.with_entities(func.count(Invoice.id)).scalar()
-
-    status_rows = (
-        invoice_base.with_entities(Invoice.status, func.count(Invoice.id))
-        .group_by(Invoice.status)
-        .order_by(Invoice.status.asc())
-        .all()
-    )
+    status_rows = query_status_rows(invoice_base)
     status_items = [{"status": status, "count": count} for status, count in status_rows]
 
     month_rows = (
@@ -111,25 +205,7 @@ def reports():
     month_keys = recent_month_keys(6)
     month_items = [{"month": key, "revenue": month_map.get(key, 0)} for key in month_keys]
 
-    join_conditions = [Invoice.branch_id == Branch.id, Invoice.status != "canceled"]
-    if from_date:
-        join_conditions.append(func.date(Invoice.created_at) >= from_date.isoformat())
-    if to_date:
-        join_conditions.append(func.date(Invoice.created_at) <= to_date.isoformat())
-
-    branch_rows = (
-        db.session.query(
-            Branch.id,
-            Branch.name,
-            func.coalesce(func.sum(case((Invoice.status == "paid", Invoice.total_amount), else_=0)), 0).label("revenue"),
-            func.count(Invoice.id).label("invoice_count"),
-        )
-        .filter(Branch.id.in_(report_scope))
-        .outerjoin(Invoice, and_(*join_conditions))
-        .group_by(Branch.id, Branch.name)
-        .order_by(Branch.name.asc())
-        .all()
-    )
+    branch_rows = query_branch_rows_for_report(report_scope, from_date, to_date)
     branch_items = [
         {
             "id": branch_id,
@@ -140,40 +216,8 @@ def reports():
         for branch_id, name, revenue, invoice_count in branch_rows
     ]
 
-    top_service_rows = (
-        db.session.query(
-            InvoiceItem.service_name,
-            func.coalesce(func.sum(InvoiceItem.qty), 0).label("qty"),
-        )
-        .join(Invoice, Invoice.id == InvoiceItem.invoice_id)
-        .filter(Invoice.branch_id.in_(report_scope), Invoice.status != "canceled")
-    )
-    top_service_rows = apply_invoice_date_filters(top_service_rows, from_date, to_date)
-    top_service_rows = (
-        top_service_rows.group_by(InvoiceItem.service_name)
-        .order_by(func.coalesce(func.sum(InvoiceItem.qty), 0).desc())
-        .limit(5)
-        .all()
-    )
-
-    low_stock_rows = (
-        db.session.query(
-            Branch.name,
-            InventoryItem.name,
-            InventoryStock.quantity,
-            InventoryItem.min_stock,
-        )
-        .join(InventoryStock, InventoryStock.branch_id == Branch.id)
-        .join(InventoryItem, InventoryItem.id == InventoryStock.item_id)
-        .filter(
-            Branch.id.in_(report_scope),
-            InventoryItem.status == "active",
-            InventoryStock.quantity <= InventoryItem.min_stock,
-        )
-        .order_by(Branch.name.asc(), InventoryStock.quantity.asc())
-        .limit(20)
-        .all()
-    )
+    top_service_rows = query_top_service_rows(report_scope, from_date, to_date, limit=5)
+    low_stock_rows = query_low_stock_rows(report_scope, limit=20)
 
     best_branch = max(branch_items, key=lambda x: x["revenue"], default=None)
     weak_branch = min(branch_items, key=lambda x: x["revenue"], default=None)
@@ -187,12 +231,12 @@ def reports():
         branch_options=branch_options,
         month_items=month_items,
         branch_items=branch_items,
-        total_invoice_value=total_invoice_value,
-        paid_count=paid_count,
-        canceled_count=canceled_count,
-        collected_amount=collected_amount,
-        receivable_amount=receivable_amount,
-        total_invoices=total_invoices,
+        total_invoice_value=invoice_summary["total_invoice_value"],
+        paid_count=invoice_summary["paid_count"],
+        canceled_count=invoice_summary["canceled_count"],
+        collected_amount=invoice_summary["collected_amount"],
+        canceled_value=invoice_summary["canceled_value"],
+        total_invoices=invoice_summary["total_invoices"],
         status_items=status_items,
         top_service_rows=top_service_rows,
         low_stock_rows=low_stock_rows,
@@ -216,68 +260,12 @@ def reports_export_csv():
         return redirect(url_for("web.reports"))
 
     report_scope = [selected_branch_id] if selected_branch_id else scope_ids
-    invoice_base = Invoice.query.filter(Invoice.branch_id.in_(report_scope))
-    invoice_base = apply_invoice_date_filters(invoice_base, from_date, to_date)
-    non_canceled_base = invoice_base.filter(Invoice.status != "canceled")
+    invoice_base = build_invoice_base(report_scope, from_date, to_date)
+    invoice_summary = summarize_invoices(invoice_base)
 
-    total_invoices = invoice_base.with_entities(func.count(Invoice.id)).scalar()
-    canceled_count = invoice_base.filter(Invoice.status == "canceled").with_entities(func.count(Invoice.id)).scalar()
-    total_invoice_value = non_canceled_base.with_entities(func.coalesce(func.sum(Invoice.total_amount), 0)).scalar()
-    collected_amount = (
-        non_canceled_base.filter(Invoice.status == "paid")
-        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
-        .scalar()
-    )
-    receivable_amount = (
-        non_canceled_base.filter(Invoice.status == "draft")
-        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
-        .scalar()
-    )
-
-    join_conditions = [Invoice.branch_id == Branch.id]
-    if from_date:
-        join_conditions.append(func.date(Invoice.created_at) >= from_date.isoformat())
-    if to_date:
-        join_conditions.append(func.date(Invoice.created_at) <= to_date.isoformat())
-
-    branch_rows = (
-        db.session.query(
-            Branch.name,
-            func.count(Invoice.id).label("invoice_count"),
-            func.coalesce(func.sum(case((Invoice.status == "canceled", 1), else_=0)), 0).label("canceled_count"),
-            func.coalesce(func.sum(case((Invoice.status != "canceled", Invoice.total_amount), else_=0)), 0).label("total_value"),
-            func.coalesce(func.sum(case((Invoice.status == "paid", Invoice.total_amount), else_=0)), 0).label("collected"),
-            func.coalesce(func.sum(case((Invoice.status == "draft", Invoice.total_amount), else_=0)), 0).label("receivable"),
-        )
-        .filter(Branch.id.in_(report_scope))
-        .outerjoin(Invoice, and_(*join_conditions))
-        .group_by(Branch.id, Branch.name)
-        .order_by(Branch.name.asc())
-        .all()
-    )
-
-    status_rows = (
-        invoice_base.with_entities(Invoice.status, func.count(Invoice.id))
-        .group_by(Invoice.status)
-        .order_by(Invoice.status.asc())
-        .all()
-    )
-
-    top_service_rows = (
-        db.session.query(
-            InvoiceItem.service_name,
-            func.coalesce(func.sum(InvoiceItem.qty), 0).label("qty"),
-        )
-        .join(Invoice, Invoice.id == InvoiceItem.invoice_id)
-        .filter(Invoice.branch_id.in_(report_scope), Invoice.status != "canceled")
-    )
-    top_service_rows = apply_invoice_date_filters(top_service_rows, from_date, to_date)
-    top_service_rows = (
-        top_service_rows.group_by(InvoiceItem.service_name)
-        .order_by(func.coalesce(func.sum(InvoiceItem.qty), 0).desc())
-        .limit(20)
-        .all()
-    )
+    branch_rows = query_branch_rows_for_export(report_scope, from_date, to_date)
+    status_rows = query_status_rows(invoice_base)
+    top_service_rows = query_top_service_rows(report_scope, from_date, to_date, limit=20)
 
     exported_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -298,11 +286,11 @@ def reports_export_csv():
     writer.writerow(["Chi nhánh lọc", selected_branch_label])
     writer.writerow([])
     writer.writerow(["Chỉ số", "Giá trị"])
-    writer.writerow(["Tổng hóa đơn", int(total_invoices or 0)])
-    writer.writerow(["Hóa đơn hủy", int(canceled_count or 0)])
-    writer.writerow(["Tổng giá trị hóa đơn hợp lệ", int(float(total_invoice_value or 0))])
-    writer.writerow(["Doanh thu hoàn tất", int(float(collected_amount or 0))])
-    writer.writerow(["Giá trị đơn nháp", int(float(receivable_amount or 0))])
+    writer.writerow(["Tổng hóa đơn", int(invoice_summary["total_invoices"] or 0)])
+    writer.writerow(["Hóa đơn hủy", int(invoice_summary["canceled_count"] or 0)])
+    writer.writerow(["Tổng giá trị hóa đơn hợp lệ", int(float(invoice_summary["total_invoice_value"] or 0))])
+    writer.writerow(["Doanh thu hoàn tất", int(float(invoice_summary["collected_amount"] or 0))])
+    writer.writerow(["Giá trị hóa đơn hủy", int(float(invoice_summary["canceled_value"] or 0))])
     writer.writerow([])
     writer.writerow([
         "Chi nhánh",
@@ -311,7 +299,7 @@ def reports_export_csv():
         "Hóa đơn hợp lệ",
         "Tổng giá trị hóa đơn hợp lệ",
         "Doanh thu hoàn tất",
-        "Giá trị đơn nháp",
+        "Giá trị hóa đơn hủy",
     ])
     for row in branch_rows:
         writer.writerow(
@@ -322,7 +310,7 @@ def reports_export_csv():
                 int((row.invoice_count or 0) - (row.canceled_count or 0)),
                 int(float(row.total_value or 0)),
                 int(float(row.collected or 0)),
-                int(float(row.receivable or 0)),
+                int(float(row.canceled_value or 0)),
             ]
         )
 

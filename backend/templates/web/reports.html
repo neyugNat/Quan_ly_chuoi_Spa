@@ -1,7 +1,6 @@
 {% extends "web/base.html" %}
 {% block content %}
   {% set invoice_badge = {
-    'draft': 'bg-spa-100 text-spa-700',
     'paid': 'bg-emerald-200 text-emerald-800',
     'canceled': 'bg-red-200 text-red-800'
   } %}
@@ -57,11 +56,11 @@
       </article>
       {% if is_super_admin %}
         <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
-          <p class="text-sm text-spa-500">Chi nhánh doanh thu cao nhất</p>
+          <p class="text-sm text-spa-500">Chi nhánh doanh thu cao nhất theo kỳ lọc</p>
           <p class="text-xl font-semibold text-spa-800 mt-1">{{ best_branch.name if best_branch else '-' }}</p>
         </article>
         <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
-          <p class="text-sm text-spa-500">Chi nhánh doanh thu thấp nhất</p>
+          <p class="text-sm text-spa-500">Chi nhánh doanh thu thấp nhất theo kỳ lọc</p>
           <p class="text-xl font-semibold text-spa-800 mt-1">{{ weak_branch.name if weak_branch else '-' }}</p>
         </article>
       {% endif %}

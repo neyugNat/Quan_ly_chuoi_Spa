@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from functools import wraps
+import re
 
 from flask import Blueprint, flash, g, redirect, request, session, url_for
 
@@ -20,7 +21,6 @@ web_bp = Blueprint(
 
 
 INVOICE_STATUS_LABELS = {
-    "draft": "Nháp",
     "paid": "Đã thanh toán",
     "canceled": "Đã hủy",
 }
@@ -78,10 +78,19 @@ BRANCH_OPERATION_ROLES = {
 }
 
 ACCOUNT_MANAGED_ROLES = BRANCH_OPERATION_ROLES
+PHONE_PATTERN = re.compile(r"^\d{8,15}$")
 
 
 def parse_text(value: str | None) -> str:
     return (value or "").strip()
+
+
+def normalize_phone_digits(value: str | None) -> str:
+    return re.sub(r"\D+", "", parse_text(value))
+
+
+def is_valid_phone(value: str | None) -> bool:
+    return bool(PHONE_PATTERN.fullmatch(parse_text(value)))
 
 
 def parse_optional_text(value: str | None) -> str | None:

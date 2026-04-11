@@ -198,7 +198,6 @@ def branches_save():
     row.address = address
     row.phone = phone
     row.manager_staff_id = manager_staff.id if manager_staff else None
-    row.manager_name = manager_staff.full_name if manager_staff else None
     row.status = status
 
     if branch_id and old_manager_staff_id != row.manager_staff_id:

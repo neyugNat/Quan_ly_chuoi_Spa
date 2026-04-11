@@ -56,9 +56,12 @@ def inventory_error(message: str, default_branch_id=None, default_page=1):
     return redirect_inventory_with_filters(default_branch_id=default_branch_id, default_page=default_page)
 
 
-def inventory_home_error(message: str):
-    flash(message, "error")
-    return redirect(url_for("web.inventory"))
+def apply_inventory_filters(query, branch_column, selected_branch_id: int | None, q: str, group_name: str):
+    if selected_branch_id:
+        query = query.filter(branch_column == selected_branch_id)
+    if q:
+        query = query.filter(InventoryItem.name.ilike(f"%{q}%"))
+    return query.filter(InventoryItem.group_name == group_name) if group_name else query
 
 
 @web_bp.get("/inventory")
@@ -76,31 +79,25 @@ def inventory():
     edit_stock_id = parse_int(request.args.get("edit_stock_id"))
     page = parse_page(request.args.get("page"), default=1)
 
-    stock_query = (
-        InventoryStock.query.join(InventoryItem, InventoryStock.item_id == InventoryItem.id)
-        .filter(InventoryStock.branch_id.in_(scope_ids))
+    stock_query = apply_inventory_filters(
+        InventoryStock.query.join(InventoryItem, InventoryStock.item_id == InventoryItem.id).filter(InventoryStock.branch_id.in_(scope_ids)),
+        InventoryStock.branch_id,
+        selected_branch_id,
+        q,
+        group_name,
     )
-    if selected_branch_id:
-        stock_query = stock_query.filter(InventoryStock.branch_id == selected_branch_id)
-    if q:
-        stock_query = stock_query.filter(InventoryItem.name.ilike(f"%{q}%"))
-    if group_name:
-        stock_query = stock_query.filter(InventoryItem.group_name == group_name)
     if low:
         stock_query = stock_query.filter(InventoryStock.quantity <= InventoryItem.min_stock)
 
     pager = paginate(stock_query.order_by(InventoryStock.id.asc()), page=page, per_page=12)
 
-    tx_query = (
-        InventoryTransaction.query.join(InventoryItem, InventoryTransaction.item_id == InventoryItem.id)
-        .filter(InventoryTransaction.branch_id.in_(scope_ids))
+    tx_query = apply_inventory_filters(
+        InventoryTransaction.query.join(InventoryItem, InventoryTransaction.item_id == InventoryItem.id).filter(InventoryTransaction.branch_id.in_(scope_ids)),
+        InventoryTransaction.branch_id,
+        selected_branch_id,
+        q,
+        group_name,
     )
-    if selected_branch_id:
-        tx_query = tx_query.filter(InventoryTransaction.branch_id == selected_branch_id)
-    if q:
-        tx_query = tx_query.filter(InventoryItem.name.ilike(f"%{q}%"))
-    if group_name:
-        tx_query = tx_query.filter(InventoryItem.group_name == group_name)
     tx_rows = tx_query.order_by(InventoryTransaction.id.asc()).limit(20).all()
 
     branch_options = list_scope_branches(scope_ids, order_by="id")
@@ -307,16 +304,16 @@ def inventory_items_save():
     status = normalize_choice(request.form.get("status"), {"active", "inactive"}, "active")
 
     if not name or not unit:
-        return inventory_home_error("Tên sản phẩm và đơn vị không được để trống.")
+        return inventory_error("Tên sản phẩm và đơn vị không được để trống.")
     if min_stock_value is None or min_stock_value < 0:
-        return inventory_home_error("Mức tồn tối thiểu phải là số nguyên không âm.")
+        return inventory_error("Mức tồn tối thiểu phải là số nguyên không âm.")
 
     min_stock = Decimal(min_stock_value)
 
     if item_id:
         row = db.session.get(InventoryItem, item_id)
         if row is None:
-            return inventory_home_error("Không tìm thấy sản phẩm kho.")
+            return inventory_error("Không tìm thấy sản phẩm kho.")
     else:
         row = InventoryItem()
         db.session.add(row)
@@ -331,7 +328,7 @@ def inventory_items_save():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return inventory_home_error("Tên sản phẩm kho đã tồn tại.")
+        return inventory_error("Tên sản phẩm kho đã tồn tại.")
 
     flash("Đã lưu danh mục sản phẩm kho.", "success")
     return redirect(url_for("web.inventory"))
@@ -352,20 +349,20 @@ def inventory_txn():
         branch_id = g.active_branch_id
 
     if branch_id not in scope_ids:
-        return inventory_home_error("Chi nhánh không hợp lệ.")
+        return inventory_error("Chi nhánh không hợp lệ.")
     if not tx_type:
-        return inventory_home_error("Loại giao dịch kho không hợp lệ.")
+        return inventory_error("Loại giao dịch kho không hợp lệ.")
     if qty_value is None or qty_value < 0:
-        return inventory_home_error("Số lượng phải là số nguyên không âm.")
+        return inventory_error("Số lượng phải là số nguyên không âm.")
 
     qty_input = Decimal(qty_value)
 
     item = db.session.get(InventoryItem, item_id) if item_id else None
     if item is None:
-        return inventory_home_error("Sản phẩm kho không hợp lệ.")
+        return inventory_error("Sản phẩm kho không hợp lệ.")
 
     if tx_type in {"in", "out"} and qty_input <= 0:
-        return inventory_home_error("Số lượng nhập/xuất phải lớn hơn 0.")
+        return inventory_error("Số lượng nhập/xuất phải lớn hơn 0.")
 
     stock = InventoryStock.query.filter_by(branch_id=branch_id, item_id=item.id).first()
     if stock is None:
@@ -385,7 +382,7 @@ def inventory_txn():
         delta = new_qty - current_qty
 
     if new_qty < 0:
-        return inventory_home_error("Không thể xuất kho vượt số lượng hiện có.")
+        return inventory_error("Không thể xuất kho vượt số lượng hiện có.")
 
     stock.quantity = new_qty
     db.session.add(

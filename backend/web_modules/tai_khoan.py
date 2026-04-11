@@ -17,6 +17,7 @@ from backend.web import (
 
 
 MIN_PASSWORD_LENGTH = 6
+ACCOUNT_ROLE_OPTIONS = ("branch_manager", "receptionist", "inventory_controller", "technician")
 
 
 ROLE_STAFF_TITLES = {
@@ -31,9 +32,27 @@ def normalize_text(value: str | None) -> str:
     return parse_text(value).lower()
 
 
+def build_account_filters(scope_ids: list[int], use_form_first: bool = False) -> dict:
+    role_raw = request.args.get("filter_role")
+    branch_raw = request.args.get("filter_branch_id")
+    if use_form_first:
+        role_raw = request.form.get("filter_role") or role_raw
+        branch_raw = request.form.get("filter_branch_id") or branch_raw
+
+    filter_role = normalize_choice(role_raw, set(ACCOUNT_MANAGED_ROLES), "")
+    filter_branch_id = parse_int(branch_raw)
+    if filter_branch_id not in scope_ids:
+        filter_branch_id = None
+    return {
+        "filter_role": filter_role,
+        "filter_branch_id": filter_branch_id,
+    }
+
+
 def accounts_redirect(message: str, category: str = "error"):
     flash(message, category)
-    return redirect(url_for("web.accounts"))
+    scope_ids = getattr(g, "scope_branch_ids", [])
+    return redirect(url_for("web.accounts", **build_account_filters(scope_ids, use_form_first=True)))
 
 
 def find_non_admin_user(user_id: int | None) -> User | None:
@@ -88,8 +107,15 @@ def is_valid_password(password: str, user_id: int | None) -> bool:
 def accounts():
     scope_ids = getattr(g, "scope_branch_ids", [])
     edit_id = parse_int(request.args.get("edit_id"))
+    filters = build_account_filters(scope_ids)
 
-    rows = User.query.filter(User.role != "super_admin").order_by(User.id.desc()).all()
+    rows_query = User.query.filter(User.role != "super_admin")
+    if filters["filter_role"]:
+        rows_query = rows_query.filter(User.role == filters["filter_role"])
+    if filters["filter_branch_id"]:
+        rows_query = rows_query.filter(User.branch_id == filters["filter_branch_id"])
+
+    rows = rows_query.order_by(User.id.desc()).all()
     branch_options = list_scope_branches(scope_ids, order_by="name")
     edit_row = find_non_admin_user(edit_id)
     if edit_id and edit_row is None:
@@ -107,6 +133,8 @@ def accounts():
         role_staff_titles=role_staff_titles,
         edit_mode=bool(edit_row),
         form_data=form_data,
+        filters=filters,
+        account_role_options=ACCOUNT_ROLE_OPTIONS,
     )
 
 
