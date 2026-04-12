@@ -2,6 +2,7 @@ from flask import g, flash, redirect, render_template, request, url_for
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
+from backend.extensions import db
 from backend.models import Branch, Invoice, Staff
 from backend.web import (
     list_scope_branches,
@@ -111,6 +112,7 @@ def staff():
         edit_mode=bool(edit_row),
         form_data=form_data,
         is_super_admin=user.is_super_admin,
+        current_user_staff_id=user.staff_id,
     )
 
 
@@ -179,6 +181,9 @@ def staff_delete():
     row = find_staff_in_scope(scope_ids, staff_id)
     if row is None:
         return staff_error("Không tìm thấy nhân sự.")
+
+    if not g.web_user.is_super_admin and g.web_user.staff_id and row.id == g.web_user.staff_id:
+        return staff_error("Bạn không thể tự xóa chính mình.", branch_id=active_branch_id)
 
     if not g.web_user.is_super_admin and row.branch_id != active_branch_id:
         return staff_error("Bạn không có quyền xóa nhân sự của chi nhánh này.", branch_id=active_branch_id)

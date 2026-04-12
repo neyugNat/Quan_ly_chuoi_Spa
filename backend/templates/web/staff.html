@@ -77,20 +77,23 @@
                     class="px-3 py-1.5 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 text-sm font-medium transition-all">
                     Sửa
                   </a>
-                  <form method="post" action="{{ url_for('web.staff_delete') }}" class="inline"
-                    data-confirm-modal="1"
-                    data-confirm-message="Nếu nhân sự đã phát sinh nghiệp vụ, trạng thái sẽ chuyển sang ngừng hoạt động thay vì xóa. Tiếp tục?"
-                    data-confirm-ok-label="Xóa nhân sự">
-                    <input type="hidden" name="staff_id" value="{{ row.id }}">
-                    <input type="hidden" name="q" value="{{ q }}">
-                    <input type="hidden" name="title" value="{{ title }}">
-                    <input type="hidden" name="status" value="{{ status }}">
-                    <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
-                    <input type="hidden" name="page" value="{{ pager.page }}">
-                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium transition-all">
-                      Xóa
-                    </button>
-                  </form>
+                  {% set can_delete_row = is_super_admin or (not current_user_staff_id) or (row.id != current_user_staff_id) %}
+                  {% if can_delete_row %}
+                    <form method="post" action="{{ url_for('web.staff_delete') }}" class="inline"
+                      data-confirm-modal="1"
+                      data-confirm-message="Nếu nhân sự đã phát sinh nghiệp vụ, trạng thái sẽ chuyển sang ngừng hoạt động thay vì xóa. Tiếp tục?"
+                      data-confirm-ok-label="Xóa nhân sự">
+                      <input type="hidden" name="staff_id" value="{{ row.id }}">
+                      <input type="hidden" name="q" value="{{ q }}">
+                      <input type="hidden" name="title" value="{{ title }}">
+                      <input type="hidden" name="status" value="{{ status }}">
+                      <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
+                      <input type="hidden" name="page" value="{{ pager.page }}">
+                      <button type="submit" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium transition-all">
+                        Xóa
+                      </button>
+                    </form>
+                  {% endif %}
                 </div>
               </td>
             </tr>
