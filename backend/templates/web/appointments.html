@@ -57,11 +57,12 @@
             <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">SĐT</th>
             <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Dịch vụ</th>
             <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Kỹ thuật viên</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Phòng</th>
             <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Ngày</th>
             <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Giờ</th>
             <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Trạng thái</th>
             <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Ghi chú</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tạo bởi</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Thao tác</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-spa-50">
@@ -75,19 +76,45 @@
                 {% if row.service_items %}
                   <div class="flex flex-wrap gap-1.5">
                     {% for service_item in row.service_items %}
-                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-spa-100 text-spa-700">{{ service_item.service_name }}</span>
+                      <span class="inline-block max-w-[180px] truncate px-2 py-0.5 rounded-full text-xs bg-spa-100 text-spa-700"
+                        data-tooltip="{{ service_item.service_name|e }}" tabindex="0">{{ service_item.service_name }}</span>
                     {% endfor %}
                   </div>
                 {% else %}
-                  {{ row.service.name if row.service else '-' }}
+                  {% if row.service %}
+                    <span class="block max-w-[220px] truncate" data-tooltip="{{ row.service.name|e }}" tabindex="0">{{ row.service.name }}</span>
+                  {% else %}
+                    -
+                  {% endif %}
                 {% endif %}
               </td>
               <td class="py-3 px-4 text-spa-600">{{ row.technician.full_name if row.technician else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.room.name if row.room else '-' }}</td>
               <td class="py-3 px-4 text-spa-600">{{ row.appointment_date.strftime('%d/%m/%Y') if row.appointment_date else '-' }}</td>
-              <td class="py-3 px-4 text-spa-600">{{ row.appointment_time }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ row.appointment_time }}{% if row.end_time %} - {{ row.end_time }}{% endif %}</td>
               <td class="py-3 px-4">
-                {% if can_cancel_appointment and row.status == 'pending' %}
-                  <form method="post" action="{{ url_for('web.appointments_cancel') }}" class="flex flex-col items-start gap-2" data-cancel-status-form>
+                <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5
+                  {% if row.status == 'completed' %}bg-emerald-200 text-emerald-800
+                  {% elif row.status == 'pending' %}bg-amber-200 text-amber-800
+                  {% elif row.status == 'overdue' %}bg-slate-200 text-slate-700
+                  {% elif row.status == 'cancelled' %}bg-red-200 text-red-800
+                  {% else %}bg-spa-100 text-spa-700{% endif %}">
+                  {{ status_labels.get(row.status, row.status) }}
+                </span>
+              </td>
+              <td class="py-3 px-4 text-spa-600 max-w-[220px] truncate" {% if row.note %}data-tooltip="{{ row.note|e }}" tabindex="0"{% endif %}>{{ row.note or '-' }}</td>
+              <td class="py-3 px-4 text-spa-600 min-w-[260px]">
+                <div class="flex flex-wrap items-center gap-2">
+                {% if row.invoice %}
+                  <a href="{{ url_for('web.invoices', view_id=row.invoice.id) }}" class="px-3 py-1.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 text-sm font-medium transition-all">Hóa đơn</a>
+                {% elif can_invoice_appointment and row.status in ['pending', 'overdue', 'completed'] %}
+                  <a href="{{ url_for('web.invoices', appointment_id=row.id, branch_id=row.branch_id) }}#invoice-create" class="px-3 py-1.5 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 text-sm font-medium transition-all">Thanh toán</a>
+                {% endif %}
+                {% if can_complete_appointment and row.status == 'pending' %}
+                  <form method="post" action="{{ url_for('web.appointments_complete') }}" class="inline"
+                    data-confirm-modal="1"
+                    data-confirm-message="Xác nhận lịch hẹn này đã hoàn thành dịch vụ?"
+                    data-confirm-ok-label="Hoàn thành">
                     <input type="hidden" name="appointment_id" value="{{ row.id }}">
                     <input type="hidden" name="q" value="{{ q }}">
                     <input type="hidden" name="status" value="{{ status }}">
@@ -95,32 +122,32 @@
                     <input type="hidden" name="from_date" value="{{ from_date.isoformat() if from_date else '' }}">
                     <input type="hidden" name="to_date" value="{{ to_date.isoformat() if to_date else '' }}">
                     <input type="hidden" name="page" value="{{ pager.page }}">
-
-                    <select name="cancel_action" class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5 bg-amber-200 text-amber-800 border border-transparent focus:border-spa-400 focus:ring-2 focus:ring-spa-100 outline-none transition-all" data-cancel-action-select>
-                      <option value="">{{ status_labels.get(row.status, row.status) }}</option>
-                      <option value="cancelled">Hủy lịch hẹn</option>
-                    </select>
-
-                    <input type="text" name="cancel_note" placeholder="Nhập ghi chú hủy" class="hidden w-[220px] max-w-full px-3 py-2 rounded-lg border border-spa-200 bg-white text-sm text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all" data-cancel-note>
-
-                    <button type="submit" class="hidden w-fit px-3 py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 text-sm font-medium transition-all" data-cancel-submit>Xác nhận hủy</button>
+                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 text-sm font-medium transition-all">Hoàn thành</button>
                   </form>
-                {% else %}
-                  <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5
-                    {% if row.status == 'completed' %}bg-emerald-200 text-emerald-800
-                    {% elif row.status == 'pending' %}bg-amber-200 text-amber-800
-                    {% elif row.status == 'overdue' %}bg-slate-200 text-slate-700
-                    {% elif row.status == 'cancelled' %}bg-red-200 text-red-800
-                    {% else %}bg-spa-100 text-spa-700{% endif %}">
-                    {{ status_labels.get(row.status, row.status) }}
-                  </span>
                 {% endif %}
+                {% if can_cancel_appointment and row.status == 'pending' %}
+                  <form method="post" action="{{ url_for('web.appointments_cancel') }}" class="flex items-center gap-2">
+                    <input type="hidden" name="appointment_id" value="{{ row.id }}">
+                    <input type="hidden" name="cancel_action" value="cancelled">
+                    <input type="hidden" name="q" value="{{ q }}">
+                    <input type="hidden" name="status" value="{{ status }}">
+                    <input type="hidden" name="branch_id" value="{{ selected_branch_id or '' }}">
+                    <input type="hidden" name="from_date" value="{{ from_date.isoformat() if from_date else '' }}">
+                    <input type="hidden" name="to_date" value="{{ to_date.isoformat() if to_date else '' }}">
+                    <input type="hidden" name="page" value="{{ pager.page }}">
+                    <input type="text" name="cancel_note" placeholder="Lý do hủy" required
+                      class="w-32 px-3 py-1.5 rounded-lg border border-spa-200 bg-white text-sm text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                    <button type="submit" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium transition-all">Hủy</button>
+                  </form>
+                {% endif %}
+                {% if not row.invoice and not (can_invoice_appointment and row.status in ['pending', 'overdue', 'completed']) and not (can_complete_appointment and row.status == 'pending') and not (can_cancel_appointment and row.status == 'pending') %}
+                  <span class="text-spa-400">-</span>
+                {% endif %}
+                </div>
               </td>
-              <td class="py-3 px-4 text-spa-600 max-w-[150px] truncate">{{ row.note or '-' }}</td>
-              <td class="py-3 px-4 text-spa-600">{{ row.created_by or '-' }}</td>
             </tr>
           {% else %}
-            <tr><td colspan="11" class="py-8 text-center text-spa-400">Không có lịch hẹn.</td></tr>
+            <tr><td colspan="12" class="py-8 text-center text-spa-400">Không có lịch hẹn.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -146,7 +173,9 @@
 
   <!-- Create Appointment Form -->
   {% if can_create_appointment %}
-    <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6">
+    {% set create_form = appointment_form_data or {} %}
+    {% set selected_service_ids = create_form.service_ids if create_form.service_ids else [''] %}
+    <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6" id="appointment-create">
       <h3 class="text-lg font-semibold text-spa-800 mb-6 flex items-center gap-2">
         <svg class="w-5 h-5 text-sage-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
         Tạo lịch hẹn
@@ -154,13 +183,13 @@
       <form method="post" action="{{ url_for('web.appointments_create') }}" class="grid grid-cols-1 lg:grid-cols-6 gap-4">
         <div class="lg:col-span-2">
           <label class="block text-sm font-medium text-spa-600 mb-2">Tên khách</label>
-          <input type="text" name="customer_name" placeholder="Nhập tên khách hàng" required
+          <input type="text" name="customer_name" placeholder="Nhập tên khách hàng" value="{{ create_form.customer_name or '' }}" required
             class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
         </div>
 
         <div class="lg:col-span-1">
           <label class="block text-sm font-medium text-spa-600 mb-2">SĐT khách</label>
-          <input type="text" name="customer_phone" placeholder="Số điện thoại" required
+          <input type="text" name="customer_phone" placeholder="Số điện thoại" value="{{ create_form.customer_phone or '' }}" required
             class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
         </div>
 
@@ -170,36 +199,49 @@
             class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
             <option value="">Chọn kỹ thuật viên</option>
             {% for tech in technician_rows %}
-              <option value="{{ tech.id }}">{{ tech.full_name }}</option>
+              <option value="{{ tech.id }}" {% if create_form.technician_id == tech.id|string %}selected{% endif %}>{{ tech.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="lg:col-span-1">
+          <label class="block text-sm font-medium text-spa-600 mb-2">Phòng/giường</label>
+          <select name="room_id" required
+            class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+            <option value="">Chọn phòng</option>
+            {% for room in room_rows %}
+              <option value="{{ room.id }}" {% if create_form.room_id == room.id|string %}selected{% endif %}>{{ room.name }}</option>
             {% endfor %}
           </select>
         </div>
 
         <div class="lg:col-span-1">
           <label class="block text-sm font-medium text-spa-600 mb-2">Ngày hẹn</label>
-          <input type="date" name="appointment_date" required
+          <input type="date" name="appointment_date" value="{{ create_form.appointment_date or '' }}" min="{{ min_appointment_date }}" required data-appointment-date
             class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
         </div>
 
         <div class="lg:col-span-1">
           <label class="block text-sm font-medium text-spa-600 mb-2">Giờ hẹn</label>
-          <input type="time" name="appointment_time" required
+          <input type="time" name="appointment_time" value="{{ create_form.appointment_time or '' }}" required data-appointment-time
             class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
         </div>
 
         <div class="lg:col-span-6">
           <label class="block text-sm font-medium text-spa-600 mb-2">Dịch vụ</label>
           <div id="appointment-service-lines" class="space-y-2">
-            <div class="appointment-service-line grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
-              <select name="service_id[]" required data-service-select
-                class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
-                <option value="">Chọn dịch vụ</option>
-                {% for service in service_rows %}
-                  <option value="{{ service.id }}">{{ service.name }}</option>
-                {% endfor %}
-              </select>
-              <button type="button" data-remove-service-line class="hidden px-4 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-sm font-medium transition-all">Bỏ</button>
-            </div>
+            {% for selected_service_id in selected_service_ids %}
+              <div class="appointment-service-line grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
+                <select name="service_id[]" required data-service-select
+                  class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                  <option value="">Chọn dịch vụ</option>
+                  {% for service in service_rows %}
+                    <option value="{{ service.id }}" {% if selected_service_id == service.id|string %}selected{% endif %}>{{ service.name }}</option>
+                  {% endfor %}
+                </select>
+                <button type="button" data-remove-service-line class="{{ 'hidden' if selected_service_ids|length == 1 else '' }} px-4 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 text-sm font-medium transition-all">Bỏ</button>
+              </div>
+            {% endfor %}
           </div>
           <template id="appointment-service-line-template">
             <div class="appointment-service-line grid grid-cols-1 md:grid-cols-[1fr_auto] gap-2">
@@ -218,7 +260,7 @@
 
         <div class="lg:col-span-5">
           <label class="block text-sm font-medium text-spa-600 mb-2">Ghi chú</label>
-          <input type="text" name="note" placeholder="Ghi chú (tùy chọn)"
+          <input type="text" name="note" placeholder="Ghi chú (tùy chọn)" value="{{ create_form.note or '' }}"
             class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
         </div>
 
@@ -258,6 +300,47 @@
         });
         syncCancelForm(form);
       });
+    })();
+
+    (function () {
+      var dateInput = document.querySelector("[data-appointment-date]");
+      var timeInput = document.querySelector("[data-appointment-time]");
+      if (!dateInput || !timeInput) {
+        return;
+      }
+
+      function pad(value) {
+        return String(value).padStart(2, "0");
+      }
+
+      function currentDateText() {
+        var now = new Date();
+        return now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+      }
+
+      function currentTimeText() {
+        var now = new Date();
+        return pad(now.getHours()) + ":" + pad(now.getMinutes());
+      }
+
+      function syncDateTimeLimits() {
+        var today = dateInput.getAttribute("min") || currentDateText();
+        dateInput.min = today;
+
+        if (dateInput.value === today) {
+          timeInput.min = currentTimeText();
+          if (timeInput.value && timeInput.value < timeInput.min) {
+            timeInput.value = "";
+          }
+          return;
+        }
+
+        timeInput.removeAttribute("min");
+      }
+
+      dateInput.addEventListener("change", syncDateTimeLimits);
+      timeInput.addEventListener("focus", syncDateTimeLimits);
+      syncDateTimeLimits();
     })();
 
     (function () {

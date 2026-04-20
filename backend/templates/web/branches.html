@@ -44,7 +44,7 @@
             <tr class="hover:bg-spa-50/50 transition-colors">
               <td class="py-3 px-4 text-spa-800 font-medium">{{ row.branch_code or ('CN' ~ row.id) }}</td>
               <td class="py-3 px-4 text-spa-800 font-medium">{{ row.name }}</td>
-              <td class="py-3 px-4 text-spa-600">{{ row.address or "-" }}</td>
+              <td class="py-3 px-4 text-spa-600 max-w-[300px] truncate" {% if row.address %}data-tooltip="{{ row.address|e }}" tabindex="0"{% endif %}>{{ row.address or "-" }}</td>
               <td class="py-3 px-4 text-spa-600">{{ row.phone or '-' }}</td>
               <td class="py-3 px-4 text-spa-600">
                 {% if row.manager_staff %}

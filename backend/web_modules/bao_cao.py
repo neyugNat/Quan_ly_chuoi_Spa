@@ -66,10 +66,10 @@ def summarize_invoices(invoice_base):
     canceled_base = invoice_base.filter(Invoice.status == "canceled")
     return {
         "total_invoice_value": non_canceled_base.with_entities(func.coalesce(func.sum(Invoice.total_amount), 0)).scalar(),
-        "paid_count": invoice_base.filter(Invoice.status == "paid").with_entities(func.count(Invoice.id)).scalar(),
+        "paid_count": non_canceled_base.with_entities(func.count(Invoice.id)).scalar(),
         "canceled_count": invoice_base.filter(Invoice.status == "canceled").with_entities(func.count(Invoice.id)).scalar(),
-        "collected_amount": non_canceled_base.filter(Invoice.status == "paid")
-        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
+        "collected_amount": non_canceled_base
+        .with_entities(func.coalesce(func.sum(Invoice.paid_amount), 0))
         .scalar(),
         "canceled_value": canceled_base
         .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
@@ -79,10 +79,11 @@ def summarize_invoices(invoice_base):
 
 
 def query_status_rows(invoice_base):
+    status_expr = case((Invoice.status == "canceled", "canceled"), else_="paid")
     return (
-        invoice_base.with_entities(Invoice.status, func.count(Invoice.id))
-        .group_by(Invoice.status)
-        .order_by(Invoice.status.asc())
+        invoice_base.with_entities(status_expr.label("status"), func.count(Invoice.id))
+        .group_by(status_expr)
+        .order_by(status_expr.asc())
         .all()
     )
 
@@ -103,7 +104,7 @@ def query_branch_rows_for_report(report_scope, from_date, to_date):
         db.session.query(
             Branch.id,
             Branch.name,
-            func.coalesce(func.sum(case((Invoice.status == "paid", Invoice.total_amount), else_=0)), 0).label("revenue"),
+            func.coalesce(func.sum(case((Invoice.status != "canceled", Invoice.paid_amount), else_=0)), 0).label("revenue"),
             func.count(Invoice.id).label("invoice_count"),
         )
         .filter(Branch.id.in_(report_scope))
@@ -121,7 +122,7 @@ def query_branch_rows_for_export(report_scope, from_date, to_date):
             func.count(Invoice.id).label("invoice_count"),
             func.coalesce(func.sum(case((Invoice.status == "canceled", 1), else_=0)), 0).label("canceled_count"),
             func.coalesce(func.sum(case((Invoice.status != "canceled", Invoice.total_amount), else_=0)), 0).label("total_value"),
-            func.coalesce(func.sum(case((Invoice.status == "paid", Invoice.total_amount), else_=0)), 0).label("collected"),
+            func.coalesce(func.sum(case((Invoice.status != "canceled", Invoice.paid_amount), else_=0)), 0).label("collected"),
             func.coalesce(func.sum(case((Invoice.status == "canceled", Invoice.total_amount), else_=0)), 0).label("canceled_value"),
         )
         .filter(Branch.id.in_(report_scope))
@@ -195,9 +196,9 @@ def reports():
     month_rows = (
         db.session.query(
             func.strftime("%Y-%m", Invoice.created_at).label("month_key"),
-            func.coalesce(func.sum(Invoice.total_amount), 0).label("revenue"),
+            func.coalesce(func.sum(Invoice.paid_amount), 0).label("revenue"),
         )
-        .filter(Invoice.branch_id.in_(report_scope), Invoice.status == "paid")
+        .filter(Invoice.branch_id.in_(report_scope), Invoice.status != "canceled")
         .group_by(func.strftime("%Y-%m", Invoice.created_at))
         .all()
     )
@@ -289,7 +290,7 @@ def reports_export_csv():
     writer.writerow(["Tổng hóa đơn", int(invoice_summary["total_invoices"] or 0)])
     writer.writerow(["Hóa đơn hủy", int(invoice_summary["canceled_count"] or 0)])
     writer.writerow(["Tổng giá trị hóa đơn hợp lệ", int(float(invoice_summary["total_invoice_value"] or 0))])
-    writer.writerow(["Doanh thu hoàn tất", int(float(invoice_summary["collected_amount"] or 0))])
+    writer.writerow(["Đã thu", int(float(invoice_summary["collected_amount"] or 0))])
     writer.writerow(["Giá trị hóa đơn hủy", int(float(invoice_summary["canceled_value"] or 0))])
     writer.writerow([])
     writer.writerow([
@@ -298,7 +299,7 @@ def reports_export_csv():
         "Hóa đơn hủy",
         "Hóa đơn hợp lệ",
         "Tổng giá trị hóa đơn hợp lệ",
-        "Doanh thu hoàn tất",
+        "Đã thu",
         "Giá trị hóa đơn hủy",
     ])
     for row in branch_rows:

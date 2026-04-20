@@ -66,8 +66,8 @@
             <tr class="hover:bg-spa-50/50 transition-colors">
               <td class="py-3 px-4 text-spa-600">{{ row.id }}</td>
               <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
-              <td class="py-3 px-4 text-spa-800 font-medium">{{ row.name }}</td>
-              <td class="py-3 px-4 text-spa-600">{{ row.group_name or '-' }}</td>
+              <td class="py-3 px-4 text-spa-800 font-medium max-w-[240px] truncate" data-tooltip="{{ row.name|e }}" tabindex="0">{{ row.name }}</td>
+              <td class="py-3 px-4 text-spa-600 max-w-[180px] truncate" {% if row.group_name %}data-tooltip="{{ row.group_name|e }}" tabindex="0"{% endif %}>{{ row.group_name or '-' }}</td>
               <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(row.price) }}</td>
               <td class="py-3 px-4 text-spa-600">{{ row.duration_minutes }} phút</td>
               <td class="py-3 px-4">
@@ -152,15 +152,23 @@
           class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
       </div>
 
+      {% set service_group_is_new = (not form_data.group_name) or (form_data.group_name not in group_options) %}
       <div class="flex-1 min-w-[160px]">
         <label class="block text-sm font-medium text-spa-600 mb-2">Nhóm dịch vụ</label>
-        <select name="group_name"
+        <select name="group_name" id="service-group-select"
           class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
-          <option value="">Không chọn nhóm</option>
+          <option value="__new__" {% if service_group_is_new %}selected{% endif %}>Tạo nhóm mới</option>
           {% for option_group in group_options %}
             <option value="{{ option_group }}" {% if form_data.group_name == option_group %}selected{% endif %}>{{ option_group }}</option>
           {% endfor %}
         </select>
+      </div>
+
+      <div class="flex-1 min-w-[200px]" id="service-new-group-wrap" {% if not service_group_is_new %}style="display: none;"{% endif %}>
+        <label class="block text-sm font-medium text-spa-600 mb-2">Tên nhóm mới</label>
+        <input type="text" name="new_group_name" id="service-new-group-input" placeholder="Nhập tên nhóm mới"
+          value="{{ form_data.group_name if service_group_is_new else '' }}"
+          class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
       </div>
 
       <div class="flex-1 min-w-[140px]">
@@ -198,4 +206,27 @@
       </div>
     </form>
   </section>
+
+  <script>
+    (function () {
+      const groupSelect = document.getElementById('service-group-select');
+      const newGroupWrap = document.getElementById('service-new-group-wrap');
+      const newGroupInput = document.getElementById('service-new-group-input');
+      if (!groupSelect || !newGroupWrap || !newGroupInput) {
+        return;
+      }
+
+      function syncNewGroupState() {
+        const isNewGroup = groupSelect.value === '__new__';
+        newGroupWrap.style.display = isNewGroup ? '' : 'none';
+        newGroupInput.required = isNewGroup;
+        if (!isNewGroup) {
+          newGroupInput.value = '';
+        }
+      }
+
+      groupSelect.addEventListener('change', syncNewGroupState);
+      syncNewGroupState();
+    })();
+  </script>
 {% endblock %}

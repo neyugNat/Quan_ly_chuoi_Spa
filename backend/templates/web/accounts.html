@@ -48,8 +48,8 @@
             <tr class="hover:bg-spa-50/50 transition-colors">
               <td class="py-3 px-4 text-spa-800 font-medium">{{ row.username }}</td>
               <td class="py-3 px-4 text-spa-600">{{ role_label(row.role) }}</td>
-              <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
-              <td class="py-3 px-4 text-spa-600">{{ row.staff.full_name if row.staff else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600 max-w-[180px] truncate" {% if row.branch %}data-tooltip="{{ row.branch.name|e }}" tabindex="0"{% endif %}>{{ row.branch.name if row.branch else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600 max-w-[200px] truncate" {% if row.staff %}data-tooltip="{{ row.staff.full_name|e }}" tabindex="0"{% endif %}>{{ row.staff.full_name if row.staff else '-' }}</td>
               <td class="py-3 px-4">
                 <span class="inline-flex px-3 py-1 rounded-full text-xs font-medium
                   {% if row.is_active %}bg-sage-100 text-sage-700{% else %}bg-spa-200 text-spa-600{% endif %}">

@@ -65,6 +65,43 @@
       .sidebar-link:hover {
         transform: translateX(4px);
       }
+      summary {
+        list-style: none;
+      }
+      summary::-webkit-details-marker {
+        display: none;
+      }
+      #accountMenu[open] .account-menu-chevron {
+        transform: rotate(180deg);
+      }
+      [data-tooltip] {
+        cursor: help;
+      }
+      [data-tooltip]:focus {
+        outline: 2px solid #90b4ff;
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+      .app-tooltip {
+        position: fixed;
+        z-index: 70;
+        max-width: min(420px, calc(100vw - 24px));
+        max-height: min(55vh, 320px);
+        overflow-y: auto;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(35, 59, 109, 0.98);
+        color: #ffffff;
+        box-shadow: 0 16px 40px rgba(35, 59, 109, 0.28);
+        font-size: 13px;
+        line-height: 1.5;
+        pointer-events: none;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .app-tooltip.hidden {
+        display: none;
+      }
     </style>
   </head>
   <body class="bg-spa-50 h-screen overflow-hidden">
@@ -77,18 +114,56 @@
           </svg>
           Quản Lý Chuỗi Spa
         </h1>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
           {% if web_user %}
-            <span class="text-spa-100 text-sm">
-              <span class="font-medium text-white">{{ web_user.username }}</span>
-              <span class="text-spa-200 mx-1">|</span>
-              <span class="text-spa-200">{{ role_label(web_user.role) }}</span>
-            </span>
-            <form method="post" action="{{ url_for('web.logout') }}" class="inline">
-              <button type="submit" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 backdrop-blur-sm border border-white/20">
-                Đăng xuất
-              </button>
-            </form>
+            {% set account_display_name = web_user.staff.full_name if web_user.staff and web_user.staff.full_name else web_user.username %}
+            {% set account_next_url = request.full_path if request.query_string else request.path %}
+            <details class="relative" id="accountMenu">
+              <summary class="list-none cursor-pointer rounded-xl border border-white/15 bg-white/10 px-3 py-2 transition-all hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40">
+                <div class="flex items-center gap-3">
+                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-spa-700 shadow-sm">
+                    {{ (account_display_name or "?")[:1]|upper }}
+                  </div>
+                  <div class="hidden min-w-0 text-left sm:block">
+                    <p class="max-w-[190px] truncate text-sm font-semibold leading-5 text-white">{{ account_display_name }}</p>
+                    <p class="max-w-[240px] truncate text-xs leading-4 text-spa-100">
+                      {{ role_label(web_user.role) }}{% if web_user.branch %} · {{ web_user.branch.name }}{% else %} · Toàn hệ thống{% endif %}
+                    </p>
+                  </div>
+                  <svg class="account-menu-chevron h-4 w-4 shrink-0 text-spa-100 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </div>
+              </summary>
+              <div class="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-spa-100 bg-white text-spa-800 shadow-xl">
+                <div class="flex items-center gap-3 border-b border-spa-100 px-4 py-3">
+                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-spa-100 text-sm font-bold text-spa-700">
+                    {{ (account_display_name or "?")[:1]|upper }}
+                  </div>
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-spa-900">{{ account_display_name }}</p>
+                    <p class="truncate text-xs text-spa-500">{{ web_user.username }} · {{ role_label(web_user.role) }}</p>
+                    <p class="truncate text-xs text-sage-600">{{ web_user.branch.name if web_user.branch else "Toàn hệ thống" }}</p>
+                  </div>
+                </div>
+                {% if not web_user.is_super_admin and web_user.username != "admin" %}
+                  <button type="button" data-password-modal-open class="flex w-full items-center gap-3 border-b border-spa-100 px-4 py-3 text-left text-sm font-medium text-spa-700 transition-colors hover:bg-spa-50">
+                    <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                    </svg>
+                    Đổi mật khẩu
+                  </button>
+                {% endif %}
+                <form method="post" action="{{ url_for('web.logout') }}">
+                  <button type="submit" class="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50">
+                    <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/>
+                    </svg>
+                    Đăng xuất
+                  </button>
+                </form>
+              </div>
+            </details>
           {% endif %}
         </div>
       </div>
@@ -189,6 +264,49 @@
       </div>
     </div>
 
+    {% if web_user and not web_user.is_super_admin and web_user.username != "admin" %}
+      <!-- Password Modal -->
+      <div class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4 backdrop-blur-sm" id="passwordModal" aria-hidden="true">
+        <form method="post" action="{{ url_for('web.profile_change_password') }}" class="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle">
+          <input type="hidden" name="next" value="{{ account_next_url }}">
+          <div class="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h3 class="text-lg font-semibold text-spa-900" id="passwordModalTitle">Đổi mật khẩu</h3>
+              <p class="mt-1 text-sm text-spa-500">{{ account_display_name }}</p>
+            </div>
+            <button type="button" data-password-modal-close class="rounded-lg p-2 text-spa-400 transition-colors hover:bg-spa-50 hover:text-spa-700" aria-label="Đóng">
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="mb-2 block text-sm font-medium text-spa-600">Mật khẩu hiện tại</label>
+              <input type="password" name="current_password" required autocomplete="current-password"
+                class="w-full rounded-xl border border-spa-200 bg-white px-4 py-2.5 text-spa-700 outline-none transition-all focus:border-spa-400 focus:ring-4 focus:ring-spa-100">
+            </div>
+            <div>
+              <label class="mb-2 block text-sm font-medium text-spa-600">Mật khẩu mới</label>
+              <input type="password" name="new_password" required minlength="6" autocomplete="new-password"
+                class="w-full rounded-xl border border-spa-200 bg-white px-4 py-2.5 text-spa-700 outline-none transition-all focus:border-spa-400 focus:ring-4 focus:ring-spa-100">
+            </div>
+            <div>
+              <label class="mb-2 block text-sm font-medium text-spa-600">Xác nhận mật khẩu mới</label>
+              <input type="password" name="confirm_password" required minlength="6" autocomplete="new-password"
+                class="w-full rounded-xl border border-spa-200 bg-white px-4 py-2.5 text-spa-700 outline-none transition-all focus:border-spa-400 focus:ring-4 focus:ring-spa-100">
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-end gap-3">
+            <button type="button" data-password-modal-close class="rounded-xl border border-spa-200 px-5 py-2.5 text-sm font-medium text-spa-700 transition-colors hover:bg-spa-50">Hủy</button>
+            <button type="submit" class="rounded-xl bg-spa-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-spa-700">Lưu mật khẩu</button>
+          </div>
+        </form>
+      </div>
+    {% endif %}
+
     <script>
       (function () {
         var modal = document.getElementById("globalConfirmModal");
@@ -261,6 +379,180 @@
         document.addEventListener("keydown", function (event) {
           if (event.key === "Escape" && !modal.classList.contains("hidden")) {
             closeModal();
+          }
+        });
+      })();
+
+      (function () {
+        var accountMenu = document.getElementById("accountMenu");
+        if (!accountMenu) {
+          return;
+        }
+
+        document.addEventListener("click", function (event) {
+          if (event.target instanceof Node && !accountMenu.contains(event.target)) {
+            accountMenu.removeAttribute("open");
+          }
+        });
+
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            accountMenu.removeAttribute("open");
+          }
+        });
+      })();
+
+      (function () {
+        var modal = document.getElementById("passwordModal");
+        var openButton = document.querySelector("[data-password-modal-open]");
+        var closeButtons = document.querySelectorAll("[data-password-modal-close]");
+        var accountMenu = document.getElementById("accountMenu");
+        if (!modal || !openButton) {
+          return;
+        }
+
+        function closeModal() {
+          modal.classList.add("hidden");
+          modal.classList.remove("flex");
+          modal.setAttribute("aria-hidden", "true");
+        }
+
+        function openModal() {
+          if (accountMenu) {
+            accountMenu.removeAttribute("open");
+          }
+          modal.classList.remove("hidden");
+          modal.classList.add("flex");
+          modal.setAttribute("aria-hidden", "false");
+          var firstInput = modal.querySelector("input[name='current_password']");
+          if (firstInput) {
+            firstInput.focus();
+          }
+        }
+
+        openButton.addEventListener("click", openModal);
+        closeButtons.forEach(function (button) {
+          button.addEventListener("click", closeModal);
+        });
+        modal.addEventListener("click", function (event) {
+          if (event.target === modal) {
+            closeModal();
+          }
+        });
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+            closeModal();
+          }
+        });
+      })();
+
+      (function () {
+        var tooltip = null;
+        var currentTarget = null;
+        var viewportPadding = 12;
+
+        function ensureTooltip() {
+          if (tooltip) {
+            return tooltip;
+          }
+          tooltip = document.createElement("div");
+          tooltip.className = "app-tooltip hidden";
+          tooltip.setAttribute("role", "tooltip");
+          document.body.appendChild(tooltip);
+          return tooltip;
+        }
+
+        function clamp(value, min, max) {
+          return Math.max(min, Math.min(value, max));
+        }
+
+        function positionTooltip(target) {
+          if (!tooltip || !target || tooltip.classList.contains("hidden")) {
+            return;
+          }
+
+          var rect = target.getBoundingClientRect();
+          var tooltipRect = tooltip.getBoundingClientRect();
+          var top = rect.bottom + 8;
+          var left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+
+          if (top + tooltipRect.height + viewportPadding > window.innerHeight) {
+            top = rect.top - tooltipRect.height - 8;
+          }
+
+          tooltip.style.left = clamp(left, viewportPadding, window.innerWidth - tooltipRect.width - viewportPadding) + "px";
+          tooltip.style.top = clamp(top, viewportPadding, window.innerHeight - tooltipRect.height - viewportPadding) + "px";
+        }
+
+        function showTooltip(target) {
+          var text = (target.getAttribute("data-tooltip") || "").trim();
+          if (!text || text === "-") {
+            return;
+          }
+
+          currentTarget = target;
+          ensureTooltip().textContent = text;
+          tooltip.classList.remove("hidden");
+          window.requestAnimationFrame(function () {
+            if (currentTarget === target) {
+              positionTooltip(target);
+            }
+          });
+        }
+
+        function hideTooltip() {
+          currentTarget = null;
+          if (tooltip) {
+            tooltip.classList.add("hidden");
+          }
+        }
+
+        function closestTooltipTarget(event) {
+          if (!(event.target instanceof Element)) {
+            return null;
+          }
+          return event.target.closest("[data-tooltip]");
+        }
+
+        document.addEventListener("mouseover", function (event) {
+          var target = closestTooltipTarget(event);
+          if (!target) {
+            return;
+          }
+          showTooltip(target);
+        });
+
+        document.addEventListener("mouseout", function (event) {
+          var target = closestTooltipTarget(event);
+          if (!target) {
+            return;
+          }
+          if (event.relatedTarget instanceof Node && target.contains(event.relatedTarget)) {
+            return;
+          }
+          hideTooltip();
+        });
+
+        document.addEventListener("focusin", function (event) {
+          var target = closestTooltipTarget(event);
+          if (target) {
+            showTooltip(target);
+          }
+        });
+
+        document.addEventListener("focusout", hideTooltip);
+
+        window.addEventListener("scroll", function () {
+          if (currentTarget) {
+            positionTooltip(currentTarget);
+          }
+        }, true);
+
+        window.addEventListener("resize", hideTooltip);
+
+        document.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            hideTooltip();
           }
         });
       })();

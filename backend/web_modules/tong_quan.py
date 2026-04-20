@@ -12,12 +12,12 @@ def query_branch_revenue_by_month(data_scope, month_key, desc: bool = True):
     query = (
         db.session.query(
             Branch.name,
-            func.coalesce(func.sum(Invoice.total_amount), 0).label("revenue"),
+            func.coalesce(func.sum(Invoice.paid_amount), 0).label("revenue"),
         )
         .join(Invoice, Invoice.branch_id == Branch.id)
         .filter(
             Branch.id.in_(data_scope),
-            Invoice.status == "paid",
+            Invoice.status != "canceled",
             func.strftime("%Y-%m", Invoice.created_at) == month_key,
         )
         .group_by(Branch.id, Branch.name)
@@ -108,19 +108,19 @@ def dashboard():
         ).count()
     )
     month_revenue = (
-        db.session.query(func.coalesce(func.sum(Invoice.total_amount), 0))
+        db.session.query(func.coalesce(func.sum(Invoice.paid_amount), 0))
         .filter(
             Invoice.branch_id.in_(data_scope),
-            Invoice.status == "paid",
+            Invoice.status != "canceled",
             func.strftime("%Y-%m", Invoice.created_at) == month_key,
         )
         .scalar()
     )
     today_revenue = (
-        db.session.query(func.coalesce(func.sum(Invoice.total_amount), 0))
+        db.session.query(func.coalesce(func.sum(Invoice.paid_amount), 0))
         .filter(
             Invoice.branch_id.in_(data_scope),
-            Invoice.status == "paid",
+            Invoice.status != "canceled",
             func.date(Invoice.created_at) == today.isoformat(),
         )
         .scalar()
@@ -131,7 +131,7 @@ def dashboard():
 
     recent_invoices = (
         Invoice.query.filter(Invoice.branch_id.in_(data_scope))
-        .order_by(Invoice.created_at.desc())
+        .order_by(Invoice.id.asc())
         .limit(6)
         .all()
     )

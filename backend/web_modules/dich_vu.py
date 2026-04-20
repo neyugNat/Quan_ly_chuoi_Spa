@@ -2,7 +2,8 @@ from flask import g, flash, redirect, render_template, request, url_for
 from sqlalchemy.exc import IntegrityError
 
 from backend.extensions import db
-from backend.models import Appointment, InvoiceItem, Service
+from backend.logs import write_log
+from backend.models import Appointment, InvoiceItem, Service, ServiceInventoryUsage
 from backend.web import (
     collect_non_empty_text,
     list_scope_branches,
@@ -67,7 +68,7 @@ def services():
     if status:
         query = query.filter(Service.status == status)
 
-    pager = paginate(query.order_by(Service.id.desc()), page=page, per_page=10)
+    pager = paginate(query.order_by(Service.id.asc()), page=page, per_page=10)
     branch_options = list_scope_branches(scope_ids, order_by="name")
 
     edit_row = None
@@ -112,10 +113,6 @@ def services():
         .all()
     )
     group_options = sorted(set(collect_non_empty_text(group_rows)))
-    if group_name and group_name not in group_options:
-        group_options.insert(0, group_name)
-    if form_data["group_name"] and form_data["group_name"] not in group_options:
-        group_options.insert(0, form_data["group_name"])
 
     return render_template(
         "web/services.html",
@@ -142,10 +139,18 @@ def services_save():
     service_id = parse_int(request.form.get("service_id"))
     selected_branch_id = parse_int(request.form.get("branch_id"))
     name = parse_text(request.form.get("name"))
-    group_name = parse_optional_text(request.form.get("group_name"))
+    group_choice = parse_text(request.form.get("group_name"))
+    new_group_name = parse_optional_text(request.form.get("new_group_name"))
     price = parse_money(request.form.get("price"))
     duration_minutes = parse_int(request.form.get("duration_minutes")) or 60
     status = normalize_choice(request.form.get("status"), {"active", "inactive"}, "active")
+
+    if group_choice == "__new__":
+        if not new_group_name:
+            return services_error("Vui lòng nhập tên nhóm mới hoặc chọn nhóm có sẵn.")
+        group_name = new_group_name
+    else:
+        group_name = parse_optional_text(group_choice)
 
     if g.web_user.is_super_admin:
         if selected_branch_id not in scope_ids:
@@ -168,12 +173,22 @@ def services_save():
         row = Service(branch_id=branch_id)
         db.session.add(row)
 
+    action_label = "Cập nhật dịch vụ" if service_id else "Tạo dịch vụ"
     row.branch_id = branch_id
     row.name = name
     row.group_name = group_name
     row.price = price
     row.duration_minutes = max(duration_minutes, 1)
     row.status = status
+    db.session.flush()
+    write_log(
+        "save_service",
+        branch_id=row.branch_id,
+        entity_type="service",
+        entity_id=row.id,
+        message=f"{action_label} {row.name}",
+        details={"price": str(row.price), "duration": row.duration_minutes, "status": row.status},
+    )
     db.session.commit()
     flash("Đã lưu dịch vụ.", "success")
     return redirect(url_for("web.services"))
@@ -208,10 +223,18 @@ def services_delete():
         )
 
     try:
+        write_log(
+            "delete_service",
+            branch_id=row.branch_id,
+            entity_type="service",
+            entity_id=row.id,
+            message=f"Xóa dịch vụ {row.name}",
+        )
         InvoiceItem.query.filter(InvoiceItem.service_id == row.id).update(
             {InvoiceItem.service_id: None},
             synchronize_session=False,
         )
+        ServiceInventoryUsage.query.filter(ServiceInventoryUsage.service_id == row.id).delete(synchronize_session=False)
         db.session.delete(row)
         db.session.commit()
     except IntegrityError:

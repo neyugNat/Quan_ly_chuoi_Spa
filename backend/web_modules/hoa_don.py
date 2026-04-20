@@ -8,7 +8,21 @@ from sqlalchemy import func, or_
 
 from backend.extensions import db
 from backend.logs import write_log
-from backend.models import Branch, Invoice, InvoiceItem, Service, Staff, User, recalc_invoice
+from backend.models import (
+    Appointment,
+    Branch,
+    Invoice,
+    InvoiceItem,
+    InvoicePayment,
+    Service,
+    Staff,
+    User,
+    consume_inventory_for_invoice,
+    recalc_invoice,
+    reverse_inventory_for_invoice,
+    sync_customer_stats,
+    upsert_customer,
+)
 from backend.web import (
     INVOICE_STATUS_LABELS,
     get_current_branch_scope,
@@ -120,7 +134,10 @@ def apply_invoice_filters(query, filters):
             )
         )
     if filters["status"]:
-        query = query.filter(Invoice.status == filters["status"])
+        if filters["status"] == "paid":
+            query = query.filter(Invoice.status != "canceled")
+        elif filters["status"] == "canceled":
+            query = query.filter(Invoice.status == "canceled")
     if filters["from_date"]:
         query = query.filter(func.date(Invoice.created_at) >= filters["from_date"].isoformat())
     if filters["to_date"]:
@@ -131,11 +148,11 @@ def apply_invoice_filters(query, filters):
 def calc_kpi(filtered_query):
     total_count = filtered_query.count()
     canceled_count = filtered_query.filter(Invoice.status == "canceled").count()
-    paid_count = filtered_query.filter(Invoice.status == "paid").count()
+    paid_count = filtered_query.filter(Invoice.status != "canceled").count()
 
-    completed_value = (
-        filtered_query.filter(Invoice.status == "paid")
-        .with_entities(func.coalesce(func.sum(Invoice.total_amount), 0))
+    collected_value = (
+        filtered_query.filter(Invoice.status != "canceled")
+        .with_entities(func.coalesce(func.sum(Invoice.paid_amount), 0))
         .scalar()
     )
     paid_ratio = round((paid_count * 100.0 / total_count), 1) if total_count else 0.0
@@ -144,7 +161,7 @@ def calc_kpi(filtered_query):
     return {
         "total_count": total_count,
         "paid_count": paid_count,
-        "completed_value": completed_value,
+        "completed_value": collected_value,
         "canceled_count": canceled_count,
         "paid_ratio": paid_ratio,
         "canceled_ratio": canceled_ratio,
@@ -164,7 +181,7 @@ def invoices():
 
     kpi = calc_kpi(filtered_query)
     pager = paginate(
-        filtered_query.order_by(Invoice.created_at.desc(), Invoice.id.desc()),
+        filtered_query.order_by(Invoice.id.asc()),
         page=filters["page"],
         per_page=10,
     )
@@ -183,14 +200,29 @@ def invoices():
             Invoice.branch_id.in_(scope_ids),
         ).first()
 
+    source_appointment = None
+    source_appointment_id = parse_int(request.args.get("appointment_id"))
+    if source_appointment_id:
+        source_appointment = Appointment.query.filter(
+            Appointment.id == source_appointment_id,
+            Appointment.branch_id.in_(scope_ids),
+        ).first()
+        if source_appointment and source_appointment.invoice:
+            return redirect(url_for("web.invoices", view_id=source_appointment.invoice.id))
+        if source_appointment and source_appointment.status == "cancelled":
+            flash("Không thể tạo hóa đơn từ lịch hẹn đã hủy.", "error")
+            source_appointment = None
+
     operator_branch_id = g.active_branch_id if g.active_branch_id in scope_ids else scope_ids[0]
+    if source_appointment and source_appointment.branch_id in scope_ids:
+        operator_branch_id = source_appointment.branch_id
     operator_staff = resolve_operator_staff(operator_branch_id)
     service_rows = (
         Service.query.filter_by(branch_id=operator_branch_id, status="active").order_by(Service.name.asc()).all()
         if operator_branch_id
         else []
     )
-    can_select_staff = g.web_user.role == "branch_manager"
+    can_select_staff = False
     if operator_branch_id and can_select_staff:
         staff_rows = list_staff_candidates_for_invoice(operator_branch_id, operator_staff)
     elif operator_staff:
@@ -199,9 +231,9 @@ def invoices():
         staff_rows = []
 
     can_export_csv = g.web_user.role in {"super_admin", "branch_manager"}
-    can_create_invoice = g.web_user.role in {"branch_manager", "receptionist"}
+    can_create_invoice = g.web_user.role == "receptionist"
     can_void_invoice = g.web_user.role == "branch_manager"
-    if g.web_user.role != "branch_manager" and operator_staff is None:
+    if g.web_user.role == "receptionist" and operator_staff is None:
         can_create_invoice = False
 
     operator_staff_label = "Chưa liên kết nhân sự"
@@ -222,6 +254,7 @@ def invoices():
         can_export_csv=can_export_csv,
         can_create_invoice=can_create_invoice,
         can_void_invoice=can_void_invoice,
+        source_appointment=source_appointment,
         service_rows=service_rows,
         staff_rows=staff_rows,
         can_select_staff=can_select_staff,
@@ -240,7 +273,7 @@ def invoices_export_csv():
     filters = build_invoice_filters(scope_ids)
     query = Invoice.query.filter(Invoice.branch_id.in_(scope_ids))
     query = apply_invoice_filters(query, filters)
-    rows = query.order_by(Invoice.created_at.desc(), Invoice.id.desc()).all()
+    rows = query.order_by(Invoice.id.asc()).all()
     exported_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     branch_map = {
         row.id: row.name for row in Branch.query.filter(Branch.id.in_(scope_ids)).all()
@@ -272,9 +305,10 @@ def invoices_export_csv():
         "Tên khách",
         "SĐT",
         "Tổng tiền",
+        "Đã hoàn",
+        "Phương thức",
         "Trạng thái",
         "Nhân sự",
-        "Giảm giá",
         "Ghi chú",
         "Người thao tác cuối",
         "Tạo lúc",
@@ -290,9 +324,10 @@ def invoices_export_csv():
                 row.customer_name or "",
                 row.customer_phone or "",
                 int(float(row.total_amount or 0)),
-                INVOICE_STATUS_LABELS.get(row.status, row.status),
+                int(float(row.refund_amount or 0)),
+                row.payment_method or "",
+                INVOICE_STATUS_LABELS.get("canceled" if row.status == "canceled" else "paid"),
                 row.staff.full_name if row.staff else "",
-                int(float(row.discount_amount or 0)),
                 row.note or "",
                 row.last_action_by or "",
                 row.created_at.strftime("%Y-%m-%d %H:%M") if row.created_at else "",
@@ -313,17 +348,47 @@ def invoices_export_csv():
 
 
 @web_bp.post("/invoices/create")
-@roles_required("branch_manager", "receptionist")
+@roles_required("receptionist")
 def invoices_create():
+    scope_ids = get_current_branch_scope()
     branch_id = g.active_branch_id
-    if not branch_id:
+    if not scope_ids:
+        return invoices_error("Tài khoản không có phạm vi chi nhánh hợp lệ.")
+
+    appointment_id = parse_int(request.form.get("appointment_id"))
+    appointment = None
+    if appointment_id:
+        appointment = Appointment.query.filter(
+            Appointment.id == appointment_id,
+            Appointment.branch_id.in_(scope_ids),
+        ).first()
+        if appointment is None:
+            return invoices_error("Lịch hẹn không hợp lệ hoặc không thuộc chi nhánh của bạn.")
+        if appointment.invoice:
+            return redirect(url_for("web.invoices", view_id=appointment.invoice.id))
+        if appointment.status == "cancelled":
+            return invoices_error("Không thể tạo hóa đơn từ lịch hẹn đã hủy.")
+        branch_id = appointment.branch_id
+
+    if not branch_id or branch_id not in scope_ids:
         return invoices_error("Tài khoản không có phạm vi chi nhánh hợp lệ.")
 
     customer_name = parse_text(request.form.get("customer_name"))
     customer_phone = normalize_phone(request.form.get("customer_phone"))
     submitted_staff_id = parse_int(request.form.get("staff_id"))
     note = parse_optional_text(request.form.get("note"))
-    discount_amount = parse_money(request.form.get("discount_amount"), default=Decimal("0.00"))
+    raw_payment_method = parse_text(request.form.get("payment_method")).lower()
+    if raw_payment_method == "debt":
+        return invoices_error("Không còn hỗ trợ ghi công nợ khi tạo hóa đơn. Vui lòng thu đủ hóa đơn.")
+    if parse_text(request.form.get("paid_amount")):
+        return invoices_error("Không còn hỗ trợ thanh toán một phần. Vui lòng thu đủ hóa đơn.")
+    payment_method = normalize_choice(raw_payment_method, {"cash", "card", "transfer", "wallet"}, "cash")
+
+    if appointment:
+        customer_name = appointment.customer_name
+        customer_phone = normalize_phone(appointment.customer_phone)
+        if not note:
+            note = f"Thanh toán từ lịch hẹn #{appointment.id}"
 
     if not customer_name:
         return invoices_error("Vui lòng nhập tên khách.")
@@ -335,20 +400,29 @@ def invoices_create():
     service_ids = request.form.getlist("service_id[]")
     qty_values = request.form.getlist("qty[]")
     lines = []
-    for idx, raw_service_id in enumerate(service_ids):
-        service_id = parse_int(raw_service_id)
-        qty = parse_qty(qty_values[idx] if idx < len(qty_values) else "1", default=Decimal("1.00"))
-        if not service_id:
-            continue
-        service = Service.query.filter_by(id=service_id, branch_id=branch_id, status="active").first()
-        if service is not None:
-            lines.append((service, qty))
+    if appointment:
+        service_items = appointment.service_items or []
+        if service_items:
+            for service_item in service_items:
+                if service_item.service and service_item.service.status == "active":
+                    lines.append((service_item.service, Decimal("1.00")))
+        elif appointment.service:
+            lines.append((appointment.service, Decimal("1.00")))
+    else:
+        for idx, raw_service_id in enumerate(service_ids):
+            service_id = parse_int(raw_service_id)
+            qty = parse_qty(qty_values[idx] if idx < len(qty_values) else "1", default=Decimal("1.00"))
+            if not service_id:
+                continue
+            service = Service.query.filter_by(id=service_id, branch_id=branch_id, status="active").first()
+            if service is not None:
+                lines.append((service, qty))
 
     if not lines:
         return invoices_error("Cần ít nhất một dòng dịch vụ hợp lệ.")
 
     operator_staff = resolve_operator_staff(branch_id)
-    if g.web_user.role == "branch_manager":
+    if g.web_user.role in {"super_admin", "branch_manager"}:
         candidate_rows = list_staff_candidates_for_invoice(branch_id, operator_staff)
         candidate_ids = {row.id for row in candidate_rows}
         if not submitted_staff_id:
@@ -364,14 +438,22 @@ def invoices_create():
             return invoices_error("Tài khoản hiện tại chưa liên kết nhân sự đang làm việc.")
         staff = operator_staff
 
+    customer = upsert_customer(branch_id, customer_name, customer_phone, note)
+    db.session.flush()
+
     invoice = Invoice(
         code="TMP",
         branch_id=branch_id,
         staff_id=staff.id,
+        customer_id=customer.id,
+        appointment_id=appointment.id if appointment else None,
         customer_name=customer_name,
         customer_phone=customer_phone,
-        discount_amount=discount_amount,
+        discount_amount=Decimal("0.00"),
+        tax_amount=Decimal("0.00"),
         status="paid",
+        payment_status="paid",
+        payment_method=payment_method,
         note=note,
         last_action_by=g.web_user.username,
     )
@@ -395,16 +477,88 @@ def invoices_create():
         db.session.rollback()
         return invoices_error("Tổng tiền hóa đơn phải lớn hơn 0.")
 
+    paid_amount = Decimal(str(invoice.total_amount or 0))
+    invoice.payments.append(
+        InvoicePayment(
+            invoice_id=invoice.id,
+            payment_type="payment",
+            method=payment_method,
+            amount=paid_amount,
+            note="Thanh toán khi tạo hóa đơn",
+            created_by=g.web_user.username,
+        )
+    )
+
+    recalc_invoice(invoice)
+    consume_inventory_for_invoice(invoice)
+    if appointment:
+        appointment.status = "completed"
+        appointment.customer_id = customer.id
+
+    sync_customer_stats(customer)
+
     write_log(
         "create_invoice",
         branch_id=branch_id,
         entity_type="invoice",
         entity_id=invoice.id,
         message=f"Tạo hóa đơn {invoice.code}",
+        details={"appointment_id": appointment.id if appointment else None, "payment_method": payment_method},
     )
 
     db.session.commit()
     flash("Đã tạo hóa đơn.", "success")
+    return redirect(url_for("web.invoices", view_id=invoice.id))
+
+
+@web_bp.post("/invoices/payment")
+@roles_required("receptionist")
+def invoices_add_payment():
+    return invoices_error("Chức năng thanh toán một phần đã được tắt. Vui lòng tạo hóa đơn thu đủ tiền.")
+
+
+@web_bp.post("/invoices/refund")
+@roles_required("branch_manager")
+def invoices_refund():
+    branch_id = g.active_branch_id
+    invoice_id = parse_int(request.form.get("invoice_id"))
+    amount = parse_money(request.form.get("amount"), default=Decimal("0.00"))
+    method = normalize_choice(request.form.get("method"), {"cash", "card", "transfer", "wallet"}, "cash")
+    note = parse_optional_text(request.form.get("note"))
+
+    invoice = Invoice.query.filter_by(id=invoice_id, branch_id=branch_id).first() if invoice_id else None
+    if invoice is None:
+        return invoices_error("Không tìm thấy hóa đơn trong chi nhánh của bạn.")
+    if invoice.status == "canceled":
+        return invoices_error("Không thể hoàn tiền cho hóa đơn đã hủy.")
+    if amount <= 0:
+        return invoices_error("Số tiền hoàn phải lớn hơn 0.")
+    if amount > Decimal(str(invoice.paid_amount or 0)):
+        return invoices_error("Số tiền hoàn vượt số tiền đã thu.")
+
+    invoice.payments.append(
+        InvoicePayment(
+            invoice_id=invoice.id,
+            payment_type="refund",
+            method=method,
+            amount=amount,
+            note=note,
+            created_by=g.web_user.username,
+        )
+    )
+    invoice.last_action_by = g.web_user.username
+    recalc_invoice(invoice)
+    sync_customer_stats(invoice.customer)
+    write_log(
+        "refund_invoice",
+        branch_id=branch_id,
+        entity_type="invoice",
+        entity_id=invoice.id,
+        message=f"Hoàn tiền hóa đơn {invoice.code}",
+        details={"amount": str(amount), "method": method},
+    )
+    db.session.commit()
+    flash("Đã ghi nhận hoàn tiền.", "success")
     return redirect(url_for("web.invoices", view_id=invoice.id))
 
 
@@ -426,10 +580,14 @@ def invoices_void():
     if invoice.status == "canceled":
         return invoices_error("Hóa đơn đã hủy trước đó.")
 
+    reverse_inventory_for_invoice(invoice)
     invoice.status = "canceled"
+    invoice.payment_status = "canceled"
     invoice.canceled_reason = cancel_reason
     invoice.canceled_at = datetime.utcnow()
+    invoice.balance_amount = Decimal("0.00")
     invoice.last_action_by = g.web_user.username
+    sync_customer_stats(invoice.customer)
 
     write_log(
         "cancel_invoice",

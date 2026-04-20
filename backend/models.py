@@ -4,12 +4,18 @@ from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import UniqueConstraint, inspect, text
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from backend.extensions import db
 
 
 class TimestampMixin:
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+def is_password_hash(value: str | None) -> bool:
+    text_value = value or ""
+    return text_value.startswith(("scrypt:", "pbkdf2:", "argon2:"))
 
 
 class Branch(db.Model, TimestampMixin):
@@ -41,10 +47,17 @@ class User(db.Model, TimestampMixin):
     staff = db.relationship("Staff", lazy="joined")
 
     def set_password(self, raw_password: str) -> None:
-        self.password_hash = raw_password or ""
+        self.password_hash = generate_password_hash(raw_password or "")
 
     def verify_password(self, raw_password: str) -> bool:
-        return (self.password_hash or "") == (raw_password or "")
+        stored_password = self.password_hash or ""
+        if is_password_hash(stored_password):
+            return check_password_hash(stored_password, raw_password or "")
+        return stored_password == (raw_password or "")
+
+    @property
+    def password_needs_rehash(self) -> bool:
+        return not is_password_hash(self.password_hash)
 
     @property
     def is_super_admin(self) -> bool:
@@ -73,6 +86,23 @@ class ActivityLog(db.Model):
     actor_user = db.relationship("User", lazy="joined")
 
 
+class Customer(db.Model, TimestampMixin):
+    __tablename__ = "customers"
+    __table_args__ = (UniqueConstraint("branch_id", "phone", name="uq_customer_branch_phone"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
+    full_name = db.Column(db.String(255), nullable=False)
+    phone = db.Column(db.String(32), nullable=False, index=True)
+    segment = db.Column(db.String(32), nullable=False, default="regular")
+    note = db.Column(db.String(500), nullable=True)
+    visit_count = db.Column(db.Integer, nullable=False, default=0)
+    total_spent = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    last_visit_at = db.Column(db.DateTime, nullable=True)
+
+    branch = db.relationship("Branch", lazy="joined")
+
+
 class Staff(db.Model, TimestampMixin):
     __tablename__ = "staffs"
 
@@ -85,6 +115,22 @@ class Staff(db.Model, TimestampMixin):
     start_date = db.Column(db.Date, nullable=True)
 
     branch = db.relationship("Branch", foreign_keys=[branch_id], lazy="joined")
+
+
+class StaffShift(db.Model):
+    __tablename__ = "staff_shifts"
+    __table_args__ = (UniqueConstraint("staff_id", "weekday", name="uq_staff_shift_weekday"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
+    staff_id = db.Column(db.Integer, db.ForeignKey("staffs.id"), nullable=False, index=True)
+    weekday = db.Column(db.Integer, nullable=False, index=True)
+    start_time = db.Column(db.String(5), nullable=False, default="08:00")
+    end_time = db.Column(db.String(5), nullable=False, default="21:00")
+    status = db.Column(db.String(32), nullable=False, default="active")
+
+    branch = db.relationship("Branch", lazy="joined")
+    staff = db.relationship("Staff", lazy="joined")
 
 
 class Service(db.Model, TimestampMixin):
@@ -101,25 +147,57 @@ class Service(db.Model, TimestampMixin):
     branch = db.relationship("Branch", lazy="joined")
 
 
+class ServiceInventoryUsage(db.Model):
+    __tablename__ = "service_inventory_usages"
+    __table_args__ = (UniqueConstraint("service_id", "item_id", name="uq_service_inventory_usage"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=False, index=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("inventory_items.id"), nullable=False, index=True)
+    quantity = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    service = db.relationship("Service", lazy="joined")
+    item = db.relationship("InventoryItem", lazy="joined")
+
+
+class Room(db.Model, TimestampMixin):
+    __tablename__ = "rooms"
+    __table_args__ = (UniqueConstraint("branch_id", "name", name="uq_room_branch_name"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
+    name = db.Column(db.String(64), nullable=False)
+    room_type = db.Column(db.String(64), nullable=True)
+    status = db.Column(db.String(32), nullable=False, default="active")
+
+    branch = db.relationship("Branch", lazy="joined")
+
+
 class Appointment(db.Model, TimestampMixin):
     __tablename__ = "appointments"
 
     id = db.Column(db.Integer, primary_key=True)
     branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=True, index=True)
+    room_id = db.Column(db.Integer, db.ForeignKey("rooms.id"), nullable=True, index=True)
     customer_name = db.Column(db.String(255), nullable=False)
     customer_phone = db.Column(db.String(32), nullable=True)
     service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=False, index=True)
     technician_id = db.Column(db.Integer, db.ForeignKey("staffs.id"), nullable=False, index=True)
     appointment_date = db.Column(db.Date, nullable=False, index=True)
     appointment_time = db.Column(db.String(5), nullable=False)
+    end_time = db.Column(db.String(5), nullable=True)
     status = db.Column(db.String(16), nullable=False, default="pending", index=True)
     note = db.Column(db.String(500), nullable=True)
     created_by = db.Column(db.String(64), nullable=True)
 
     branch = db.relationship("Branch", lazy="joined")
+    customer = db.relationship("Customer", lazy="joined")
+    room = db.relationship("Room", lazy="joined")
     service = db.relationship("Service", lazy="joined")
     technician = db.relationship("Staff", lazy="joined")
     service_items = db.relationship("AppointmentServiceItem", back_populates="appointment", cascade="all,delete-orphan")
+    invoice = db.relationship("Invoice", back_populates="appointment", uselist=False)
 
 
 class AppointmentServiceItem(db.Model):
@@ -133,6 +211,16 @@ class AppointmentServiceItem(db.Model):
 
     appointment = db.relationship("Appointment", back_populates="service_items", lazy="joined")
     service = db.relationship("Service", lazy="joined")
+
+
+class Supplier(db.Model, TimestampMixin):
+    __tablename__ = "suppliers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False, unique=True)
+    phone = db.Column(db.String(32), nullable=True)
+    address = db.Column(db.String(500), nullable=True)
+    status = db.Column(db.String(32), nullable=False, default="active")
 
 
 class InventoryItem(db.Model, TimestampMixin):
@@ -159,19 +247,64 @@ class InventoryStock(db.Model, TimestampMixin):
     item = db.relationship("InventoryItem", lazy="joined")
 
 
+class InventoryLot(db.Model, TimestampMixin):
+    __tablename__ = "inventory_lots"
+    __table_args__ = (UniqueConstraint("branch_id", "item_id", "lot_code", name="uq_inventory_lot"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("inventory_items.id"), nullable=False, index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True, index=True)
+    lot_code = db.Column(db.String(64), nullable=False)
+    expiry_date = db.Column(db.Date, nullable=True)
+    quantity = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    branch = db.relationship("Branch", lazy="joined")
+    item = db.relationship("InventoryItem", lazy="joined")
+    supplier = db.relationship("Supplier", lazy="joined")
+
+
+class InventoryTransfer(db.Model):
+    __tablename__ = "inventory_transfers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    from_branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
+    to_branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("inventory_items.id"), nullable=False, index=True)
+    quantity = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    note = db.Column(db.String(500), nullable=True)
+    status = db.Column(db.String(32), nullable=False, default="completed")
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    from_branch = db.relationship("Branch", foreign_keys=[from_branch_id], lazy="joined")
+    to_branch = db.relationship("Branch", foreign_keys=[to_branch_id], lazy="joined")
+    item = db.relationship("InventoryItem", lazy="joined")
+
+
 class InventoryTransaction(db.Model):
     __tablename__ = "inventory_transactions"
 
     id = db.Column(db.Integer, primary_key=True)
     branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
     item_id = db.Column(db.Integer, db.ForeignKey("inventory_items.id"), nullable=False, index=True)
+    related_invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=True, index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=True, index=True)
+    source_branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=True, index=True)
+    target_branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=True, index=True)
     type = db.Column(db.String(16), nullable=False)
     quantity = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    lot_code = db.Column(db.String(64), nullable=True)
+    expiry_date = db.Column(db.Date, nullable=True)
+    supplier_name = db.Column(db.String(255), nullable=True)
     note = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    branch = db.relationship("Branch", lazy="joined")
+    branch = db.relationship("Branch", foreign_keys=[branch_id], lazy="joined")
     item = db.relationship("InventoryItem", lazy="joined")
+    invoice = db.relationship("Invoice", lazy="joined")
+    supplier = db.relationship("Supplier", lazy="joined")
+    source_branch = db.relationship("Branch", foreign_keys=[source_branch_id], lazy="joined")
+    target_branch = db.relationship("Branch", foreign_keys=[target_branch_id], lazy="joined")
 
 
 class Invoice(db.Model, TimestampMixin):
@@ -181,20 +314,32 @@ class Invoice(db.Model, TimestampMixin):
     code = db.Column(db.String(32), nullable=False, unique=True, index=True)
     branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=False, index=True)
     staff_id = db.Column(db.Integer, db.ForeignKey("staffs.id"), nullable=True, index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=True, index=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"), nullable=True, unique=True, index=True)
     customer_name = db.Column(db.String(255), nullable=True)
     customer_phone = db.Column(db.String(32), nullable=True)
     subtotal_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     discount_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    tax_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     total_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    paid_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    balance_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    refund_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     status = db.Column(db.String(32), nullable=False, default="paid", index=True)
+    payment_status = db.Column(db.String(32), nullable=False, default="paid", index=True)
+    payment_method = db.Column(db.String(32), nullable=True)
     note = db.Column(db.String(500), nullable=True)
     canceled_reason = db.Column(db.String(500), nullable=True)
     canceled_at = db.Column(db.DateTime, nullable=True)
+    inventory_consumed_at = db.Column(db.DateTime, nullable=True)
     last_action_by = db.Column(db.String(64), nullable=True)
 
     branch = db.relationship("Branch", lazy="joined")
     staff = db.relationship("Staff", lazy="joined")
+    customer = db.relationship("Customer", lazy="joined")
+    appointment = db.relationship("Appointment", back_populates="invoice", lazy="joined")
     items = db.relationship("InvoiceItem", back_populates="invoice", cascade="all,delete-orphan")
+    payments = db.relationship("InvoicePayment", back_populates="invoice", cascade="all,delete-orphan")
 
 
 class InvoiceItem(db.Model):
@@ -212,6 +357,21 @@ class InvoiceItem(db.Model):
     service = db.relationship("Service", lazy="joined")
 
 
+class InvoicePayment(db.Model):
+    __tablename__ = "invoice_payments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=False, index=True)
+    payment_type = db.Column(db.String(16), nullable=False, default="payment")
+    method = db.Column(db.String(32), nullable=False, default="cash")
+    amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    note = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_by = db.Column(db.String(64), nullable=True)
+
+    invoice = db.relationship("Invoice", back_populates="payments", lazy="joined")
+
+
 def recalc_invoice(invoice: Invoice) -> None:
     subtotal = Decimal("0.00")
     for item in invoice.items:
@@ -220,19 +380,33 @@ def recalc_invoice(invoice: Invoice) -> None:
         item.line_total = (qty * unit_price).quantize(Decimal("0.01"))
         subtotal += Decimal(str(item.line_total or 0))
 
-    discount = Decimal(str(invoice.discount_amount or 0))
-    if discount < 0:
-        discount = Decimal("0.00")
-    total = subtotal - discount
-    if total < 0:
-        total = Decimal("0.00")
-
     invoice.subtotal_amount = subtotal
-    invoice.total_amount = total
+    invoice.discount_amount = Decimal("0.00")
+    invoice.tax_amount = Decimal("0.00")
+    invoice.total_amount = subtotal
+
+    paid = Decimal("0.00")
+    refunded = Decimal("0.00")
+    for payment in getattr(invoice, "payments", []) or []:
+        amount = Decimal(str(payment.amount or 0))
+        if payment.payment_type == "refund":
+            refunded += amount
+        else:
+            paid += amount
+
+    net_paid = paid - refunded
+    if net_paid < 0:
+        net_paid = Decimal("0.00")
+    invoice.paid_amount = net_paid.quantize(Decimal("0.01"))
+    invoice.refund_amount = refunded.quantize(Decimal("0.01"))
+    invoice.balance_amount = Decimal("0.00")
+
     if invoice.status == "canceled":
+        invoice.payment_status = "canceled"
+        invoice.balance_amount = Decimal("0.00")
         return
-    if invoice.status != "paid":
-        invoice.status = "paid"
+    invoice.status = "paid"
+    invoice.payment_status = "paid"
 
 
 def normalize_money_to_thousand(amount: Decimal | int | float | str | None) -> Decimal:
@@ -241,6 +415,128 @@ def normalize_money_to_thousand(amount: Decimal | int | float | str | None) -> D
         return Decimal("0.00")
     rounded = (value / Decimal("1000")).quantize(Decimal("1"), rounding=ROUND_HALF_UP) * Decimal("1000")
     return rounded.quantize(Decimal("0.01"))
+
+
+def minutes_between(start_time: str, end_time: str) -> int:
+    start_dt = datetime.strptime(start_time, "%H:%M")
+    end_dt = datetime.strptime(end_time, "%H:%M")
+    return int((end_dt - start_dt).total_seconds() // 60)
+
+
+def add_minutes_to_time(start_time: str, minutes: int) -> str:
+    start_dt = datetime.strptime(start_time, "%H:%M")
+    return (start_dt + timedelta(minutes=max(minutes, 1))).strftime("%H:%M")
+
+
+def upsert_customer(branch_id: int, full_name: str, phone: str, note: str | None = None) -> Customer:
+    customer = Customer.query.filter_by(branch_id=branch_id, phone=phone).first()
+    if customer is None:
+        customer = Customer(branch_id=branch_id, full_name=full_name, phone=phone)
+        db.session.add(customer)
+    customer.full_name = full_name or customer.full_name
+    if note and not customer.note:
+        customer.note = note
+    return customer
+
+
+def sync_customer_stats(customer: Customer | None) -> None:
+    if customer is None or customer.id is None:
+        return
+
+    rows = (
+        Invoice.query.filter(
+            Invoice.customer_id == customer.id,
+            Invoice.status != "canceled",
+        )
+        .order_by(Invoice.created_at.asc(), Invoice.id.asc())
+        .all()
+    )
+    customer.visit_count = len(rows)
+    customer.total_spent = sum((Decimal(str(row.paid_amount or 0)) for row in rows), Decimal("0.00"))
+    customer.last_visit_at = rows[-1].created_at if rows else None
+    if customer.total_spent >= Decimal("5000000"):
+        customer.segment = "vip"
+    elif customer.visit_count >= 3:
+        customer.segment = "returning"
+    else:
+        customer.segment = "regular"
+
+
+def ensure_stock_row(branch_id: int, item_id: int) -> InventoryStock:
+    stock = InventoryStock.query.filter_by(branch_id=branch_id, item_id=item_id).first()
+    if stock is None:
+        stock = InventoryStock(branch_id=branch_id, item_id=item_id, quantity=Decimal("0.00"))
+        db.session.add(stock)
+        db.session.flush()
+    return stock
+
+
+def consume_inventory_for_invoice(invoice: Invoice) -> None:
+    if invoice.status == "canceled" or invoice.inventory_consumed_at is not None:
+        return
+
+    usage_by_item: dict[int, Decimal] = {}
+    for item in invoice.items:
+        if not item.service_id:
+            continue
+        usage_rows = ServiceInventoryUsage.query.filter_by(service_id=item.service_id).all()
+        for usage in usage_rows:
+            qty = Decimal(str(item.qty or 0)) * Decimal(str(usage.quantity or 0))
+            if qty <= 0:
+                continue
+            usage_by_item[usage.item_id] = usage_by_item.get(usage.item_id, Decimal("0.00")) + qty
+
+    for item_id, qty in usage_by_item.items():
+        stock = ensure_stock_row(invoice.branch_id, item_id)
+        current_qty = Decimal(str(stock.quantity or 0))
+        stock.quantity = max(current_qty - qty, Decimal("0.00"))
+        db.session.add(
+            InventoryTransaction(
+                branch_id=invoice.branch_id,
+                item_id=item_id,
+                related_invoice_id=invoice.id,
+                type="service_use",
+                quantity=-qty,
+                note=f"Tiêu hao theo hóa đơn {invoice.code}",
+            )
+        )
+
+    if usage_by_item:
+        invoice.inventory_consumed_at = datetime.utcnow()
+
+
+def reverse_inventory_for_invoice(invoice: Invoice) -> None:
+    if invoice.inventory_consumed_at is None:
+        return
+
+    tx_rows = InventoryTransaction.query.filter_by(
+        branch_id=invoice.branch_id,
+        related_invoice_id=invoice.id,
+        type="service_use",
+    ).all()
+    for tx in tx_rows:
+        restore_qty = -Decimal(str(tx.quantity or 0))
+        if restore_qty <= 0:
+            continue
+        stock = ensure_stock_row(invoice.branch_id, tx.item_id)
+        stock.quantity = Decimal(str(stock.quantity or 0)) + restore_qty
+        db.session.add(
+            InventoryTransaction(
+                branch_id=invoice.branch_id,
+                item_id=tx.item_id,
+                related_invoice_id=invoice.id,
+                type="service_use_reversal",
+                quantity=restore_qty,
+                note=f"Hoàn tiêu hao do hủy hóa đơn {invoice.code}",
+            )
+        )
+    invoice.inventory_consumed_at = None
+
+
+def add_column_if_missing(conn, table_name: str, existing_columns: set[str], column_name: str, ddl: str) -> None:
+    if column_name not in existing_columns:
+        conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {ddl}"))
+        existing_columns.add(column_name)
 
 
 def migrate_remove_partial_payment_schema() -> None:
@@ -252,37 +548,24 @@ def migrate_remove_partial_payment_schema() -> None:
     invoice_columns = {col["name"] for col in inspector.get_columns("invoices")}
 
     with db.engine.begin() as conn:
-        if "paid_amount" in invoice_columns:
-            conn.execute(
-                text(
-                    """
-                    UPDATE invoices
-                    SET status = CASE
-                        WHEN status = 'canceled' THEN 'canceled'
-                        ELSE 'paid'
-                    END
-                    WHERE status IS NULL OR status != 'canceled'
-                    """
-                )
-            )
+        add_column_if_missing(conn, "invoices", invoice_columns, "tax_amount", "NUMERIC(12, 2) DEFAULT 0 NOT NULL")
+        add_column_if_missing(conn, "invoices", invoice_columns, "paid_amount", "NUMERIC(12, 2) DEFAULT 0 NOT NULL")
+        add_column_if_missing(conn, "invoices", invoice_columns, "balance_amount", "NUMERIC(12, 2) DEFAULT 0 NOT NULL")
+        add_column_if_missing(conn, "invoices", invoice_columns, "refund_amount", "NUMERIC(12, 2) DEFAULT 0 NOT NULL")
+        add_column_if_missing(conn, "invoices", invoice_columns, "payment_status", "VARCHAR(32) DEFAULT 'paid' NOT NULL")
+        add_column_if_missing(conn, "invoices", invoice_columns, "payment_method", "VARCHAR(32)")
+        add_column_if_missing(conn, "invoices", invoice_columns, "customer_id", "INTEGER")
+        add_column_if_missing(conn, "invoices", invoice_columns, "appointment_id", "INTEGER")
+        add_column_if_missing(conn, "invoices", invoice_columns, "inventory_consumed_at", "DATETIME")
 
-        conn.execute(
-            text(
-                """
-                UPDATE invoices
-                SET status = 'paid'
-                WHERE status IS NULL OR status NOT IN ('paid', 'canceled')
-                """
-            )
-        )
-
-        if "balance_amount" in invoice_columns:
-            conn.execute(text("ALTER TABLE invoices DROP COLUMN balance_amount"))
-        if "paid_amount" in invoice_columns:
-            conn.execute(text("ALTER TABLE invoices DROP COLUMN paid_amount"))
-
-        if "invoice_payments" in table_names:
-            conn.execute(text("DROP TABLE IF EXISTS invoice_payments"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_invoices_customer_id ON invoices(customer_id)"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_invoices_appointment_id ON invoices(appointment_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_invoices_payment_status ON invoices(payment_status)"))
+        conn.execute(text("UPDATE invoices SET tax_amount = COALESCE(tax_amount, 0)"))
+        conn.execute(text("UPDATE invoices SET paid_amount = COALESCE(NULLIF(paid_amount, 0), total_amount) WHERE status = 'paid'"))
+        conn.execute(text("UPDATE invoices SET refund_amount = COALESCE(refund_amount, 0)"))
+        conn.execute(text("UPDATE invoices SET payment_status = 'canceled', balance_amount = 0 WHERE status = 'canceled'"))
+        conn.execute(text("UPDATE invoices SET status = 'paid', payment_status = 'paid', balance_amount = 0 WHERE status != 'canceled'"))
 
 
 def migrate_add_branch_code() -> None:
@@ -462,6 +745,51 @@ def migrate_backfill_user_staff_id() -> None:
                 )
 
 
+def migrate_add_operational_schema() -> None:
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+
+    with db.engine.begin() as conn:
+        if "appointments" in table_names:
+            appointment_columns = {col["name"] for col in inspector.get_columns("appointments")}
+            add_column_if_missing(conn, "appointments", appointment_columns, "customer_id", "INTEGER")
+            add_column_if_missing(conn, "appointments", appointment_columns, "room_id", "INTEGER")
+            add_column_if_missing(conn, "appointments", appointment_columns, "end_time", "VARCHAR(5)")
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_appointments_customer_id ON appointments(customer_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_appointments_room_id ON appointments(room_id)"))
+
+        if "inventory_transactions" in table_names:
+            tx_columns = {col["name"] for col in inspector.get_columns("inventory_transactions")}
+            add_column_if_missing(conn, "inventory_transactions", tx_columns, "related_invoice_id", "INTEGER")
+            add_column_if_missing(conn, "inventory_transactions", tx_columns, "supplier_id", "INTEGER")
+            add_column_if_missing(conn, "inventory_transactions", tx_columns, "source_branch_id", "INTEGER")
+            add_column_if_missing(conn, "inventory_transactions", tx_columns, "target_branch_id", "INTEGER")
+            add_column_if_missing(conn, "inventory_transactions", tx_columns, "lot_code", "VARCHAR(64)")
+            add_column_if_missing(conn, "inventory_transactions", tx_columns, "expiry_date", "DATE")
+            add_column_if_missing(conn, "inventory_transactions", tx_columns, "supplier_name", "VARCHAR(255)")
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_inventory_transactions_related_invoice_id ON inventory_transactions(related_invoice_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_inventory_transactions_supplier_id ON inventory_transactions(supplier_id)"))
+
+        if "inventory_lots" in table_names:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_inventory_lots_unique ON inventory_lots(branch_id, item_id, lot_code)"))
+
+    backfill_customers()
+    backfill_appointment_service_items_and_end_times()
+    backfill_invoice_payments()
+    ensure_room_and_shift_seed()
+    ensure_service_inventory_usage_seed()
+
+
+def migrate_hash_plaintext_passwords() -> None:
+    changed = False
+    for user in User.query.order_by(User.id.asc()).all():
+        if user.password_needs_rehash:
+            user.set_password(user.password_hash or "")
+            changed = True
+    if changed:
+        db.session.commit()
+
+
 def migrate_cleanup_unused_columns() -> None:
     inspector = inspect(db.engine)
     table_names = set(inspector.get_table_names())
@@ -530,6 +858,177 @@ def migrate_normalize_service_prices_and_invoices() -> None:
         if old_subtotal != Decimal(str(invoice.subtotal_amount or 0)):
             changed = True
         if old_total != Decimal(str(invoice.total_amount or 0)):
+            changed = True
+
+    if changed:
+        db.session.commit()
+
+
+def backfill_customers() -> None:
+    changed = False
+
+    for appointment in Appointment.query.order_by(Appointment.id.asc()).all():
+        phone = (appointment.customer_phone or "").strip()
+        if not phone:
+            continue
+        customer = upsert_customer(appointment.branch_id, appointment.customer_name, phone)
+        if appointment.customer_id != customer.id:
+            appointment.customer_id = customer.id
+            changed = True
+
+    for invoice in Invoice.query.order_by(Invoice.id.asc()).all():
+        phone = (invoice.customer_phone or "").strip()
+        name = (invoice.customer_name or "").strip()
+        if not phone or not name:
+            continue
+        customer = upsert_customer(invoice.branch_id, name, phone)
+        if invoice.customer_id != customer.id:
+            invoice.customer_id = customer.id
+            changed = True
+
+    for customer in Customer.query.order_by(Customer.id.asc()).all():
+        sync_customer_stats(customer)
+        changed = True
+
+    if changed:
+        db.session.commit()
+
+
+def backfill_appointment_service_items_and_end_times() -> None:
+    changed = False
+    for appointment in Appointment.query.order_by(Appointment.id.asc()).all():
+        if not appointment.service_items and appointment.service_id:
+            service = db.session.get(Service, appointment.service_id)
+            if service:
+                appointment.service_items.append(
+                    AppointmentServiceItem(
+                        appointment_id=appointment.id,
+                        service_id=service.id,
+                        service_name=service.name,
+                    )
+                )
+                changed = True
+
+        if not appointment.end_time:
+            duration_minutes = 0
+            for service_item in appointment.service_items:
+                if service_item.service:
+                    duration_minutes += int(service_item.service.duration_minutes or 0)
+            if duration_minutes <= 0 and appointment.service:
+                duration_minutes = int(appointment.service.duration_minutes or 60)
+            if appointment.appointment_time:
+                try:
+                    appointment.end_time = add_minutes_to_time(appointment.appointment_time, duration_minutes or 60)
+                    changed = True
+                except ValueError:
+                    pass
+
+    if changed:
+        db.session.commit()
+
+
+def backfill_invoice_payments() -> None:
+    changed = False
+    for invoice in Invoice.query.order_by(Invoice.id.asc()).all():
+        existing_payment = InvoicePayment.query.filter_by(invoice_id=invoice.id).first()
+        if existing_payment is None and invoice.status != "canceled":
+            amount = Decimal(str(invoice.paid_amount or 0))
+            if amount <= 0:
+                amount = Decimal(str(invoice.total_amount or 0))
+            if amount > 0:
+                db.session.add(
+                    InvoicePayment(
+                        invoice_id=invoice.id,
+                        payment_type="payment",
+                        method=invoice.payment_method or "legacy",
+                        amount=amount,
+                        note="Backfill thanh toán từ dữ liệu cũ",
+                        created_by=invoice.last_action_by or "migration",
+                    )
+                )
+                changed = True
+        recalc_invoice(invoice)
+        changed = True
+
+    if changed:
+        db.session.commit()
+
+
+def ensure_room_and_shift_seed() -> None:
+    changed = False
+    for branch in Branch.query.order_by(Branch.id.asc()).all():
+        room_count = Room.query.filter_by(branch_id=branch.id).count()
+        if room_count == 0:
+            for index in range(1, 4):
+                db.session.add(
+                    Room(
+                        branch_id=branch.id,
+                        name=f"Phòng {index}",
+                        room_type="Giường trị liệu",
+                        status="active",
+                    )
+                )
+            changed = True
+
+    if changed:
+        db.session.flush()
+
+    for branch in Branch.query.order_by(Branch.id.asc()).all():
+        fallback_room = Room.query.filter_by(branch_id=branch.id, status="active").order_by(Room.id.asc()).first()
+        if not fallback_room:
+            continue
+        for appointment in Appointment.query.filter_by(branch_id=branch.id).all():
+            if appointment.room_id is None:
+                appointment.room_id = fallback_room.id
+                changed = True
+
+    technician_rows = Staff.query.filter(Staff.status == "active", Staff.title.ilike("%Kỹ thuật viên%")).all()
+    for staff in technician_rows:
+        for weekday in range(7):
+            exists = StaffShift.query.filter_by(staff_id=staff.id, weekday=weekday).first()
+            if exists is None:
+                db.session.add(
+                    StaffShift(
+                        branch_id=staff.branch_id,
+                        staff_id=staff.id,
+                        weekday=weekday,
+                        start_time="08:00",
+                        end_time="21:00",
+                        status="active",
+                    )
+                )
+                changed = True
+
+    if changed:
+        db.session.commit()
+
+
+def ensure_service_inventory_usage_seed() -> None:
+    items = {row.name: row for row in InventoryItem.query.order_by(InventoryItem.id.asc()).all()}
+    if not items:
+        return
+
+    changed = False
+    for service in Service.query.order_by(Service.id.asc()).all():
+        existing = ServiceInventoryUsage.query.filter_by(service_id=service.id).first()
+        if existing:
+            continue
+
+        service_name = (service.name or "").lower()
+        usage_plan: list[tuple[InventoryItem | None, Decimal]] = []
+        if any(keyword in service_name for keyword in ("massage", "body", "cổ vai gáy", "kinh lạc", "thắt lưng")):
+            usage_plan.append((items.get("Tinh dầu massage"), Decimal("1")))
+            usage_plan.append((items.get("Khăn spa"), Decimal("1")))
+        elif any(keyword in service_name for keyword in ("da", "mụn", "peel")):
+            usage_plan.append((items.get("Kem dưỡng da"), Decimal("1")))
+            usage_plan.append((items.get("Khăn spa"), Decimal("1")))
+        elif any(keyword in service_name for keyword in ("gội", "ngâm chân")):
+            usage_plan.append((items.get("Khăn spa"), Decimal("1")))
+
+        for item, qty in usage_plan:
+            if item is None:
+                continue
+            db.session.add(ServiceInventoryUsage(service_id=service.id, item_id=item.id, quantity=qty))
             changed = True
 
     if changed:
@@ -1233,3 +1732,8 @@ def ensure_seed_data() -> None:
             )
 
     db.session.commit()
+    backfill_customers()
+    backfill_appointment_service_items_and_end_times()
+    backfill_invoice_payments()
+    ensure_room_and_shift_seed()
+    ensure_service_inventory_usage_seed()

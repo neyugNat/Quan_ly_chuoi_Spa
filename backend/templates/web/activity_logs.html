@@ -51,12 +51,12 @@
         <tbody class="divide-y divide-spa-50">
           {% for row in rows %}
             <tr class="hover:bg-spa-50/50 transition-colors">
-              <td class="py-3 px-4 text-spa-600">{{ row.created_at.strftime('%d/%m/%Y %H:%M:%S') if row.created_at else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600">{{ fmt_datetime(row.created_at, '%d/%m/%Y %H:%M:%S') }}</td>
               <td class="py-3 px-4 text-spa-800 font-medium">{{ row.action_label or row.action }}</td>
               <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
               <td class="py-3 px-4 text-spa-600">{{ row.actor_username or '-' }}{% if row.actor_role %} ({{ role_label(row.actor_role) }}){% endif %}</td>
               <td class="py-3 px-4 text-spa-600">{{ row.entity_type or '-' }}{% if row.entity_id %} #{{ row.entity_id }}{% endif %}</td>
-              <td class="py-3 px-4 text-spa-600">{{ row.message or '-' }}</td>
+              <td class="py-3 px-4 text-spa-600 max-w-[360px] truncate" {% if row.message %}data-tooltip="{{ row.message|e }}" tabindex="0"{% endif %}>{{ row.message or '-' }}</td>
             </tr>
           {% else %}
             <tr><td colspan="6" class="py-8 text-center text-spa-400">Không có log.</td></tr>

@@ -10,7 +10,9 @@ from backend.models import (
     migrate_add_branch_manager_staff_id,
     migrate_backfill_user_staff_id,
     migrate_cleanup_unused_columns,
+    migrate_add_operational_schema,
     migrate_add_user_staff_id,
+    migrate_hash_plaintext_passwords,
     migrate_remove_partial_payment_schema,
 )
 from backend.web import web_bp
@@ -22,6 +24,8 @@ def run_schema_migrations() -> None:
     migrate_add_user_staff_id()
     migrate_backfill_user_staff_id()
     migrate_remove_partial_payment_schema()
+    migrate_add_operational_schema()
+    migrate_hash_plaintext_passwords()
     migrate_cleanup_unused_columns()
 
 

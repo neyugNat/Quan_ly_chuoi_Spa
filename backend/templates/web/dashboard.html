@@ -165,6 +165,7 @@
         </thead>
         <tbody class="divide-y divide-spa-50">
           {% for row in recent_invoices %}
+            {% set row_status = 'canceled' if row.status == 'canceled' else 'paid' %}
             <tr class="hover:bg-spa-50/50 transition-colors">
               <td class="py-3 px-4 text-spa-800 font-medium">{{ row.code }}</td>
               <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
@@ -172,11 +173,10 @@
               <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(row.total_amount) }}</td>
               <td class="py-3 px-4">
                 <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5
-                  {% if row.status == 'paid' %}bg-emerald-200 text-emerald-800
-                  {% elif row.status == 'pending' %}bg-amber-200 text-amber-800
-                  {% elif row.status in ['cancelled', 'canceled'] %}bg-red-200 text-red-800
+                  {% if row_status == 'paid' %}bg-emerald-200 text-emerald-800
+                  {% elif row_status == 'canceled' %}bg-red-200 text-red-800
                   {% else %}bg-spa-100 text-spa-700{% endif %}">
-                  {{ invoice_status_labels.get(row.status, row.status) }}
+                  {{ invoice_status_labels.get(row_status, row_status) }}
                 </span>
               </td>
             </tr>

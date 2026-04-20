@@ -3,6 +3,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 from backend.extensions import db
+from backend.logs import write_log
 from backend.models import Branch, Invoice, Staff
 from backend.web import (
     list_scope_branches,
@@ -162,11 +163,21 @@ def staff_save():
     row.status = status
     row.start_date = start_date
     try:
+        action_label = "Cập nhật nhân sự" if staff_id else "Tạo nhân sự"
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
         return staff_error("Số điện thoại đã tồn tại trong hệ thống.", branch_id=branch_id)
 
+    write_log(
+        "save_staff",
+        branch_id=row.branch_id,
+        entity_type="staff",
+        entity_id=row.id,
+        message=f"{action_label} {row.full_name}",
+        details={"title": row.title, "status": row.status},
+    )
+    db.session.commit()
     flash("Đã lưu nhân sự.", "success")
     return redirect(url_for("web.staff", branch_id=branch_id))
 
@@ -203,12 +214,26 @@ def staff_delete():
     if has_invoice_ref:
         if row.status != "inactive":
             row.status = "inactive"
+            write_log(
+                "delete_staff",
+                branch_id=row.branch_id,
+                entity_type="staff",
+                entity_id=row.id,
+                message=f"Ngừng hoạt động nhân sự {row.full_name}",
+            )
             db.session.commit()
             flash("Nhân sự đã phát sinh hóa đơn, không thể xóa. Hệ thống chuyển sang ngừng hoạt động.", "success")
         else:
             flash("Nhân sự đã phát sinh hóa đơn nên không thể xóa.", "error")
     else:
         try:
+            write_log(
+                "delete_staff",
+                branch_id=row.branch_id,
+                entity_type="staff",
+                entity_id=row.id,
+                message=f"Xóa nhân sự {row.full_name}",
+            )
             db.session.delete(row)
             db.session.commit()
             flash("Đã xóa nhân sự (chưa phát sinh nghiệp vụ)", "success")

@@ -43,11 +43,11 @@
         <p class="text-2xl font-bold text-spa-800 mt-1">{{ total_invoices }}</p>
       </article>
       <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
-        <p class="text-sm text-spa-500">Số hóa đơn hoàn tất</p>
+        <p class="text-sm text-spa-500">Đã thanh toán</p>
         <p class="text-2xl font-bold text-spa-800 mt-1">{{ paid_count }}</p>
       </article>
       <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
-        <p class="text-sm text-spa-500">Doanh thu hoàn tất</p>
+        <p class="text-sm text-spa-500">Đã thu</p>
         <p class="text-2xl font-bold text-spa-800 mt-1">{{ fmt_money(collected_amount) }}</p>
       </article>
       <article class="bg-spa-50/60 rounded-xl border border-spa-100 p-4">
@@ -94,13 +94,13 @@
   </section>
 
   <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
-    <h3 class="text-lg font-semibold text-spa-800 mb-4">Doanh thu 6 tháng gần nhất</h3>
+    <h3 class="text-lg font-semibold text-spa-800 mb-4">Tiền thu 6 tháng gần nhất</h3>
     <div class="overflow-x-auto">
       <table class="w-full">
         <thead>
           <tr class="border-b-2 border-spa-100">
             <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tháng</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Doanh thu</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Đã thu</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-spa-50">
@@ -118,13 +118,13 @@
   </section>
 
   <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6">
-    <h3 class="text-lg font-semibold text-spa-800 mb-4">Doanh thu theo chi nhánh</h3>
+    <h3 class="text-lg font-semibold text-spa-800 mb-4">Tiền thu theo chi nhánh</h3>
     <div class="overflow-x-auto">
       <table class="w-full">
         <thead>
           <tr class="border-b-2 border-spa-100">
             <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Chi nhánh</th>
-            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Doanh thu</th>
+            <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Đã thu</th>
             <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Số hóa đơn</th>
           </tr>
         </thead>

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 import re
@@ -161,6 +161,24 @@ def fmt_money(value):
     return f"{float(value or 0):,.0f} VND".replace(",", ".")
 
 
+VN_TZ = timezone(timedelta(hours=7))
+
+
+def fmt_datetime(value, pattern: str = "%d/%m/%Y %H:%M:%S") -> str:
+    if not value:
+        return "-"
+
+    if isinstance(value, datetime):
+        dt_value = value
+    else:
+        return "-"
+
+    if dt_value.tzinfo is None:
+        dt_value = dt_value.replace(tzinfo=timezone.utc)
+
+    return dt_value.astimezone(VN_TZ).strftime(pattern)
+
+
 def role_label(role: str) -> str:
     return ROLE_LABELS.get(role, role)
 
@@ -299,6 +317,7 @@ def inject_globals():
         "active_branch_id": getattr(g, "active_branch_id", None),
         "branch_options": branch_rows,
         "fmt_money": fmt_money,
+        "fmt_datetime": fmt_datetime,
         "invoice_status_labels": INVOICE_STATUS_LABELS,
     }
 

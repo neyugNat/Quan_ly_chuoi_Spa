@@ -7,7 +7,9 @@ from backend.logs import write_log
 from backend.models import Staff, User
 from backend.web import (
     ACCOUNT_MANAGED_ROLES,
+    home_endpoint_for_user,
     list_scope_branches,
+    login_required,
     normalize_choice,
     parse_int,
     parse_text,
@@ -53,6 +55,14 @@ def accounts_redirect(message: str, category: str = "error"):
     flash(message, category)
     scope_ids = getattr(g, "scope_branch_ids", [])
     return redirect(url_for("web.accounts", **build_account_filters(scope_ids, use_form_first=True)))
+
+
+def profile_redirect(message: str, category: str = "error"):
+    flash(message, category)
+    next_url = parse_text(request.form.get("next"))
+    if next_url == "/web" or next_url.startswith("/web/"):
+        return redirect(next_url)
+    return redirect(url_for(home_endpoint_for_user(g.web_user)))
 
 
 def find_non_admin_user(user_id: int | None) -> User | None:
@@ -115,7 +125,7 @@ def accounts():
     if filters["filter_branch_id"]:
         rows_query = rows_query.filter(User.branch_id == filters["filter_branch_id"])
 
-    rows = rows_query.order_by(User.id.desc()).all()
+    rows = rows_query.order_by(User.id.asc()).all()
     branch_options = list_scope_branches(scope_ids, order_by="name")
     edit_row = find_non_admin_user(edit_id)
     if edit_id and edit_row is None:
@@ -241,3 +251,33 @@ def accounts_change_password():
     g.web_user.set_password(new_password)
     db.session.commit()
     return accounts_redirect("Đổi mật khẩu thành công.", "success")
+
+
+@web_bp.post("/profile/password")
+@login_required
+def profile_change_password():
+    current_password = request.form.get("current_password") or ""
+    new_password = request.form.get("new_password") or ""
+    confirm_password = request.form.get("confirm_password") or ""
+
+    if g.web_user.is_super_admin or g.web_user.username == "admin":
+        return profile_redirect("Tài khoản admin không đổi mật khẩu tại menu này.")
+    if not g.web_user.verify_password(current_password):
+        return profile_redirect("Mật khẩu hiện tại không đúng.")
+    if len(new_password) < MIN_PASSWORD_LENGTH:
+        return profile_redirect(f"Mật khẩu mới tối thiểu {MIN_PASSWORD_LENGTH} ký tự.")
+    if new_password != confirm_password:
+        return profile_redirect("Xác nhận mật khẩu chưa khớp.")
+    if current_password == new_password:
+        return profile_redirect("Mật khẩu mới phải khác mật khẩu hiện tại.")
+
+    g.web_user.set_password(new_password)
+    write_log(
+        "change_own_password",
+        branch_id=g.web_user.branch_id,
+        entity_type="user",
+        entity_id=g.web_user.id,
+        message=f"Đổi mật khẩu tài khoản {g.web_user.username}",
+    )
+    db.session.commit()
+    return profile_redirect("Đổi mật khẩu thành công.", "success")

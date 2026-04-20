@@ -11,16 +11,16 @@
       <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.total_count }}</p>
     </article>
     <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
-      <p class="text-sm text-spa-500">Số hóa đơn đã hoàn tất</p>
+      <p class="text-sm text-spa-500">Đã thanh toán</p>
       <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.paid_count }}</p>
     </article>
     <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
-      <p class="text-sm text-spa-500">Giá trị đã hoàn tất</p>
+      <p class="text-sm text-spa-500">Tổng tiền hóa đơn</p>
       <p class="text-2xl font-bold text-spa-800 mt-1">{{ fmt_money(kpi.completed_value) }}</p>
     </article>
     <article class="bg-white rounded-2xl shadow-sm border border-spa-100 p-4">
-      <p class="text-sm text-spa-500">Tỷ lệ hóa đơn đã thanh toán</p>
-      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.paid_ratio }}%</p>
+      <p class="text-sm text-spa-500">Đã hủy</p>
+      <p class="text-2xl font-bold text-spa-800 mt-1">{{ kpi.canceled_count }}</p>
     </article>
   </section>
 
@@ -100,17 +100,18 @@
         </thead>
         <tbody class="divide-y divide-spa-50">
           {% for row in invoice_rows %}
+            {% set row_status = 'canceled' if row.status == 'canceled' else 'paid' %}
             <tr class="hover:bg-spa-50/50 transition-colors">
               <td class="py-3 px-4 text-spa-800 font-medium">{{ row.code }}</td>
               <td class="py-3 px-4 text-spa-600">{{ row.branch.name if row.branch else '-' }}</td>
-              <td class="py-3 px-4 text-spa-600">{{ row.customer_name or '-' }}</td>
+              <td class="py-3 px-4 text-spa-600 max-w-[180px] truncate" {% if row.customer_name %}data-tooltip="{{ row.customer_name|e }}" tabindex="0"{% endif %}>{{ row.customer_name or '-' }}</td>
               <td class="py-3 px-4 text-spa-600">{{ row.customer_phone or '-' }}</td>
               <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(row.total_amount) }}</td>
               <td class="py-3 px-4">
-                <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5 {{ invoice_badge.get(row.status, 'bg-spa-100 text-spa-700') }}">{{ invoice_status_labels.get(row.status, row.status) }}</span>
+                <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5 {{ invoice_badge.get(row_status, 'bg-spa-100 text-spa-700') }}">{{ invoice_status_labels.get(row_status, row_status) }}</span>
               </td>
               <td class="py-3 px-4 text-spa-600">{{ row.created_at.strftime('%d/%m/%Y %H:%M') if row.created_at else '-' }}</td>
-              <td class="py-3 px-4 text-spa-600">{{ row.staff.full_name if row.staff else '-' }}</td>
+              <td class="py-3 px-4 text-spa-600 max-w-[180px] truncate" {% if row.staff %}data-tooltip="{{ row.staff.full_name|e }}" tabindex="0"{% endif %}>{{ row.staff.full_name if row.staff else '-' }}</td>
               <td class="py-3 px-4">
                 <a
                   class="px-3 py-1.5 rounded-lg bg-spa-100 text-spa-700 hover:bg-spa-200 text-sm font-medium transition-all"
@@ -143,6 +144,7 @@
   </section>
 
   {% if selected_invoice %}
+    {% set selected_invoice_status = 'canceled' if selected_invoice.status == 'canceled' else 'paid' %}
     <section class="bg-white rounded-2xl shadow-sm border border-spa-100 p-6 mb-6" id="invoice-detail">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h3 class="text-lg font-semibold text-spa-800">Chi tiết hóa đơn {{ selected_invoice.code }}</h3>
@@ -168,6 +170,12 @@
               <td class="py-3 px-4 text-spa-800">{{ selected_invoice.customer_phone or '-' }}</td>
             </tr>
             <tr>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Lịch hẹn</th>
+              <td class="py-3 px-4 text-spa-800">{{ '#' ~ selected_invoice.appointment_id if selected_invoice.appointment_id else '-' }}</td>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Phương thức gần nhất</th>
+              <td class="py-3 px-4 text-spa-800">{{ selected_invoice.payment_method or '-' }}</td>
+            </tr>
+            <tr>
               <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Nhân sự phụ trách</th>
               <td class="py-3 px-4 text-spa-800">{{ selected_invoice.staff.full_name if selected_invoice.staff else '-' }}</td>
               <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tạo lúc</th>
@@ -176,13 +184,18 @@
             <tr>
               <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tổng tiền</th>
               <td class="py-3 px-4 text-spa-800">{{ fmt_money(selected_invoice.total_amount) }}</td>
-              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tạm tính / Giảm giá</th>
-              <td class="py-3 px-4 text-spa-800">{{ fmt_money(selected_invoice.subtotal_amount) }} / {{ fmt_money(selected_invoice.discount_amount) }}</td>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tạm tính dịch vụ</th>
+              <td class="py-3 px-4 text-spa-800">{{ fmt_money(selected_invoice.subtotal_amount) }}</td>
+            </tr>
+            <tr>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Đã hoàn</th>
+              <td class="py-3 px-4 text-spa-800">{{ fmt_money(selected_invoice.refund_amount) }}</td>
+              <td class="py-3 px-4 text-spa-800" colspan="2"></td>
             </tr>
             <tr>
               <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Trạng thái</th>
               <td class="py-3 px-4">
-                <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5 {{ invoice_badge.get(selected_invoice.status, 'bg-spa-100 text-spa-700') }}">{{ invoice_status_labels.get(selected_invoice.status, selected_invoice.status) }}</span>
+                <span class="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-xs font-medium leading-5 {{ invoice_badge.get(selected_invoice_status, 'bg-spa-100 text-spa-700') }}">{{ invoice_status_labels.get(selected_invoice_status, selected_invoice_status) }}</span>
               </td>
               <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Tài khoản thao tác cuối</th>
               <td class="py-3 px-4 text-spa-800">{{ selected_invoice.last_action_by or '-' }}</td>
@@ -204,7 +217,7 @@
           <tbody class="divide-y divide-spa-50">
             {% for item in selected_invoice.items %}
               <tr>
-                <td class="py-3 px-4 text-spa-800">{{ item.service_name }}</td>
+                <td class="py-3 px-4 text-spa-800 max-w-[260px] truncate" data-tooltip="{{ item.service_name|e }}" tabindex="0">{{ item.service_name }}</td>
                 <td class="py-3 px-4 text-spa-600">{{ item.qty|int }}</td>
                 <td class="py-3 px-4 text-spa-600">{{ fmt_money(item.unit_price) }}</td>
                 <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(item.line_total) }}</td>
@@ -216,14 +229,47 @@
         </table>
       </div>
 
+      <div class="overflow-x-auto mb-3">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b-2 border-spa-100">
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Thời gian</th>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Loại</th>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Phương thức</th>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Số tiền</th>
+              <th class="text-left py-3 px-4 text-sm font-semibold text-spa-600">Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-spa-50">
+            {% for payment in selected_invoice.payments %}
+              <tr>
+                <td class="py-3 px-4 text-spa-600">{{ payment.created_at.strftime('%d/%m/%Y %H:%M') if payment.created_at else '-' }}</td>
+                <td class="py-3 px-4 text-spa-600">{{ 'Hoàn tiền' if payment.payment_type == 'refund' else 'Thanh toán' }}</td>
+                <td class="py-3 px-4 text-spa-600">{{ payment.method }}</td>
+                <td class="py-3 px-4 text-spa-800 font-medium">{{ fmt_money(payment.amount) }}</td>
+                <td class="py-3 px-4 text-spa-600 max-w-[220px] truncate" {% if payment.note %}data-tooltip="{{ payment.note|e }}" tabindex="0"{% endif %}>{{ payment.note or '-' }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="py-8 text-center text-spa-400">Chưa có giao dịch thanh toán.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
       {% if selected_invoice.status == 'canceled' %}
         <p class="text-sm text-spa-500 mb-2">
-          Lý do hủy: {{ selected_invoice.canceled_reason or '-' }}
+          Lý do hủy:
+          <span class="inline-block max-w-[520px] truncate align-bottom" {% if selected_invoice.canceled_reason %}data-tooltip="{{ selected_invoice.canceled_reason|e }}" tabindex="0"{% endif %}>{{ selected_invoice.canceled_reason or '-' }}</span>
           | Thời gian hủy: {{ selected_invoice.canceled_at.strftime('%d/%m/%Y %H:%M') if selected_invoice.canceled_at else '-' }}
         </p>
       {% endif %}
 
-      {% if selected_invoice.note %}<p class="text-sm text-spa-500">Ghi chú hóa đơn: {{ selected_invoice.note }}</p>{% endif %}
+      {% if selected_invoice.note %}
+        <p class="text-sm text-spa-500">
+          Ghi chú hóa đơn:
+          <span class="inline-block max-w-[720px] truncate align-bottom" data-tooltip="{{ selected_invoice.note|e }}" tabindex="0">{{ selected_invoice.note }}</span>
+        </p>
+      {% endif %}
     </section>
   {% endif %}
 
@@ -234,34 +280,82 @@
 
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {% if can_create_invoice %}
-          <article class="rounded-xl border border-spa-200 bg-spa-50/40 p-4">
-            <h4 class="text-spa-800 font-semibold mb-3">Tạo hóa đơn</h4>
-            <form method="post" action="{{ url_for('web.invoices_create') }}" class="grid gap-3">
-              <input type="text" name="customer_name" placeholder="Tên khách" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
-              <input type="text" name="customer_phone" placeholder="SĐT khách" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
-
-              {% if can_select_staff %}
-                <select name="staff_id" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
-                  <option value="" selected disabled>Chọn nhân sự phụ trách</option>
-                  {% for staff in staff_rows %}
-                    <option value="{{ staff.id }}">{{ staff.full_name }} - NV{{ staff.id }}</option>
-                  {% endfor %}
-                </select>
-              {% else %}
-                <input type="hidden" name="staff_id" value="{{ operator_staff.id if operator_staff else '' }}">
-                <input type="text" value="{{ operator_staff_label }}" disabled class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-spa-50 text-spa-600">
+          {% set source_total = namespace(value=0) %}
+          {% if source_appointment %}
+            {% for service_item in source_appointment.service_items %}
+              {% if service_item.service %}
+                {% set source_total.value = source_total.value + service_item.service.price %}
+              {% endif %}
+            {% endfor %}
+            {% if source_total.value == 0 and source_appointment.service %}
+              {% set source_total.value = source_appointment.service.price %}
+            {% endif %}
+          {% endif %}
+          <article class="rounded-xl border border-spa-200 bg-spa-50/40 p-4" id="invoice-create">
+            <h4 class="text-spa-800 font-semibold">Tạo hóa đơn</h4>
+            <p class="text-sm text-spa-500 mb-4">Nhập thông tin khách, dịch vụ và phương thức thanh toán.</p>
+            <form method="post" action="{{ url_for('web.invoices_create') }}" class="grid gap-4">
+              {% if source_appointment %}
+                <input type="hidden" name="appointment_id" value="{{ source_appointment.id }}">
+                <div class="px-4 py-3 rounded-xl border border-sage-200 bg-sage-50 text-sage-700 text-sm font-medium">
+                  Tạo từ lịch hẹn #{{ source_appointment.id }} - {{ source_appointment.appointment_date.strftime('%d/%m/%Y') if source_appointment.appointment_date else '' }} {{ source_appointment.appointment_time }}
+                </div>
               {% endif %}
 
-              <div id="invoice-service-lines" class="grid gap-3">
-                <div class="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3 invoice-service-line">
-                  <select name="service_id[]" required data-service-select class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
-                    <option value="">Chọn dịch vụ</option>
-                    {% for service in service_rows %}
-                      <option value="{{ service.id }}" data-price="{{ service.price }}">{{ service.name }} - {{ fmt_money(service.price) }}</option>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-medium text-spa-600 mb-2">Tên khách</label>
+                  <input type="text" name="customer_name" value="{{ source_appointment.customer_name if source_appointment else '' }}" {% if source_appointment %}readonly{% endif %} required
+                    class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-spa-600 mb-2">SĐT khách</label>
+                  <input type="text" name="customer_phone" value="{{ source_appointment.customer_phone if source_appointment else '' }}" {% if source_appointment %}readonly{% endif %} required
+                    class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                </div>
+              </div>
+
+              {% if can_select_staff %}
+                <div>
+                  <label class="block text-sm font-medium text-spa-600 mb-2">Nhân sự phụ trách</label>
+                  <select name="staff_id" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                    <option value="" selected disabled>Chọn nhân sự phụ trách</option>
+                    {% for staff in staff_rows %}
+                      <option value="{{ staff.id }}">{{ staff.full_name }} - NV{{ staff.id }}</option>
                     {% endfor %}
                   </select>
-                  <input type="number" name="qty[]" min="1" step="1" value="1" required data-qty-input class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
                 </div>
+              {% else %}
+                <input type="hidden" name="staff_id" value="{{ operator_staff.id if operator_staff else '' }}">
+                <div>
+                  <label class="block text-sm font-medium text-spa-600 mb-2">Nhân sự phụ trách</label>
+                  <input type="text" value="{{ operator_staff_label }}" disabled class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-spa-50 text-spa-600">
+                </div>
+              {% endif %}
+
+              <div>
+                <label class="block text-sm font-medium text-spa-600 mb-2">Dịch vụ</label>
+              {% if source_appointment %}
+                <div class="grid gap-2">
+                  {% for service_item in source_appointment.service_items %}
+                    <div class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 font-medium">{{ service_item.service_name }}</div>
+                  {% else %}
+                    <div class="px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 font-medium">{{ source_appointment.service.name if source_appointment.service else 'Dịch vụ lịch hẹn' }}</div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div id="invoice-service-lines" class="grid gap-3">
+                  <div class="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3 invoice-service-line">
+                    <select name="service_id[]" required data-service-select class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                      <option value="">Chọn dịch vụ</option>
+                      {% for service in service_rows %}
+                        <option value="{{ service.id }}" data-price="{{ service.price }}">{{ service.name }} - {{ fmt_money(service.price) }}</option>
+                      {% endfor %}
+                    </select>
+                    <input type="number" name="qty[]" min="1" step="1" value="1" required data-qty-input class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                  </div>
+                </div>
+              {% endif %}
               </div>
 
               <template id="invoice-service-line-template">
@@ -276,22 +370,80 @@
                 </div>
               </template>
 
-              <button type="button" id="add-service-line" class="w-fit px-4 py-2 rounded-lg border border-spa-200 bg-white text-spa-700 hover:bg-spa-50 transition-all">Thêm dịch vụ</button>
+              {% if not source_appointment %}
+                <button type="button" id="add-service-line" class="w-fit px-4 py-2 rounded-lg border border-spa-200 bg-white text-spa-700 hover:bg-spa-50 transition-all">Thêm dịch vụ</button>
+              {% endif %}
 
-              <input type="hidden" name="discount_amount" value="0">
-              <div id="invoice-total-display" class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-400">Thành tiền</div>
-              <input type="text" name="note" placeholder="Ghi chú hóa đơn" class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              <div class="grid grid-cols-1 gap-3">
+                <div>
+                  <label class="block text-sm font-medium text-spa-600 mb-2">Phương thức</label>
+                  <select name="payment_method" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                    <option value="cash">Tiền mặt</option>
+                    <option value="card">Thẻ</option>
+                    <option value="transfer">Chuyển khoản</option>
+                    <option value="wallet">Ví điện tử</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-spa-600 mb-2">Tạm tính dịch vụ</label>
+                <div id="invoice-total-display" class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white {% if source_appointment %}text-spa-700 font-medium{% else %}text-spa-400{% endif %}">
+                  {{ fmt_money(source_total.value) if source_appointment else 'Chưa chọn dịch vụ' }}
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-spa-600 mb-2">Ghi chú</label>
+                <input type="text" name="note" class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              </div>
+
               <button type="submit" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-spa-600 to-sage-600 text-white font-medium hover:from-spa-700 hover:to-sage-700 transition-all">Tạo hóa đơn</button>
+            </form>
+          </article>
+        {% endif %}
+
+        {% if selected_invoice and can_void_invoice and selected_invoice.status not in ['canceled'] and selected_invoice.paid_amount > 0 %}
+          <article class="rounded-xl border border-spa-200 bg-spa-50/40 p-4">
+            <h4 class="text-spa-800 font-semibold">Hoàn tiền {{ selected_invoice.code }}</h4>
+            <p class="text-sm text-spa-500 mb-4">Số tiền thanh toán: {{ fmt_money(selected_invoice.paid_amount) }}</p>
+            <form method="post" action="{{ url_for('web.invoices_refund') }}" class="grid gap-3">
+              <input type="hidden" name="invoice_id" value="{{ selected_invoice.id }}">
+              <div>
+                <label class="block text-sm font-medium text-spa-600 mb-2">Số tiền hoàn</label>
+                <input type="number" name="amount" min="1000" step="1000" max="{{ selected_invoice.paid_amount|int }}" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-spa-600 mb-2">Phương thức</label>
+                <select name="method" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+                  <option value="cash">Tiền mặt</option>
+                  <option value="card">Thẻ</option>
+                  <option value="transfer">Chuyển khoản</option>
+                  <option value="wallet">Ví điện tử</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-spa-600 mb-2">Lý do hoàn tiền</label>
+                <input type="text" name="note" class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              </div>
+              <button type="submit" class="px-5 py-2.5 rounded-xl bg-sky-600 text-white font-medium hover:bg-sky-700 transition-all">Ghi nhận hoàn tiền</button>
             </form>
           </article>
         {% endif %}
 
         {% if can_void_invoice %}
           <article class="rounded-xl border border-spa-200 bg-spa-50/40 p-4">
-            <h4 class="text-spa-800 font-semibold mb-3">Hủy hóa đơn</h4>
+            <h4 class="text-spa-800 font-semibold">Hủy hóa đơn</h4>
+            <p class="text-sm text-spa-500 mb-4">Chỉ quản lý chi nhánh được hủy hóa đơn.</p>
             <form method="post" action="{{ url_for('web.invoices_void') }}" class="grid gap-3">
-              <input type="number" name="invoice_id" placeholder="ID hóa đơn" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
-              <input type="text" name="cancel_reason" placeholder="Lý do hủy" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              <div>
+                <label class="block text-sm font-medium text-spa-600 mb-2">ID hóa đơn</label>
+                <input type="number" name="invoice_id" value="{{ selected_invoice.id if selected_invoice and selected_invoice.status != 'canceled' else '' }}" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-spa-600 mb-2">Lý do hủy</label>
+                <input type="text" name="cancel_reason" required class="w-full px-4 py-2.5 rounded-xl border border-spa-200 bg-white text-spa-700 placeholder-spa-400 focus:border-spa-400 focus:ring-4 focus:ring-spa-100 outline-none transition-all">
+              </div>
               <button type="submit" class="px-5 py-2.5 rounded-xl bg-rose-600 text-white font-medium hover:bg-rose-700 transition-all">Hủy hóa đơn</button>
             </form>
           </article>

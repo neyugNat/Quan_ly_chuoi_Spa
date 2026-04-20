@@ -11,11 +11,21 @@ from backend.models import ActivityLog
 
 ACTION_LABELS = {
     "create_invoice": "Tạo hóa đơn",
+    "add_invoice_payment": "Ghi nhận thanh toán",
+    "refund_invoice": "Hoàn tiền hóa đơn",
     "cancel_invoice": "Hủy hóa đơn",
     "create_appointment": "Tạo lịch hẹn",
+    "complete_appointment": "Hoàn thành lịch hẹn",
     "cancel_appointment": "Hủy lịch hẹn",
     "update_inventory_stock": "Sửa kho",
+    "inventory_transaction": "Giao dịch kho",
+    "transfer_inventory": "Chuyển kho",
+    "save_staff": "Lưu nhân sự",
+    "delete_staff": "Xóa nhân sự",
+    "save_service": "Lưu dịch vụ",
+    "delete_service": "Xóa dịch vụ",
     "create_account": "Tạo tài khoản",
+    "change_own_password": "Đổi mật khẩu cá nhân",
     "change_branch_manager": "Đổi quản lý chi nhánh",
 }
 

@@ -1,5 +1,6 @@
 from flask import flash, g, redirect, render_template, request, session, url_for
 
+from backend.extensions import db
 from backend.models import User
 from backend.web import home_endpoint_for_user, login_required, parse_text, web_bp
 
@@ -28,6 +29,10 @@ def login():
     if not user or not user.verify_password(password):
         flash("Thông tin đăng nhập không đúng.", "error")
         return render_template("web/login.html"), 401
+
+    if user.password_needs_rehash:
+        user.set_password(password)
+        db.session.commit()
 
     session["web_user_id"] = user.id
     if user.branch_id:
